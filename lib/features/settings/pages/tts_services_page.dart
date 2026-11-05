@@ -6,10 +6,12 @@ import '../../../core/providers/tts_provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../utils/brand_assets.dart';
 import '../../../core/services/tts/network_tts.dart';
+import '../../../core/services/tts/sherpa_tts_model_manager.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tile_button.dart';
+import '../../../shared/widgets/ios_text_button.dart';
 import '../../../core/services/haptics.dart';
 import 'tts_settings_page.dart';
 import '../widgets/asr_services_section.dart';
@@ -884,6 +886,11 @@ class _NetworkTtsEditorPageState extends State<_NetworkTtsEditorPage> {
   late bool _stream;
   late bool _optimizeTextPreview;
 
+  final SherpaTtsModelManager _ttsModelManager = SherpaTtsModelManager();
+  Map<String, SherpaTtsInstallStatus> _modelStatuses = {};
+  final Map<String, double> _downloadPercentages = {};
+  final Map<String, bool> _downloadingModels = {};
+
   bool get _isMimoVoiceDesign =>
       _kind == NetworkTtsKind.mimo &&
       _modelCtl.text.trim() == 'mimo-v2.5-tts-voicedesign';
@@ -1005,6 +1012,9 @@ class _NetworkTtsEditorPageState extends State<_NetworkTtsEditorPage> {
     _optimizeTextPreview = initial is MimoTtsOptions
         ? initial.optimizeTextPreview
         : false;
+    if (_kind == NetworkTtsKind.sherpaOnnx) {
+      _loadModelStatuses();
+    }
   }
 
   @override
@@ -1105,40 +1115,42 @@ class _NetworkTtsEditorPageState extends State<_NetworkTtsEditorPage> {
                           controller: _nameCtl,
                           hint: networkTtsKindDisplayName(_kind),
                         ),
-                        _TtsEditorTextField(
-                          label: l10n.ttsServicesFieldApiKeyLabel,
-                          controller: _apiKeyCtl,
-                          obscure: true,
-                        ),
-                        _TtsEditorTextField(
-                          label: _kind == NetworkTtsKind.qwenAudio
-                              ? l10n.ttsServicesFieldWorkspaceIdLabel
-                              : l10n.ttsServicesFieldBaseUrlLabel,
-                          controller: _baseCtl,
-                          hint: _kind == NetworkTtsKind.qwenAudio
-                              ? null
-                              : _kind == NetworkTtsKind.azure
-                              ? 'https://<region>.tts.speech.microsoft.com'
-                              : _defaultBaseUrl(_kind),
-                        ),
-                        if (_kind != NetworkTtsKind.xai &&
-                            _kind != NetworkTtsKind.azure)
+                        if (_kind != NetworkTtsKind.sherpaOnnx) ...[
                           _TtsEditorTextField(
-                            label: l10n.ttsServicesFieldModelLabel,
-                            controller: _modelCtl,
-                            hint: _defaultModel(_kind),
-                            onChanged: _kind == NetworkTtsKind.mimo
-                                ? (_) => setState(() {})
-                                : null,
+                            label: l10n.ttsServicesFieldApiKeyLabel,
+                            controller: _apiKeyCtl,
+                            obscure: true,
                           ),
-                        if (!_isMimoVoiceDesign)
                           _TtsEditorTextField(
-                            label: _isMimoVoiceClone
-                                ? l10n.ttsServicesFieldReferenceAudioLabel
-                                : _voiceLabelFor(_kind, l10n),
-                            controller: _voiceCtl,
-                            hint: _defaultVoice(_kind),
+                            label: _kind == NetworkTtsKind.qwenAudio
+                                ? l10n.ttsServicesFieldWorkspaceIdLabel
+                                : l10n.ttsServicesFieldBaseUrlLabel,
+                            controller: _baseCtl,
+                            hint: _kind == NetworkTtsKind.qwenAudio
+                                ? null
+                                : _kind == NetworkTtsKind.azure
+                                ? 'https://<region>.tts.speech.microsoft.com'
+                                : _defaultBaseUrl(_kind),
                           ),
+                          if (_kind != NetworkTtsKind.xai &&
+                              _kind != NetworkTtsKind.azure)
+                            _TtsEditorTextField(
+                              label: l10n.ttsServicesFieldModelLabel,
+                              controller: _modelCtl,
+                              hint: _defaultModel(_kind),
+                              onChanged: _kind == NetworkTtsKind.mimo
+                                  ? (_) => setState(() {})
+                                  : null,
+                            ),
+                          if (!_isMimoVoiceDesign)
+                            _TtsEditorTextField(
+                              label: _isMimoVoiceClone
+                                  ? l10n.ttsServicesFieldReferenceAudioLabel
+                                  : _voiceLabelFor(_kind, l10n),
+                              controller: _voiceCtl,
+                              hint: _defaultVoice(_kind),
+                            ),
+                        ],
                         if (_isMimoVoiceClone)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
@@ -1385,6 +1397,25 @@ class _NetworkTtsEditorPageState extends State<_NetworkTtsEditorPage> {
                         ],
                       ],
                     ),
+                    if (_kind == NetworkTtsKind.sherpaOnnx) ...[
+                      const SizedBox(height: 12),
+                      _header(context, 'On-Device Voice Models'),
+                      SectionCard(
+                        children: [
+                          for (
+                            var i = 0;
+                            i < _ttsModelManager.catalog.length;
+                            i++
+                          ) ...[
+                            if (i > 0) _iosDivider(context),
+                            _buildSherpaModelTile(
+                              _ttsModelManager.catalog[i],
+                              cs,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1412,7 +1443,7 @@ class _NetworkTtsEditorPageState extends State<_NetworkTtsEditorPage> {
 
   void _submit() {
     final l10n = AppLocalizations.of(context)!;
-    if (_apiKeyCtl.text.trim().isEmpty) {
+    if (_kind != NetworkTtsKind.sherpaOnnx && _apiKeyCtl.text.trim().isEmpty) {
       showAppSnackBar(
         context,
         message: l10n.ttsServicesValidationApiKeyRequired,
@@ -1515,7 +1546,241 @@ class _NetworkTtsEditorPageState extends State<_NetworkTtsEditorPage> {
     _subtitleEnable = false;
     _stream = true;
     _optimizeTextPreview = false;
+    if (kind == NetworkTtsKind.sherpaOnnx) {
+      _loadModelStatuses();
+    }
     if (mounted) setState(() {});
+  }
+
+  Future<void> _loadModelStatuses() async {
+    final statuses = <String, SherpaTtsInstallStatus>{};
+    for (final model in _ttsModelManager.catalog) {
+      statuses[model.id] = await _ttsModelManager.status(model.id);
+    }
+    if (mounted) {
+      setState(() => _modelStatuses = statuses);
+    }
+  }
+
+  Future<void> _downloadModel(SherpaTtsModelDefinition model) async {
+    if (_downloadingModels[model.id] == true) return;
+    setState(() {
+      _downloadingModels[model.id] = true;
+      _downloadPercentages[model.id] = 0.0;
+    });
+
+    try {
+      await _ttsModelManager.downloadModel(
+        model.id,
+        onProgress: (p) {
+          if (mounted) {
+            setState(() {
+              _downloadPercentages[model.id] = p.progress ?? 0.0;
+            });
+          }
+        },
+      );
+      if (mounted) {
+        showAppSnackBar(
+          context,
+          message: '${model.name} downloaded successfully',
+          type: NotificationType.success,
+        );
+        _modelCtl.text = model.id;
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppSnackBar(
+          context,
+          message: 'Download failed: $e',
+          type: NotificationType.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadingModels.remove(model.id);
+          _downloadPercentages.remove(model.id);
+        });
+        _loadModelStatuses();
+      }
+    }
+  }
+
+  Future<void> _deleteModel(SherpaTtsModelDefinition model) async {
+    try {
+      await _ttsModelManager.deleteModel(model.id);
+      if (mounted) {
+        showAppSnackBar(
+          context,
+          message: '${model.name} deleted',
+          type: NotificationType.info,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppSnackBar(
+          context,
+          message: 'Delete failed: $e',
+          type: NotificationType.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        _loadModelStatuses();
+      }
+    }
+  }
+
+  Widget _buildSherpaModelTile(SherpaTtsModelDefinition model, ColorScheme cs) {
+    final status = _modelStatuses[model.id];
+    final isDownloading = _downloadingModels[model.id] == true;
+    final progress = _downloadPercentages[model.id] ?? 0.0;
+    final isInstalled = status?.isInstalled ?? false;
+    final isSelected = _modelCtl.text == model.id;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isInstalled
+                      ? const Color(0xFF22C55E).withValues(alpha: 0.15)
+                      : cs.onSurface.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isInstalled ? Lucide.Check : Lucide.Volume2,
+                  size: 18,
+                  color: isInstalled
+                      ? const Color(0xFF22C55E)
+                      : cs.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            model.name,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: AppFontWeights.emphasis,
+                              color: cs.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isSelected) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cs.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Active',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: cs.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_formatBytes(model.downloadBytes)} · ${isDownloading
+                          ? "Downloading ${(progress * 100).toInt()}%"
+                          : isInstalled
+                          ? "Downloaded"
+                          : "Not Downloaded"}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDownloading
+                            ? cs.primary
+                            : isInstalled
+                            ? const Color(0xFF22C55E)
+                            : cs.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (model.description.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              model.description,
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.65),
+              ),
+            ),
+          ],
+          if (isDownloading) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: progress > 0 ? progress : null,
+              backgroundColor: cs.onSurface.withValues(alpha: 0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (!isInstalled && !isDownloading)
+                IosTextButton(
+                  label: 'Download',
+                  icon: Lucide.Download,
+                  fontSize: 12,
+                  onPressed: () => _downloadModel(model),
+                ),
+              if (isInstalled) ...[
+                if (!isSelected)
+                  IosTextButton(
+                    label: 'Use Model',
+                    icon: Lucide.Check,
+                    fontSize: 12,
+                    onPressed: () {
+                      Haptics.light();
+                      setState(() {
+                        _modelCtl.text = model.id;
+                      });
+                    },
+                  ),
+                const SizedBox(width: 8),
+                IosTextButton(
+                  label: 'Delete',
+                  icon: Lucide.Trash2,
+                  fontSize: 12,
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                  onPressed: () => _deleteModel(model),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   TtsServiceOptions _buildOptions() {
@@ -2436,4 +2701,9 @@ String _voiceLabelFor(NetworkTtsKind k, AppLocalizations l10n) {
     case NetworkTtsKind.sherpaOnnx:
       return 'Model';
   }
+}
+
+String _formatBytes(int bytes) {
+  final mb = bytes / (1024 * 1024);
+  return '${mb.toStringAsFixed(1)} MB';
 }

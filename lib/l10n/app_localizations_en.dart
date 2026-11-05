@@ -89,6 +89,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPageProviders => 'Providers';
 
   @override
+  String get settingsPageConnectors => 'Connectors';
+
+  @override
   String get settingsPageHotkeys => 'Hotkeys';
 
   @override

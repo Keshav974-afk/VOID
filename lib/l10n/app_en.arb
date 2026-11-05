@@ -29,6 +29,7 @@
   "settingsPageModelsServicesSection": "Models & Services",
   "settingsPageDefaultModel": "Default Model",
   "settingsPageProviders": "Providers",
+  "settingsPageConnectors": "Connectors",
   "settingsPageHotkeys": "Hotkeys",
   "settingsPageSearch": "Search",
   "settingsPageTts": "TTS",

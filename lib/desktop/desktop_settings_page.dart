@@ -102,6 +102,7 @@ import 'package:Kelivo/theme/app_semantic_colors.dart';
 import '../theme/custom_theme.dart';
 import '../features/settings/widgets/custom_theme_widgets.dart';
 import '../features/settings/pages/message_style_settings_page.dart';
+import '../features/settings/pages/connectors_page.dart';
 import '../shared/widgets/tip_icon.dart';
 
 part 'setting/assistants_pane.dart';
@@ -124,6 +125,7 @@ enum _SettingsMenuItem {
   display,
   assistant,
   providers,
+  connectors,
   defaultModel,
   search,
   toolSchemas,
@@ -325,6 +327,10 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                             key: const ValueKey('providers'),
                             initialSelectedKey: widget.initialProviderKey,
                           );
+                        case _SettingsMenuItem.connectors:
+                          return const ConnectorsPage(
+                            key: ValueKey('connectors'),
+                          );
                         case _SettingsMenuItem.defaultModel:
                           return const DesktopDefaultModelPane(
                             key: ValueKey('defaultModel'),
@@ -429,6 +435,11 @@ class _SettingsMenu extends StatelessWidget {
         _SettingsMenuItem.providers,
         lucide.Lucide.Boxes,
         l10n.settingsPageProviders,
+      ),
+      (
+        _SettingsMenuItem.connectors,
+        lucide.Lucide.Link2,
+        l10n.settingsPageConnectors,
       ),
       (
         _SettingsMenuItem.assistant,

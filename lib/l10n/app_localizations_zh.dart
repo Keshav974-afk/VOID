@@ -80,6 +80,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPageProviders => '供应商';
 
   @override
+  String get settingsPageConnectors => 'Connectors';
+
+  @override
   String get settingsPageHotkeys => '快捷键';
 
   @override

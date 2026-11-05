@@ -1172,9 +1172,6 @@ Future<TtsServiceOptions?> _showNetworkDialog(
                               value: networkTtsKindDisplayName(kind),
                               options: [
                                 networkTtsKindDisplayName(
-                                  NetworkTtsKind.sherpaOnnx,
-                                ),
-                                networkTtsKindDisplayName(
                                   NetworkTtsKind.openai,
                                 ),
                                 networkTtsKindDisplayName(
@@ -1197,6 +1194,9 @@ Future<TtsServiceOptions?> _showNetworkDialog(
                                 networkTtsKindDisplayName(NetworkTtsKind.step),
                                 networkTtsKindDisplayName(
                                   NetworkTtsKind.fishAudio,
+                                ),
+                                networkTtsKindDisplayName(
+                                  NetworkTtsKind.sherpaOnnx,
                                 ),
                               ],
                               onSelected: (picked) {
@@ -1328,24 +1328,26 @@ Future<TtsServiceOptions?> _showNetworkDialog(
                               controller: nameCtl,
                               hint: networkTtsKindDisplayName(kind),
                             ),
-                            const SizedBox(height: 6),
-                            _InputRow(
-                              label: l10n.ttsServicesFieldApiKeyLabel,
-                              controller: apiKeyCtl,
-                              obscure: true,
-                            ),
-                            const SizedBox(height: 6),
-                            _InputRow(
-                              label: kind == NetworkTtsKind.qwenAudio
-                                  ? l10n.ttsServicesFieldWorkspaceIdLabel
-                                  : l10n.ttsServicesFieldBaseUrlLabel,
-                              controller: baseCtl,
-                              hint: kind == NetworkTtsKind.qwenAudio
-                                  ? null
-                                  : kind == NetworkTtsKind.azure
-                                  ? 'https://<region>.tts.speech.microsoft.com'
-                                  : _defaultBaseUrl(kind),
-                            ),
+                            if (kind != NetworkTtsKind.sherpaOnnx) ...[
+                              const SizedBox(height: 6),
+                              _InputRow(
+                                label: l10n.ttsServicesFieldApiKeyLabel,
+                                controller: apiKeyCtl,
+                                obscure: true,
+                              ),
+                              const SizedBox(height: 6),
+                              _InputRow(
+                                label: kind == NetworkTtsKind.qwenAudio
+                                    ? l10n.ttsServicesFieldWorkspaceIdLabel
+                                    : l10n.ttsServicesFieldBaseUrlLabel,
+                                controller: baseCtl,
+                                hint: kind == NetworkTtsKind.qwenAudio
+                                    ? null
+                                    : kind == NetworkTtsKind.azure
+                                    ? 'https://<region>.tts.speech.microsoft.com'
+                                    : _defaultBaseUrl(kind),
+                              ),
+                            ],
                             const SizedBox(height: 6),
                             if (kind != NetworkTtsKind.xai &&
                                 kind != NetworkTtsKind.azure) ...[
@@ -1676,7 +1678,8 @@ Future<TtsServiceOptions?> _showNetworkDialog(
                               final voice = rawVoice.isEmpty
                                   ? _defaultVoice(kind)
                                   : rawVoice;
-                              if (apiKey.isEmpty ||
+                              if ((kind != NetworkTtsKind.sherpaOnnx &&
+                                      apiKey.isEmpty) ||
                                   (kind == NetworkTtsKind.azure &&
                                       !isValidAzureTtsEndpoint(base))) {
                                 return;

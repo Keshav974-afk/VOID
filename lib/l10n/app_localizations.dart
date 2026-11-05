@@ -238,6 +238,12 @@ abstract class AppLocalizations {
   /// **'Providers'**
   String get settingsPageProviders;
 
+  /// No description provided for @settingsPageConnectors.
+  ///
+  /// In en, this message translates to:
+  /// **'Connectors'**
+  String get settingsPageConnectors;
+
   /// No description provided for @settingsPageHotkeys.
   ///
   /// In en, this message translates to:
