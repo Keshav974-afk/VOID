@@ -7,14 +7,18 @@ import '../../utils/app_directories.dart';
 
 class UserProvider extends ChangeNotifier {
   static const String _prefsUserNameKey = 'user_name';
+  static const String _prefsUserEmailKey = 'user_email';
   static const String _prefsAvatarTypeKey =
       'avatar_type'; // emoji | url | file | null
   static const String _prefsAvatarValueKey = 'avatar_value';
 
   final BusinessPreferences preferences;
-  String _name = 'User';
-  String get name => _name;
+  String _name = '';
+  String get name => _name.isNotEmpty ? _name : 'User';
   bool _hasSavedName = false;
+
+  String _email = '';
+  String get email => _email;
 
   String? _avatarType; // 'emoji', 'url', 'file'
   String? _avatarValue;
@@ -31,6 +35,11 @@ class UserProvider extends ChangeNotifier {
     if (n != null && n.isNotEmpty) {
       _name = n;
       _hasSavedName = true;
+      notifyListeners();
+    }
+    final em = preferences.getString(_prefsUserEmailKey);
+    if (em != null && em.isNotEmpty) {
+      _email = em;
       notifyListeners();
     }
     _avatarType = preferences.getString(_prefsAvatarTypeKey);
@@ -69,6 +78,14 @@ class UserProvider extends ChangeNotifier {
     _name = trimmed;
     notifyListeners();
     await preferences.setString(_prefsUserNameKey, _name);
+  }
+
+  Future<void> setEmail(String email) async {
+    final trimmed = email.trim();
+    if (trimmed.isEmpty || trimmed == _email) return;
+    _email = trimmed;
+    notifyListeners();
+    await preferences.setString(_prefsUserEmailKey, _email);
   }
 
   Future<void> setAvatarEmoji(String emoji) async {

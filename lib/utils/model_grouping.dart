@@ -17,7 +17,8 @@ class ModelGrouping {
     final model = id.split('/').last;
     if (brand?.group == 'Gemini') {
       if (model.contains('gemini-3')) return 'Gemini 3';
-      if (model.contains('gemini-2.5')) return 'Gemini 2.5';
+      if (model.contains('gemini-2')) return 'Gemini 2.0';
+      if (model.contains('gemini-1')) return 'Gemini 1.5';
     }
     if (brand?.group == 'Claude') {
       if (model.contains('claude-4')) return 'Claude 4';

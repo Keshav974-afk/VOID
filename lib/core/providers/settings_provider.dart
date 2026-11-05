@@ -22,6 +22,7 @@ import '../services/logging/flutter_logger.dart';
 import '../services/learning_mode_store.dart';
 import '../models/api_keys.dart';
 import '../models/backup.dart';
+import '../models/vps_config.dart';
 import '../models/compress_context_options.dart';
 import '../models/auto_retry_options.dart';
 import '../models/provider_group.dart';
@@ -82,21 +83,25 @@ class SettingsProvider extends ChangeNotifier {
       'provider_ungrouped_position_v1'; // display index among groups
   static const String providerUngroupedGroupKey = '__ungrouped__';
   static const List<String> _builtInProviderKeysInOrder = [
+    'xAI',
+    'Grok',
     'OpenAI',
-    'SiliconFlow',
+    'Claude',
     'Gemini',
+    'DeepSeek',
+    'Kimi',
+    'Moonshot',
+    'Qwen',
+    'Aliyun',
+    'Zhipu AI',
+    'SiliconFlow',
     'OpenRouter',
+    'Tensdaq',
     'Vercel',
     'KelivoIN',
-    'Tensdaq',
-    'DeepSeek',
     'AIhubmix',
     '随想AI中转站',
     'MaruCode',
-    'Aliyun',
-    'Zhipu AI',
-    'Claude',
-    'Grok',
     'ByteDance',
   ];
   static const Set<String> _builtInProviderKeys = {
@@ -402,6 +407,7 @@ class SettingsProvider extends ChangeNotifier {
       'backup_encryption_enabled_v1';
   static const String _webDavConfigKey = 'webdav_config_v1';
   static const String _s3ConfigKey = 's3_config_v1';
+  static const String _vpsConfigKey = 'vps_config_v1';
   // Global network proxy
   static const String _globalProxyEnabledKey = 'global_proxy_enabled_v1';
   static const String _globalProxyTypeKey =
@@ -460,11 +466,15 @@ class SettingsProvider extends ChangeNotifier {
   String? get selectedAsrServiceId => _selectedAsrServiceId;
   AsrServiceOptions? get selectedAsrService {
     final selectedId = _selectedAsrServiceId;
-    if (selectedId == null) return null;
-    for (final service in _asrServices) {
-      if (service.id == selectedId) return service;
+    if (selectedId != null) {
+      for (final service in _asrServices) {
+        if (service.id == selectedId) return service;
+      }
     }
-    return null;
+    if (_asrServices.isNotEmpty) {
+      return _asrServices.first;
+    }
+    return SystemAsrOptions(id: 'system_default', name: 'System');
   }
 
   List<String> _providersOrder = const [];
@@ -509,7 +519,7 @@ class SettingsProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   ThemeMode get themeMode => _themeMode;
   // Theme palette & dynamic color
-  String _themePaletteId = 'default';
+  String _themePaletteId = ThemePalettes.grokId;
   String get themePaletteId => _themePaletteId;
   bool _useDynamicColor = true; // when supported on Android
   bool get useDynamicColor => _useDynamicColor;
@@ -682,7 +692,7 @@ class SettingsProvider extends ChangeNotifier {
       default:
         _themeMode = ThemeMode.system;
     }
-    _themePaletteId = prefs.getString(_themePaletteKey) ?? 'default';
+    _themePaletteId = prefs.getString(_themePaletteKey) ?? ThemePalettes.grokId;
     _useDynamicColor = prefs.getBool(_useDynamicColorKey) ?? true;
     _loadCustomThemes(prefs);
     final cfgStr = prefs.getString(_providerConfigsKey);
@@ -1434,12 +1444,17 @@ class SettingsProvider extends ChangeNotifier {
         }
       }
     } catch (_) {}
+    if (decodedAsrServices.isEmpty) {
+      decodedAsrServices.add(
+        SystemAsrOptions(id: 'system_default', name: 'System'),
+      );
+    }
     _asrServices = List<AsrServiceOptions>.unmodifiable(decodedAsrServices);
     final storedAsrId = prefs.getString(_asrSelectedServiceIdKey);
     _selectedAsrServiceId =
         decodedAsrServices.any((service) => service.id == storedAsrId)
         ? storedAsrId
-        : (decodedAsrServices.isEmpty ? null : decodedAsrServices.first.id);
+        : decodedAsrServices.first.id;
     if (_selectedAsrServiceId != storedAsrId) {
       if (_selectedAsrServiceId == null) {
         await prefs.remove(_asrSelectedServiceIdKey);
@@ -1467,13 +1482,29 @@ class SettingsProvider extends ChangeNotifier {
         );
       } catch (_) {}
     }
+    // sandbox vps config
+    final vpsStr = prefs.getString(_vpsConfigKey);
+    if (vpsStr != null && vpsStr.isNotEmpty) {
+      try {
+        _vpsConfig = VpsConfig.fromJson(
+          jsonDecode(vpsStr) as Map<String, dynamic>,
+        );
+      } catch (_) {}
+    }
     if (_providerConfigs.isEmpty) {
-      // Seed a couple of sensible defaults on first launch, but do not recreate
-      // providers implicitly during later reads (e.g., when switching chats).
+      // Seed rich first-run providers for Grok, OpenAI, Gemini, Claude, DeepSeek, Kimi, etc.
+      ensureProviderConfig('xAI', defaultName: 'xAI');
+      ensureProviderConfig('OpenAI', defaultName: 'OpenAI');
+      ensureProviderConfig('Claude', defaultName: 'Claude');
+      ensureProviderConfig('Gemini', defaultName: 'Gemini');
+      ensureProviderConfig('DeepSeek', defaultName: 'DeepSeek');
+      ensureProviderConfig('Kimi', defaultName: 'Kimi');
+      ensureProviderConfig('Zhipu', defaultName: 'Zhipu');
+      ensureProviderConfig('Qwen', defaultName: 'Qwen');
+      ensureProviderConfig('OpenRouter', defaultName: 'OpenRouter');
+      ensureProviderConfig('SiliconFlow', defaultName: 'SiliconFlow');
       ensureProviderConfig('KelivoIN', defaultName: 'KelivoIN');
       ensureProviderConfig('Tensdaq', defaultName: 'Tensdaq');
-      ensureProviderConfig('SiliconFlow', defaultName: 'SiliconFlow');
-      ensureProviderConfig('AIhubmix', defaultName: 'AIhubmix');
       final seededConfigs = _providerConfigs.map(
         (key, config) => MapEntry(key, config.toJson()),
       );
@@ -2208,6 +2239,15 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = _preferences;
     await prefs.setString(_s3ConfigKey, jsonEncode(cfg.toJson()));
+  }
+
+  VpsConfig _vpsConfig = const VpsConfig();
+  VpsConfig get vpsConfig => _vpsConfig;
+  Future<void> setVpsConfig(VpsConfig cfg) async {
+    _vpsConfig = cfg;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setString(_vpsConfigKey, jsonEncode(cfg.toJson()));
   }
 
   Future<void> _initSearchConnectivityTests() async {
@@ -6626,9 +6666,15 @@ class ProviderConfig {
   static ProviderConfig defaultsFor(String key, {String? displayName}) {
     bool defaultEnabled(String k) {
       final s = k.toLowerCase();
-      if (s.contains('tensdaq')) return true;
+      if (s.contains('xai') || s.contains('grok')) return true;
       if (s.contains('openai')) return true;
       if (s.contains('gemini') || s.contains('google')) return true;
+      if (s.contains('claude') || s.contains('anthropic')) return true;
+      if (s.contains('deepseek')) return true;
+      if (RegExp(r'kimi|moonshot|月之暗面').hasMatch(s)) return true;
+      if (RegExp(r'zhipu|智谱|glm').hasMatch(s)) return true;
+      if (RegExp(r'qwen|aliyun|dashscope').hasMatch(s)) return true;
+      if (s.contains('tensdaq')) return true;
       if (s.contains('silicon')) return true;
       if (s.contains('openrouter')) return true;
       if (s.contains('kelivoin')) return true;
@@ -6639,6 +6685,45 @@ class ProviderConfig {
     final lowerKey = key.toLowerCase();
     switch (kind) {
       case ProviderKind.google:
+        const geminiModels = [
+          'gemini-2.0-flash',
+          'gemini-2.0-flash-lite',
+          'gemini-2.0-pro-exp-02-05',
+          'gemini-1.5-pro',
+          'gemini-1.5-flash',
+        ];
+        const geminiOverrides = {
+          'gemini-2.0-flash': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'gemini-2.0-flash-lite': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool'],
+          },
+          'gemini-2.0-pro-exp-02-05': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'gemini-1.5-pro': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'gemini-1.5-flash': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool'],
+          },
+        };
         return ProviderConfig(
           id: key,
           enabled: defaultEnabled(key),
@@ -6650,8 +6735,8 @@ class ProviderConfig {
           location: '',
           projectId: '',
           serviceAccountJson: '',
-          models: const [],
-          modelOverrides: const {},
+          models: geminiModels,
+          modelOverrides: geminiOverrides,
           proxyEnabled: false,
           proxyHost: '',
           proxyPort: '8080',
@@ -6667,6 +6752,38 @@ class ProviderConfig {
           claudePromptCachingEnabled: false,
         );
       case ProviderKind.claude:
+        const claudeModels = [
+          'claude-3-7-sonnet-20250219',
+          'claude-3-5-sonnet-20241022',
+          'claude-3-5-haiku-20241022',
+          'claude-3-opus-20240229',
+        ];
+        const claudeOverrides = {
+          'claude-3-7-sonnet-20250219': {
+            'type': 'chat',
+            'input': ['text', 'image'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'claude-3-5-sonnet-20241022': {
+            'type': 'chat',
+            'input': ['text', 'image'],
+            'output': ['text'],
+            'abilities': ['tool'],
+          },
+          'claude-3-5-haiku-20241022': {
+            'type': 'chat',
+            'input': ['text', 'image'],
+            'output': ['text'],
+            'abilities': ['tool'],
+          },
+          'claude-3-opus-20240229': {
+            'type': 'chat',
+            'input': ['text', 'image'],
+            'output': ['text'],
+            'abilities': ['tool'],
+          },
+        };
         return ProviderConfig(
           id: key,
           enabled: defaultEnabled(key),
@@ -6674,8 +6791,8 @@ class ProviderConfig {
           apiKey: '',
           baseUrl: _defaultBase(key),
           providerType: ProviderKind.claude,
-          models: const [],
-          modelOverrides: const {},
+          models: claudeModels,
+          modelOverrides: claudeOverrides,
           proxyEnabled: false,
           proxyHost: '',
           proxyPort: '8080',
@@ -6757,8 +6874,8 @@ class ProviderConfig {
           providerType: ProviderKind.openai,
           chatPath: '/chat/completions',
           useResponseApi: lowerKey == 'marucode',
-          models: const [],
-          modelOverrides: const {},
+          models: _defaultModelsFor(lowerKey),
+          modelOverrides: _defaultModelOverridesFor(lowerKey),
           proxyEnabled: false,
           proxyHost: '',
           proxyPort: '8080',
@@ -6774,6 +6891,275 @@ class ProviderConfig {
           claudePromptCachingEnabled: false,
         );
     }
+  }
+
+  static List<String> _defaultModelsFor(String lowerKey) {
+    if (lowerKey.contains('grok') ||
+        lowerKey.contains('x.ai') ||
+        lowerKey.contains('xai')) {
+      return const [
+        'grok-3',
+        'grok-3-mini',
+        'grok-3-thinking',
+        'grok-2-1212',
+        'grok-2-vision-1212',
+        'grok-imagine',
+        'grok-beta',
+      ];
+    }
+    if (lowerKey.contains('deepseek')) {
+      return const ['deepseek-chat', 'deepseek-reasoner'];
+    }
+    if (RegExp(r'kimi|moonshot|月之暗面').hasMatch(lowerKey)) {
+      return const [
+        'kimi-latest',
+        'kimi-k1.5',
+        'moonshot-v1-128k',
+        'moonshot-v1-32k',
+        'moonshot-v1-8k',
+      ];
+    }
+    if (RegExp(r'zhipu|智谱|glm').hasMatch(lowerKey)) {
+      return const ['glm-4-plus', 'glm-4-air', 'glm-4-flash', 'glm-4v-plus'];
+    }
+    if (RegExp(r'qwen|aliyun|dashscope').hasMatch(lowerKey)) {
+      return const [
+        'qwen-max',
+        'qwen-plus',
+        'qwen-turbo',
+        'qwen2.5-72b-instruct',
+        'qwen-vl-max',
+      ];
+    }
+    if (lowerKey.contains('openai')) {
+      return const [
+        'gpt-4o',
+        'gpt-4o-mini',
+        'o1',
+        'o3-mini',
+        'gpt-4.5-preview',
+        'chatgpt-4o-latest',
+      ];
+    }
+    if (lowerKey.contains('openrouter')) {
+      return const [
+        'x-ai/grok-3',
+        'anthropic/claude-3.7-sonnet',
+        'openai/gpt-4o',
+        'deepseek/deepseek-chat',
+        'google/gemini-2.0-flash-001',
+      ];
+    }
+    if (lowerKey.contains('silicon')) {
+      return const [];
+    }
+    return const [];
+  }
+
+  static Map<String, dynamic> _defaultModelOverridesFor(String lowerKey) {
+    if (lowerKey.contains('grok') ||
+        lowerKey.contains('x.ai') ||
+        lowerKey.contains('xai')) {
+      return const {
+        'grok-3': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+        },
+        'grok-3-mini': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+        },
+        'grok-3-thinking': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+          'reasoning': {'dialect': 'openaiReasoningEffort'},
+        },
+        'grok-2-1212': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'grok-2-vision-1212': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'grok-imagine': {
+          'type': 'image',
+          'input': ['text'],
+          'output': ['image'],
+          'abilities': <String>[],
+        },
+        'grok-beta': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+      };
+    }
+    if (lowerKey.contains('deepseek')) {
+      return const {
+        'deepseek-chat': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'deepseek-reasoner': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+        },
+      };
+    }
+    if (RegExp(r'kimi|moonshot|月之暗面').hasMatch(lowerKey)) {
+      return const {
+        'kimi-latest': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+        },
+        'kimi-k1.5': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+        },
+        'moonshot-v1-128k': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'moonshot-v1-32k': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'moonshot-v1-8k': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+      };
+    }
+    if (RegExp(r'zhipu|智谱|glm').hasMatch(lowerKey)) {
+      return const {
+        'glm-4-plus': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'glm-4-air': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'glm-4-flash': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'glm-4v-plus': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+      };
+    }
+    if (RegExp(r'qwen|aliyun|dashscope').hasMatch(lowerKey)) {
+      return const {
+        'qwen-max': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+        },
+        'qwen-plus': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'qwen-turbo': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'qwen2.5-72b-instruct': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'qwen-vl-max': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+      };
+    }
+    if (lowerKey.contains('openai')) {
+      return const {
+        'gpt-4o': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'gpt-4o-mini': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'o1': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['reasoning'],
+        },
+        'o3-mini': {
+          'type': 'chat',
+          'input': ['text'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+          'reasoning': {'dialect': 'openaiReasoningEffort'},
+        },
+        'gpt-4.5-preview': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'chatgpt-4o-latest': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+      };
+    }
+    return const {};
   }
 
   static String _defaultBalanceApiPath(String key) {

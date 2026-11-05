@@ -28,6 +28,7 @@ import '../../instruction_injection/pages/instruction_injection_page.dart';
 import '../../world_book/pages/world_book_page.dart';
 import '../../../shared/widgets/section_card.dart';
 import 'network_proxy_page.dart';
+import 'vps_settings_page.dart';
 import 'phone_control_settings_page.dart';
 import '../../home/services/local_tools_service.dart';
 import 'storage_space_page.dart';
@@ -37,6 +38,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/haptics.dart';
 import 'package:Kelivo/theme/app_font_weights.dart';
 import 'package:Kelivo/theme/app_semantic_colors.dart';
+import '../../../core/providers/user_provider.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -118,12 +120,14 @@ class SettingsPage extends StatelessWidget {
       ),
     );
 
+    final userProvider = context.watch<UserProvider>();
+
     return Scaffold(
       appBar: AppBar(
         leading: Tooltip(
           message: l10n.settingsPageBackButton,
           child: _TactileIconButton(
-            icon: Lucide.ArrowLeft,
+            icon: Lucide.X,
             color: cs.onSurface,
             size: 22,
             onTap: () => Navigator.of(context).maybePop(),
@@ -138,30 +142,91 @@ class SettingsPage extends StatelessWidget {
           onColorMode: pickThemeMode,
         ),
         children: [
-          if (!settings.hasAnyActiveModel)
-            Material(
-              color: cs.errorContainer.withValues(alpha: 0.30),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Icon(
-                      Lucide.MessageCircleWarning,
-                      size: 18,
-                      color: cs.error,
+          // Grok User Profile Header Card (Image 4 & 5)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1D9BF0),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    userProvider.name.isNotEmpty
+                        ? userProvider.name.characters.first.toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        l10n.settingsPageWarningMessage,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userProvider.name,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.8),
+                          fontSize: 17,
+                          fontWeight: AppFontWeights.emphasis,
+                          color: cs.onSurface,
                         ),
                       ),
-                    ),
-                  ],
+                      if (userProvider.email.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          userProvider.email,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: cs.onSurface.withValues(alpha: 0.60),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (!settings.hasAnyActiveModel)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Material(
+                color: cs.errorContainer.withValues(alpha: 0.30),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Lucide.MessageCircleWarning,
+                        size: 18,
+                        color: cs.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.settingsPageWarningMessage,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurface.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -369,6 +434,16 @@ class SettingsPage extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const NetworkProxyPage()),
+                  );
+                },
+              ),
+              _iosNavRow(
+                context,
+                icon: Lucide.Server,
+                label: l10n.settingsPageSandboxVps,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const VpsSettingsPage()),
                   );
                 },
               ),

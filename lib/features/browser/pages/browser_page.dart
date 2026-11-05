@@ -2583,7 +2583,7 @@ class BrowserStartPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(28, 60, 28, 130),
             children: [
               Text(
-                'Kelivo',
+                'VOID',
                 style: TextStyle(
                   fontSize: 38,
                   fontWeight: FontWeight.w600,

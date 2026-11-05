@@ -593,6 +593,26 @@ class HomeViewModel extends ChangeNotifier {
     return _cloneInput(queued.input);
   }
 
+  Future<void> sendCurrentQueuedInputNow() async {
+    final queued = currentQueuedInput;
+    if (queued == null ||
+        _drainingQueuedInputs.contains(queued.conversationId)) {
+      return;
+    }
+    final conversationId = queued.conversationId;
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) return;
+
+    _pausedQueuedInputs.remove(conversationId);
+
+    if (_isConversationBusy(conversationId)) {
+      await cancelStreaming();
+    }
+
+    await _drainQueuedInputIfReady(conversationId);
+    notifyListeners();
+  }
+
   Future<bool> _sendMessageToConversation(
     ChatInputData input,
     Conversation conversation,

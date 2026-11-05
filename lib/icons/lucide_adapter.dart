@@ -21,7 +21,9 @@ class Lucide {
   static const IconData X = lucide.LucideIcons.x;
   static const IconData Ban = lucide.LucideIcons.ban;
   static const IconData Mic = lucide.LucideIcons.mic;
+  static const IconData MicOff = lucide.LucideIcons.micOff;
   static const IconData ArrowUp = lucide.LucideIcons.arrowUp;
+  static const IconData Send = lucide.LucideIcons.send;
   static const IconData ArrowLeft = lucide.LucideIcons.arrowLeft;
   static const IconData ArrowRight = lucide.LucideIcons.arrowRight;
   static const IconData Camera = lucide.LucideIcons.camera;
@@ -48,6 +50,7 @@ class Lucide {
   static const IconData Heart = lucide.LucideIcons.heart;
   static const IconData Boxes = lucide.LucideIcons.boxes;
   static const IconData Volume2 = lucide.LucideIcons.volume2;
+  static const IconData VolumeX = lucide.LucideIcons.volumeX;
   static const IconData Terminal = lucide.LucideIcons.terminal;
   static const IconData Database = lucide.LucideIcons.database;
   static const IconData HardDrive = lucide.LucideIcons.hardDrive;
@@ -100,6 +103,8 @@ class Lucide {
   static const IconData Sparkles = lucide.LucideIcons.sparkles;
   static const IconData WandSparkles = lucide.LucideIcons.wandSparkles;
   static const IconData Phone = lucide.LucideIcons.phone;
+  static const IconData PhoneOff = lucide.LucideIcons.phoneOff;
+  static const IconData Video = lucide.LucideIcons.video;
   static const IconData Code = lucide.LucideIcons.code;
   static const IconData Hash = lucide.LucideIcons.hash;
   static const IconData Link = lucide.LucideIcons.link;
@@ -193,6 +198,7 @@ class Lucide {
   static const IconData ChevronsDownUp = lucide.LucideIcons.chevronsDownUp;
   static const IconData ChevronsUp = lucide.LucideIcons.chevronsUp;
   static const IconData ChevronsDown = lucide.LucideIcons.chevronsDown;
+  static const IconData ChevronsRight = lucide.LucideIcons.chevronsRight;
   static const IconData Timer = lucide.LucideIcons.timer;
   static const IconData ChartColumnBig = lucide.LucideIcons.chartColumnBig;
   static const IconData Maximize = lucide.LucideIcons.maximize;
@@ -209,6 +215,9 @@ class Lucide {
   static const IconData package2 = lucide.LucideIcons.package2;
   static const IconData workflow = lucide.LucideIcons.workflow;
   static const IconData clock = lucide.LucideIcons.clock;
+  static const IconData Clock = lucide.LucideIcons.clock;
+  static const IconData ArrowDownAZ = lucide.LucideIcons.aArrowDown;
+  static const IconData FolderClosed = lucide.LucideIcons.folderClosed;
   static const IconData Wallet = lucide.LucideIcons.walletMinimal;
   static const IconData Coins = lucide.LucideIcons.coins;
   static const IconData Footprints = lucide.LucideIcons.footprints;
@@ -252,4 +261,8 @@ class Lucide {
   static const IconData SlidersHorizontal =
       lucide.LucideIcons.slidersHorizontal;
   static const IconData AudioLines = lucide.LucideIcons.audioLines;
+  static const IconData Trophy = lucide.LucideIcons.trophy;
+  static const IconData AtSign = lucide.LucideIcons.atSign;
+  static const IconData Server = lucide.LucideIcons.server;
+  static const IconData Bug = lucide.LucideIcons.bug;
 }

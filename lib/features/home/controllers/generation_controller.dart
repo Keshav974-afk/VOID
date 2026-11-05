@@ -84,7 +84,11 @@ class GenerationController {
   bool isToolModel(String providerKey, String modelId) {
     final settings = contextProvider.read<SettingsProvider>();
     final cfg = settings.getProviderConfig(providerKey);
-    return ModelSpecResolver.instance.spec(cfg, modelId).supportsTool;
+    final spec = ModelSpecResolver.instance.spec(cfg, modelId);
+    if (spec.type == ModelType.embedding || spec.type == ModelType.image) {
+      return false;
+    }
+    return true;
   }
 
   bool isReasoningEnabled(ReasoningRequest r) {

@@ -638,12 +638,50 @@ Future<String?> tryEncodeBase64DataUrl(
   String path, {
   String? explicitMime,
 }) async {
-  final b64 = await tryEncodeBase64File(path, withPrefix: false);
-  if (b64 == null) return null;
-  final mime = (explicitMime != null && explicitMime.trim().isNotEmpty)
-      ? explicitMime.trim()
-      : mimeFromPath(path);
-  return 'data:$mime;base64,$b64';
+  final trimmed = path.trim();
+  if (trimmed.isEmpty) return null;
+
+  // Already a base64 data URL
+  if (trimmed.startsWith('data:')) return trimmed;
+
+  // Remote HTTP/HTTPS URL -> fetch and convert to base64 so model can always read it
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      final resp = await http
+          .get(Uri.parse(trimmed))
+          .timeout(const Duration(seconds: 15));
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        final mime = (explicitMime != null && explicitMime.trim().isNotEmpty)
+            ? explicitMime.trim()
+            : resp.headers['content-type'] ?? mimeFromPath(trimmed);
+        final b64 = base64Encode(resp.bodyBytes);
+        return 'data:$mime;base64,$b64';
+      }
+    } catch (_) {}
+  }
+
+  // Local sandbox or managed file
+  final b64 = await tryEncodeBase64File(trimmed, withPrefix: false);
+  if (b64 != null) {
+    final mime = (explicitMime != null && explicitMime.trim().isNotEmpty)
+        ? explicitMime.trim()
+        : mimeFromPath(trimmed);
+    return 'data:$mime;base64,$b64';
+  }
+
+  // Direct local file or cached file fallback
+  try {
+    final direct = File(trimmed);
+    if (await direct.exists()) {
+      final bytes = await direct.readAsBytes();
+      final mime = (explicitMime != null && explicitMime.trim().isNotEmpty)
+          ? explicitMime.trim()
+          : mimeFromPath(trimmed);
+      return 'data:$mime;base64,${base64Encode(bytes)}';
+    }
+  } catch (_) {}
+
+  return null;
 }
 
 void logImageFallback({

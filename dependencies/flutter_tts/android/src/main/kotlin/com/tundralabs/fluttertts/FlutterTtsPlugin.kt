@@ -70,7 +70,11 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
         methodChannel = MethodChannel(messenger, "flutter_tts")
         methodChannel!!.setMethodCallHandler(this)
         handler = Handler(Looper.getMainLooper())
-        bundle = Bundle()
+        bundle = Bundle().apply {
+            putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
+ putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
+ putString(TextToSpeech.Engine.KEY_PARAM_VOLUME, "1.0")
+        }
         tts = TextToSpeech(context, onInitListenerWithoutCallback)
     }
 
@@ -227,11 +231,27 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
 
             if (status == TextToSpeech.SUCCESS) {
                 tts!!.setOnUtteranceProgressListener(utteranceProgressListener)
-                try {
-                    val locale: Locale = tts!!.defaultVoice.locale
-                    if (isLanguageAvailable(locale)) {
-                        tts!!.language = locale
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    try {
+                        val audioAttributes = AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                        tts?.setAudioAttributes(audioAttributes)
+                    } catch (e: Exception) {
+                        Log.e(tag, "setAudioAttributes: " + e.message)
                     }
+                }
+                try {
+                    val defaultLoc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+ try { tts?.defaultVoice?.locale } catch (e: Exception) { null }
+ } else null
+ val locale: Locale = defaultLoc ?: Locale.getDefault()
+ if (isLanguageAvailable(locale)) {
+ tts?.language = locale
+ } else {
+ tts?.language = Locale.US
+ }
                 } catch (e: NullPointerException) {
                     Log.e(tag, "getDefaultLocale: " + e.message)
                 } catch (e: IllegalArgumentException) {
@@ -258,11 +278,27 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
 
             if (status == TextToSpeech.SUCCESS) {
                 tts!!.setOnUtteranceProgressListener(utteranceProgressListener)
-                try {
-                    val locale: Locale = tts!!.defaultVoice.locale
-                    if (isLanguageAvailable(locale)) {
-                        tts!!.language = locale
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    try {
+                        val audioAttributes = AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                        tts?.setAudioAttributes(audioAttributes)
+                    } catch (e: Exception) {
+                        Log.e(tag, "setAudioAttributes: " + e.message)
                     }
+                }
+                try {
+                    val defaultLoc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+ try { tts?.defaultVoice?.locale } catch (e: Exception) { null }
+ } else null
+ val locale: Locale = defaultLoc ?: Locale.getDefault()
+ if (isLanguageAvailable(locale)) {
+ tts?.language = locale
+ } else {
+ tts?.language = Locale.US
+ }
                 } catch (e: NullPointerException) {
                     Log.e(tag, "getDefaultLocale: " + e.message)
                 } catch (e: IllegalArgumentException) {
@@ -285,8 +321,19 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
         }
         when (call.method) {
             "speak" -> {
-                var text: String = call.argument("text")!!
-                val focus: Boolean = call.argument("focus")!!
+                var text: String
+                val focus: Boolean
+                if (call.arguments is Map<*, *>) {
+                    text = call.argument<String>("text") ?: ""
+                    focus = call.argument<Boolean>("focus") ?: false
+                } else {
+                    text = call.arguments?.toString() ?: ""
+                    focus = false
+                }
+                if (text.isEmpty()) {
+                    result.success(0)
+                    return
+                }
                 if (pauseText == null) {
                     pauseText = text
                     currentText = pauseText!!
@@ -756,26 +803,25 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
     }
 
     private fun ismServiceConnectionUsable(tts: TextToSpeech?): Boolean {
-        var isBindConnection = true
         if (tts == null) {
             return false
         }
+        if (ttsStatus == TextToSpeech.SUCCESS) {
+            return true
+        }
+        var isBindConnection = true
         val fields: Array<Field> = tts.javaClass.declaredFields
         for (j in fields.indices) {
-            fields[j].isAccessible = true
-            if ("mServiceConnection" == fields[j].name && "android.speech.tts.TextToSpeech\$Connection" == fields[j].type.name) {
-                try {
+            try {
+                fields[j].isAccessible = true
+                if ("mServiceConnection" == fields[j].name && "android.speech.tts.TextToSpeech\$Connection" == fields[j].type.name) {
                     if (fields[j][tts] == null) {
                         isBindConnection = false
                         Log.e(tag, "*******TTS -> mServiceConnection == null*******")
                     }
-                } catch (e: IllegalArgumentException) {
-                    e.printStackTrace()
-                } catch (e: IllegalAccessException) {
-                    e.printStackTrace()
-                } catch (e: Exception) {
-                    e.printStackTrace()
                 }
+            } catch (e: Exception) {
+                // If reflection is denied by Android hidden API policies, don't kill active TTS
             }
         }
         return isBindConnection
@@ -793,16 +839,26 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
     }
 
     private fun requestAudioFocus() {
-        audioManager = context?.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-                .setOnAudioFocusChangeListener { /* opcional para monitorar mudanças de foco */ }
-                .build()
-            audioManager?.requestAudioFocus(audioFocusRequest!!)
-        } else {
-            audioManager?.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-        }
+        try {
+ audioManager = context?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+ val playbackAttributes = AudioAttributes.Builder()
+ .setUsage(AudioAttributes.USAGE_MEDIA)
+ .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+ .build()
+ audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+ .setAudioAttributes(playbackAttributes)
+ .setAcceptsDelayedFocusGain(true)
+ .setOnAudioFocusChangeListener { }
+ .build()
+ audioManager?.requestAudioFocus(audioFocusRequest!!)
+ } else {
+ @Suppress("DEPRECATION")
+ audioManager?.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+ }
+ } catch (e: Exception) {
+ Log.e(tag, "requestAudioFocus: " + e.message)
+ }
     }
 
     private fun releaseAudioFocus() {

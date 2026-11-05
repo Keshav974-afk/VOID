@@ -114,19 +114,19 @@ class MobileBackgroundSettings {
 /// overlay or request permissions. Native rendering enforces the same bounds.
 class BackgroundOverlayAppearance {
   const BackgroundOverlayAppearance({
-    this.width = 290,
-    this.height = 84,
-    this.cornerRadius = 24,
-    this.iconSize = 34,
-    this.progressSize = 42,
-    this.progressStrokeWidth = 2,
+    this.width = 68,
+    this.height = 68,
+    this.cornerRadius = 34,
+    this.iconSize = 24,
+    this.progressSize = 68,
+    this.progressStrokeWidth = 2.5,
     this.showProgress = true,
-    this.showTitle = true,
-    this.showSubtitle = true,
+    this.showTitle = false,
+    this.showSubtitle = false,
     this.showTime = true,
-    this.showClose = true,
+    this.showClose = false,
     this.showBackground = true,
-    this.showBorder = false,
+    this.showBorder = true,
   });
 
   static const circle = BackgroundOverlayAppearance(
@@ -170,19 +170,19 @@ class BackgroundOverlayAppearance {
     }
 
     return BackgroundOverlayAppearance(
-      width: size('width', 290, 48, 400),
-      height: size('height', 84, 48, 180),
-      cornerRadius: size('cornerRadius', 24, 0, 90),
-      iconSize: size('iconSize', 34, 16, 120),
-      progressSize: size('progressSize', 42, 20, 140),
-      progressStrokeWidth: size('progressStrokeWidth', 2, 1, 12),
+      width: size('width', 68, 48, 400),
+      height: size('height', 68, 48, 180),
+      cornerRadius: size('cornerRadius', 34, 0, 90),
+      iconSize: size('iconSize', 24, 16, 120),
+      progressSize: size('progressSize', 68, 20, 140),
+      progressStrokeWidth: size('progressStrokeWidth', 2.5, 1, 12),
       showProgress: json['showProgress'] != false,
-      showTitle: json['showTitle'] != false,
-      showSubtitle: json['showSubtitle'] != false,
+      showTitle: json['showTitle'] == true,
+      showSubtitle: json['showSubtitle'] == true,
       showTime: json['showTime'] != false,
-      showClose: json['showClose'] != false,
+      showClose: json['showClose'] == true,
       showBackground: json['showBackground'] != false,
-      showBorder: json['showBorder'] == true,
+      showBorder: json['showBorder'] != false,
     );
   }
 

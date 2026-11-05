@@ -52,14 +52,14 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   @override
   void initState() {
     super.initState();
-    _source = UnicodeSanitizer.sanitize(widget.text);
+    _source = wrapBareMathEnvironments(UnicodeSanitizer.sanitize(widget.text));
   }
 
   @override
   void didUpdateWidget(MarkdownWithCodeHighlight oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text) {
-      _source = UnicodeSanitizer.sanitize(widget.text);
+      _source = wrapBareMathEnvironments(UnicodeSanitizer.sanitize(widget.text));
     }
   }
 

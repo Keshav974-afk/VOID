@@ -39,6 +39,15 @@ void main() {
       LocalToolNames.remindersQuery,
       LocalToolNames.remindersCreate,
       LocalToolNames.remindersComplete,
+      LocalToolNames.xSearch,
+      LocalToolNames.sports,
+      LocalToolNames.imageGeneration,
+      LocalToolNames.editImage,
+      LocalToolNames.mediaProcess,
+      LocalToolNames.documentTool,
+      LocalToolNames.sandboxVps,
+      LocalToolNames.bash,
+      LocalToolNames.inspectSite,
     ]);
   });
 }

@@ -22,7 +22,6 @@ import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
 import 'package:Kelivo/shared/widgets/ios_form_text_field.dart';
 import 'package:Kelivo/shared/widgets/ios_settings_rows.dart';
 import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/ios_tile_button.dart';
 import 'package:Kelivo/shared/widgets/section_card.dart';
 import 'package:Kelivo/shared/widgets/snackbar.dart';
 import 'package:Kelivo/shared/widgets/task_progress_dialog.dart';
@@ -262,35 +261,66 @@ class WorkspacesPaneState extends State<WorkspacesPane> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Lucide.FolderCode,
-            size: 44,
-            color: cs.onSurface.withValues(alpha: 0.26),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            l10n.workspacesEmpty,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: AppFontWeights.semibold,
-              color: cs.onSurface.withValues(alpha: 0.72),
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              Lucide.Folder,
+              size: 28,
+              color: cs.onSurface.withValues(alpha: 0.8),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 24),
           Text(
-            l10n.workspaceMgmtEmptyHint,
+            'Get started by creating a new project',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 12.5,
-              color: cs.onSurface.withValues(alpha: 0.52),
+              fontSize: 18,
+              fontWeight: AppFontWeights.emphasis,
+              color: cs.onSurface,
             ),
           ),
-          const SizedBox(height: 16),
-          IosTileButton(
-            icon: Lucide.Plus,
-            label: l10n.workspaceMgmtNewWorkspace,
+          const SizedBox(height: 8),
+          Text(
+            'Projects help you set common instructions and attach files for conversations.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: cs.onSurface.withValues(alpha: 0.60),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 24),
+          InkWell(
             onTap: () => unawaited(_createWorkspace()),
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Lucide.Plus, size: 18, color: cs.onSurface),
+                  const SizedBox(width: 8),
+                  Text(
+                    'New project',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: AppFontWeights.emphasis,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

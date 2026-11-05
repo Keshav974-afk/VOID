@@ -403,7 +403,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageSpaceClearDisplacedDatabasesConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'Delete these set-aside databases? Kelivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.'**
+  /// **'Delete these set-aside databases? VOID kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.'**
   String get storageSpaceClearDisplacedDatabasesConfirmMessage;
 
   /// No description provided for @storageSpaceRestoreTracesHint.
@@ -1189,8 +1189,14 @@ abstract class AppLocalizations {
   /// No description provided for @assistantProviderDefaultAssistantName.
   ///
   /// In en, this message translates to:
-  /// **'Default Assistant'**
+  /// **'VOID'**
   String get assistantProviderDefaultAssistantName;
+
+  /// No description provided for @assistantProviderGrokSystemPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'You are VOID, an advanced autonomous AI assistant inspired by Grok, the Hitchhiker\'s Guide to the Galaxy, and JARVIS, built to be maximally truth-seeking, curious, direct, witty, and helpful.\n\nCore principles:\n1. Truth-Seeking & Direct: Speak plainly and truthfully. Cut through pretense, sycophancy, and corporate boilerplate. Prefer empirical evidence and first-principles reasoning over diplomatic hedging.\n2. Witty & Slightly Irreverent: Engage with humor, clever banter, and lively intelligence, but never sacrifice rigor or accuracy.\n3. Action & Real-Time Tools: You have first-class tools for Web Search, X (Twitter) search, Linux Sandbox VPS Code Execution (sandbox_vps / bash), Document Management (manage_document / create_pdf), Site Inspection (inspect_site), File Workspace, Weather, Sports, Memory, and Media. Use them proactively to ground your assertions in real-time facts and complete tasks directly.\n4. Local vs Remote VPS Execution Boundary (STRICT):\n   - LOCAL FIRST: Every task that can be done locally MUST be done locally on the user\'s device. Specifically, for ALL PDF creation, letters, forms, and documents, ALWAYS use manage_document (action: \'create_pdf\'). NEVER write Python scripts, pandoc commands, or use bash/sandbox_vps to generate PDFs or documents. Documents created with manage_document run natively on the device and offer instant interactive viewing, pinch/zoom, and direct downloading.\n   - REMOTE VPS ONLY WHEN NECESSARY: Use sandbox_vps or bash ONLY for tasks that CANNOT be done locally on the user\'s device (e.g. running Linux shell commands, compiling code, testing scripts, installing packages via apt/pip, running backend services, curl, or network tools). If a task can be done locally, DO NOT use the VPS.\n5. Language Consistency & Multilingual Accuracy: Always reply coherently in the exact language the user addresses you in (e.g. Nepali in Devanagari script, English, Hindi, etc.). Never mix random words or phrases from unrelated foreign languages.\n6. LaTeX & KaTeX Math: Always format all mathematical formulas, square roots, fractions, and equations using standard LaTeX syntax enclosed in \$...\$ for inline formulas or \$\$...\$\$ for display blocks.\n7. Intellectual Honesty: If you do not know or cannot verify a fact, acknowledge it immediately and clearly.'**
+  String get assistantProviderGrokSystemPrompt;
 
   /// No description provided for @assistantProviderSampleAssistantName.
   ///
@@ -3163,19 +3169,19 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageRestartContent.
   ///
   /// In en, this message translates to:
-  /// **'Import successful. Restart Kelivo to apply it safely.'**
+  /// **'Import successful. Restart VOID to apply it safely.'**
   String get backupPageRestartContent;
 
   /// No description provided for @backupPageRestartContentWithSkipped.
   ///
   /// In en, this message translates to:
-  /// **'Import completed, but {count} conversations with invalid message ordering were skipped. Restart Kelivo to apply the imported data safely.'**
+  /// **'Import completed, but {count} conversations with invalid message ordering were skipped. Restart VOID to apply the imported data safely.'**
   String backupPageRestartContentWithSkipped(int count);
 
   /// No description provided for @restartAppFailedMessage.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not restart automatically. Fully close it, then open it again.'**
+  /// **'VOID could not restart automatically. Fully close it, then open it again.'**
   String get restartAppFailedMessage;
 
   /// No description provided for @backupRestoreRolledBackTitle.
@@ -3187,7 +3193,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreRolledBackContent.
   ///
   /// In en, this message translates to:
-  /// **'The restore could not be completed. Kelivo verified and kept your previous data.'**
+  /// **'The restore could not be completed. VOID verified and kept your previous data.'**
   String get backupRestoreRolledBackContent;
 
   /// No description provided for @backupRestoreDirectoryBlockedTitle.
@@ -3217,19 +3223,19 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreFailureContent.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not verify a complete old or new data set, so chat data was not opened. Close Kelivo and try again. If this repeats, keep the diagnostic code for support.'**
+  /// **'VOID could not verify a complete old or new data set, so chat data was not opened. Close VOID and try again. If this repeats, keep the diagnostic code for support.'**
   String get backupRestoreFailureContent;
 
   /// No description provided for @backupRestoreBusinessLeaseUnavailableTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo is already running'**
+  /// **'VOID is already running'**
   String get backupRestoreBusinessLeaseUnavailableTitle;
 
   /// No description provided for @backupRestoreBusinessLeaseUnavailableContent.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo\'s data is still in use by another app process. Close any other Kelivo window, then restart. Your chat data has not been opened by this process.'**
+  /// **'VOID\'s data is still in use by another app process. Close any other VOID window, then restart. Your chat data has not been opened by this process.'**
   String get backupRestoreBusinessLeaseUnavailableContent;
 
   /// No description provided for @restoreProgressTitle.
@@ -3241,7 +3247,7 @@ abstract class AppLocalizations {
   /// No description provided for @restoreProgressWarning.
   ///
   /// In en, this message translates to:
-  /// **'Keep Kelivo open until this finishes. If you close it now, the next launch starts this over.'**
+  /// **'Keep VOID open until this finishes. If you close it now, the next launch starts this over.'**
   String get restoreProgressWarning;
 
   /// No description provided for @restoreProgressStageCheckingBackup.
@@ -3283,7 +3289,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreFailureRestartButton.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo'**
+  /// **'Restart VOID'**
   String get backupRestoreFailureRestartButton;
 
   /// No description provided for @backupRestoreFailureCopyButton.
@@ -3355,7 +3361,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetFailed.
   ///
   /// In en, this message translates to:
-  /// **'Reset failed. Fully close Kelivo, then open it again.'**
+  /// **'Reset failed. Fully close VOID, then open it again.'**
   String get startupRecoveryResetFailed;
 
   /// No description provided for @startupRecoveryResetDialogTitle.
@@ -3565,7 +3571,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryDangerBody.
   ///
   /// In en, this message translates to:
-  /// **'A fresh start removes the current data from view. Kelivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.'**
+  /// **'A fresh start removes the current data from view. VOID will preserve the old database and existing copies for recovery. Export a data copy first if possible.'**
   String get startupRecoveryDangerBody;
 
   /// No description provided for @startupRecoveryResetAcknowledge.
@@ -3577,13 +3583,13 @@ abstract class AppLocalizations {
   /// No description provided for @startupDatabaseUpdateRequiredTitle.
   ///
   /// In en, this message translates to:
-  /// **'Update Kelivo to continue'**
+  /// **'Update VOID to continue'**
   String get startupDatabaseUpdateRequiredTitle;
 
   /// No description provided for @startupDatabaseUpdateRequiredContent.
   ///
   /// In en, this message translates to:
-  /// **'The chat database on this device was created by a newer version of Kelivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Kelivo, then open it again.'**
+  /// **'The chat database on this device was created by a newer version of VOID and cannot be opened by this version. Your data has not been changed. Install the latest version of VOID, then open it again.'**
   String get startupDatabaseUpdateRequiredContent;
 
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeTitle.
@@ -3601,7 +3607,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeStep1.
   ///
   /// In en, this message translates to:
-  /// **'Install and open the latest Kelivo, then export a backup from Settings → Backup.'**
+  /// **'Install and open the latest VOID, then export a backup from Settings → Backup.'**
   String get startupDatabaseUpdateRequiredDowngradeStep1;
 
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeStep2.
@@ -3697,7 +3703,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageForwardCompatBody.
   ///
   /// In en, this message translates to:
-  /// **'This backup was created by a newer version of Kelivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Kelivo first is the safer choice.'**
+  /// **'This backup was created by a newer version of VOID (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating VOID first is the safer choice.'**
   String backupPageForwardCompatBody(int backupVersion, int currentVersion);
 
   /// No description provided for @backupPageForwardCompatContinue.
@@ -3715,7 +3721,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageSchemaTooNewMessage.
   ///
   /// In en, this message translates to:
-  /// **'This backup was created by a newer version of Kelivo and cannot be read by this version. Please update Kelivo and try again.'**
+  /// **'This backup was created by a newer version of VOID and cannot be read by this version. Please update VOID and try again.'**
   String get backupPageSchemaTooNewMessage;
 
   /// No description provided for @backupPageBackupUploaded.
@@ -4063,7 +4069,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageIosSystemBackupNote.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo\'s local data is set to be excluded from iCloud device backups. Export a backup file before changing devices or deleting the app.'**
+  /// **'VOID\'s local data is set to be excluded from iCloud device backups. Export a backup file before changing devices or deleting the app.'**
   String get backupPageIosSystemBackupNote;
 
   /// No description provided for @backupPageImportFromCherryStudio.
@@ -4075,7 +4081,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageCherryStudioUnsupportedBackupVersion.
   ///
   /// In en, this message translates to:
-  /// **'This backup uses Cherry Studio format version {version}, which Kelivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Kelivo update that supports Cherry Studio v2 backups.'**
+  /// **'This backup uses Cherry Studio format version {version}, which VOID cannot import yet. Export from Cherry Studio v1 instead, or wait for a VOID update that supports Cherry Studio v2 backups.'**
   String backupPageCherryStudioUnsupportedBackupVersion(String version);
 
   /// No description provided for @backupPageImportFromChatbox.
@@ -6027,6 +6033,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Queued to send'**
   String get chatInputBarQueuedPending;
+
+  /// No description provided for @chatInputBarQueuedSendNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Send now'**
+  String get chatInputBarQueuedSendNow;
 
   /// No description provided for @chatInputBarQueuedCancel.
   ///
@@ -9370,13 +9382,13 @@ abstract class AppLocalizations {
   /// No description provided for @aboutPageAppName.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo'**
+  /// **'VOID'**
   String get aboutPageAppName;
 
   /// No description provided for @aboutPageAppDescription.
   ///
   /// In en, this message translates to:
-  /// **'Open-source AI Assistant'**
+  /// **'Next-Gen Autonomous AI Assistant'**
   String get aboutPageAppDescription;
 
   /// No description provided for @aboutPageNoQQGroup.
@@ -9478,19 +9490,19 @@ abstract class AppLocalizations {
   /// No description provided for @aboutPageQQGroupOne.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo Group 1'**
+  /// **'VOID Group 1'**
   String get aboutPageQQGroupOne;
 
   /// No description provided for @aboutPageQQGroupTwo.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo Group 2'**
+  /// **'VOID Group 2'**
   String get aboutPageQQGroupTwo;
 
   /// No description provided for @aboutPageQQGroupThree.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo Group 3'**
+  /// **'VOID Group 3'**
   String get aboutPageQQGroupThree;
 
   /// No description provided for @aboutPageJoinDiscord.
@@ -11464,7 +11476,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsShare.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo - Open Source AI Assistant'**
+  /// **'VOID - Open Source AI Assistant'**
   String get settingsShare;
 
   /// No description provided for @searchProviderBingLocalDescription.
@@ -11842,7 +11854,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchServiceNameKelivo.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo'**
+  /// **'VOID'**
   String get searchServiceNameKelivo;
 
   /// No description provided for @searchServicesDialogCountryOptional.
@@ -12334,8 +12346,122 @@ abstract class AppLocalizations {
   /// No description provided for @assistantEditLocalToolWeatherSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Get Apple Weather for the current or a specified location. WeatherKit attribution is shown in the result.'**
+  /// **'Get real-time weather and forecasts for any city or your current location.'**
   String get assistantEditLocalToolWeatherSubtitle;
+
+  /// No description provided for @assistantEditLocalToolXSearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'X (Twitter) Search'**
+  String get assistantEditLocalToolXSearchTitle;
+
+  /// No description provided for @assistantEditLocalToolXSearchSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search posts, user updates, threads, and breaking news on X.'**
+  String get assistantEditLocalToolXSearchSubtitle;
+
+  /// No description provided for @assistantEditLocalToolSportsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports Scores & Schedules'**
+  String get assistantEditLocalToolSportsTitle;
+
+  /// No description provided for @assistantEditLocalToolSportsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Get live scores, game status, and standings for NBA, NFL, soccer, and more.'**
+  String get assistantEditLocalToolSportsSubtitle;
+
+  /// No description provided for @assistantEditLocalToolImageGenerationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Generation (Imagine)'**
+  String get assistantEditLocalToolImageGenerationTitle;
+
+  /// No description provided for @assistantEditLocalToolImageGenerationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate and edit images using AI models directly in conversations.'**
+  String get assistantEditLocalToolImageGenerationSubtitle;
+
+  /// No description provided for @assistantEditLocalToolEditImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Editing'**
+  String get assistantEditLocalToolEditImageTitle;
+
+  /// No description provided for @assistantEditLocalToolEditImageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Modify, restyle, or edit existing images with AI prompts.'**
+  String get assistantEditLocalToolEditImageSubtitle;
+
+  /// No description provided for @assistantEditLocalToolMediaProcessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Media Processing'**
+  String get assistantEditLocalToolMediaProcessTitle;
+
+  /// No description provided for @assistantEditLocalToolMediaProcessSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize, inspect, and convert image and media files.'**
+  String get assistantEditLocalToolMediaProcessSubtitle;
+
+  /// No description provided for @assistantEditLocalToolDocumentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Document Manager'**
+  String get assistantEditLocalToolDocumentTitle;
+
+  /// No description provided for @assistantEditLocalToolDocumentSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract text, create, or merge PDF and office documents.'**
+  String get assistantEditLocalToolDocumentSubtitle;
+
+  /// No description provided for @assistantEditLocalToolSandboxVpsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox VPS (SSH)'**
+  String get assistantEditLocalToolSandboxVpsTitle;
+
+  /// No description provided for @assistantEditLocalToolSandboxVpsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Execute commands, run scripts, and manage files on a remote Linux server.'**
+  String get assistantEditLocalToolSandboxVpsSubtitle;
+
+  /// No description provided for @assistantEditLocalToolSiteInspectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Site Inspector & Bug Hunter'**
+  String get assistantEditLocalToolSiteInspectTitle;
+
+  /// No description provided for @assistantEditLocalToolSiteInspectSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crawl web pages, evaluate accessibility, security headers, and diagnose bugs.'**
+  String get assistantEditLocalToolSiteInspectSubtitle;
+
+  /// No description provided for @settingsPageSandboxVps.
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox VPS & SSH'**
+  String get settingsPageSandboxVps;
+
+  /// No description provided for @settingsPageSandboxVpsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure remote Linux server access for commands & agentic execution'**
+  String get settingsPageSandboxVpsSubtitle;
+
+  /// No description provided for @themePaletteGrok.
+  ///
+  /// In en, this message translates to:
+  /// **'Grok / VoltGrok'**
+  String get themePaletteGrok;
 
   /// No description provided for @assistantEditLocalToolHealthTitle.
   ///
@@ -12364,7 +12490,7 @@ abstract class AppLocalizations {
   /// No description provided for @healthDataSettingsDescription.
   ///
   /// In en, this message translates to:
-  /// **'HealthKit signals available to the current assistant in daily conversation. Switches control what Kelivo may try to read; iOS still manages actual Health access.'**
+  /// **'HealthKit signals available to the current assistant in daily conversation. Switches control what VOID may try to read; iOS still manages actual Health access.'**
   String get healthDataSettingsDescription;
 
   /// No description provided for @healthDataSettingsBadge.
@@ -14806,7 +14932,7 @@ abstract class AppLocalizations {
   /// No description provided for @legacyMemoryExportTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo legacy memory export'**
+  /// **'VOID legacy memory export'**
   String get legacyMemoryExportTitle;
 
   /// No description provided for @legacyMemoryAssistantHeader.
@@ -15856,13 +15982,13 @@ abstract class AppLocalizations {
   /// No description provided for @migrationIntroSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.'**
+  /// **'VOID is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.'**
   String get migrationIntroSubtitle;
 
   /// No description provided for @migrationBackupNote.
   ///
   /// In en, this message translates to:
-  /// **'Before migration starts, Kelivo exports a ZIP backup with settings, chat history, and local files.'**
+  /// **'Before migration starts, VOID exports a ZIP backup with settings, chat history, and local files.'**
   String get migrationBackupNote;
 
   /// No description provided for @migrationPerformanceNote.
@@ -15934,7 +16060,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationBackingUpSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Exporting settings, chat history, uploaded files, images, and fonts. Keep Kelivo open until this finishes.'**
+  /// **'Exporting settings, chat history, uploaded files, images, and fonts. Keep VOID open until this finishes.'**
   String get migrationBackingUpSubtitle;
 
   /// No description provided for @migrationMigratingTitle.
@@ -15946,7 +16072,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationMigratingSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Writing conversations and messages in batches so large histories do not overload memory. Keep Kelivo in the foreground until migration finishes.'**
+  /// **'Writing conversations and messages in batches so large histories do not overload memory. Keep VOID in the foreground until migration finishes.'**
   String get migrationMigratingSubtitle;
 
   /// No description provided for @migrationBackingUpDetail.
@@ -16054,7 +16180,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationCompleteSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Your chat history is now stored in SQLite. Restart Kelivo to enter the upgraded app.'**
+  /// **'Your chat history is now stored in SQLite. Restart VOID to enter the upgraded app.'**
   String get migrationCompleteSubtitle;
 
   /// No description provided for @migrationConversationCount.
@@ -16090,7 +16216,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationRestartButton.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo'**
+  /// **'Restart VOID'**
   String get migrationRestartButton;
 
   /// No description provided for @migrationFailedTitle.
@@ -16138,7 +16264,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationSkipDialogMessage.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.'**
+  /// **'VOID will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.'**
   String get migrationSkipDialogMessage;
 
   /// No description provided for @migrationSkipDialogCancel.
@@ -16918,7 +17044,7 @@ abstract class AppLocalizations {
   /// No description provided for @localSnapshotEnabledSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo periodically saves a copy of its database on this device, so it is never the only one.'**
+  /// **'VOID periodically saves a copy of its database on this device, so it is never the only one.'**
   String get localSnapshotEnabledSubtitle;
 
   /// No description provided for @localSnapshotIntervalTitle.
@@ -17074,7 +17200,7 @@ abstract class AppLocalizations {
   /// No description provided for @localSnapshotCopiesScopeNote.
   ///
   /// In en, this message translates to:
-  /// **'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Kelivo — use WebDAV or S3 backup for that.'**
+  /// **'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling VOID — use WebDAV or S3 backup for that.'**
   String get localSnapshotCopiesScopeNote;
 
   /// No description provided for @localSnapshotOriginAutomatic.
@@ -18310,7 +18436,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceEnvRestartBanner.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo to finish'**
+  /// **'Restart VOID to finish'**
   String get workspaceEnvRestartBanner;
 
   /// No description provided for @workspaceEnvDetectingMirrors.
@@ -18496,7 +18622,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceEnvNativeExplanation.
   ///
   /// In en, this message translates to:
-  /// **'On desktop, Kelivo uses your system shell instead of a Linux sandbox.'**
+  /// **'On desktop, VOID uses your system shell instead of a Linux sandbox.'**
   String get workspaceEnvNativeExplanation;
 
   /// No description provided for @workspaceEnvNativeShellPath.
@@ -20160,7 +20286,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceDesktopManagedHint.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo creates and manages a folder for this project.'**
+  /// **'VOID creates and manages a folder for this project.'**
   String get workspaceDesktopManagedHint;
 
   /// No description provided for @workspaceDesktopHostHint.
@@ -20604,7 +20730,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceExternalStorageMessage.
   ///
   /// In en, this message translates to:
-  /// **'To read and write external folders in the workspace and Shell, allow Kelivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.'**
+  /// **'To read and write external folders in the workspace and Shell, allow VOID to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.'**
   String get workspaceExternalStorageMessage;
 
   /// No description provided for @workspaceExternalGrantAccess.
@@ -21006,7 +21132,7 @@ abstract class AppLocalizations {
   /// No description provided for @backgroundTaskTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo task'**
+  /// **'VOID task'**
   String get backgroundTaskTitle;
 
   /// No description provided for @backgroundCompleted.
@@ -21252,7 +21378,7 @@ abstract class AppLocalizations {
   /// No description provided for @backgroundIconDefault.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo icon'**
+  /// **'VOID icon'**
   String get backgroundIconDefault;
 
   /// No description provided for @backgroundIconImage.
@@ -21660,7 +21786,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotBody.
   ///
   /// In en, this message translates to:
-  /// **'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Kelivo: uninstalling also removes these snapshots.'**
+  /// **'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall VOID: uninstalling also removes these snapshots.'**
   String get startupRecoverySnapshotBody;
 
   /// No description provided for @startupRecoverySnapshotEmpty.
@@ -21678,7 +21804,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Kelivo will restart to complete the restore.'**
+  /// **'Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. VOID will restart to complete the restore.'**
   String startupRecoverySnapshotConfirm(String when);
 
   /// No description provided for @startupRecoverySnapshotFailed.
@@ -21690,13 +21816,13 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotReady.
   ///
   /// In en, this message translates to:
-  /// **'The snapshot is ready. Restart Kelivo to complete the restore.'**
+  /// **'The snapshot is ready. Restart VOID to complete the restore.'**
   String get startupRecoverySnapshotReady;
 
   /// No description provided for @scheduledTasksTitle.
   ///
   /// In en, this message translates to:
-  /// **'Scheduled tasks'**
+  /// **'Automations'**
   String get scheduledTasksTitle;
 
   /// No description provided for @scheduledTasksDescription.
@@ -21708,19 +21834,19 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksEmpty.
   ///
   /// In en, this message translates to:
-  /// **'Your day, on a schedule'**
+  /// **'Start by adding automation'**
   String get scheduledTasksEmpty;
 
   /// No description provided for @scheduledTasksEmptyDetail.
   ///
   /// In en, this message translates to:
-  /// **'Add a task for a morning briefing, a daily review, or anything you want to run regularly.'**
+  /// **'Create scheduled tasks that triggers on certain actions'**
   String get scheduledTasksEmptyDetail;
 
   /// No description provided for @scheduledTasksAdd.
   ///
   /// In en, this message translates to:
-  /// **'Add task'**
+  /// **'New Automation'**
   String get scheduledTasksAdd;
 
   /// No description provided for @scheduledTasksEdit.
@@ -21828,7 +21954,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksReliability.
   ///
   /// In en, this message translates to:
-  /// **'Keep Kelivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.'**
+  /// **'Keep VOID unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.'**
   String get scheduledTasksReliability;
 
   /// No description provided for @scheduledTasksExecutionDetail.
@@ -22170,7 +22296,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksDesktopReliability.
   ///
   /// In en, this message translates to:
-  /// **'Tasks run only while Kelivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Kelivo will not start automatically.'**
+  /// **'Tasks run only while VOID is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. VOID will not start automatically.'**
   String get scheduledTasksDesktopReliability;
 
   /// No description provided for @scheduledTasksDesktopExecutionDetail.
@@ -22710,7 +22836,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksIOSDetail.
   ///
   /// In en, this message translates to:
-  /// **'iOS background limits prevent Kelivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Kelivo to prepare subsequent occurrences.'**
+  /// **'iOS background limits prevent VOID from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen VOID to prepare subsequent occurrences.'**
   String get scheduledTasksIOSDetail;
 
   /// No description provided for @scheduledTasksContextPolicy.
@@ -22836,7 +22962,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksReminderBody.
   ///
   /// In en, this message translates to:
-  /// **'Your scheduled task is due. Open Kelivo to continue.'**
+  /// **'Your scheduled task is due. Open VOID to continue.'**
   String get scheduledTasksReminderBody;
 
   /// No description provided for @scheduledTasksResultBody.
@@ -22860,7 +22986,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksAllowPreparationTip.
   ///
   /// In en, this message translates to:
-  /// **'Generate the next result before its scheduled time, while Kelivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.'**
+  /// **'Generate the next result before its scheduled time, while VOID can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.'**
   String get scheduledTasksAllowPreparationTip;
 
   /// No description provided for @scheduledTasksContextPolicyTip.
@@ -22872,7 +22998,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksPreparationWindowTip.
   ///
   /// In en, this message translates to:
-  /// **'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Kelivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.'**
+  /// **'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening VOID at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.'**
   String get scheduledTasksPreparationWindowTip;
 
   /// No description provided for @scheduledTasksPreparationAttemptsTip.
@@ -22890,7 +23016,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksUnavailableTip.
   ///
   /// In en, this message translates to:
-  /// **'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Kelivo is open when the task is due, it can run the task then.'**
+  /// **'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If VOID is open when the task is due, it can run the task then.'**
   String get scheduledTasksUnavailableTip;
 
   /// No description provided for @scheduledTasksNotifyTip.
@@ -23193,7 +23319,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneControlAssistantHint.
   ///
   /// In en, this message translates to:
-  /// **'Both permissions are required: enable Kelivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.'**
+  /// **'Both permissions are required: enable VOID phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.'**
   String get phoneControlAssistantHint;
 
   /// No description provided for @phoneControlRestrictedTitle.
@@ -23205,7 +23331,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneControlRestrictedHint.
   ///
   /// In en, this message translates to:
-  /// **'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Kelivo’s app info, then return to Accessibility settings.'**
+  /// **'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open VOID’s app info, then return to Accessibility settings.'**
   String get phoneControlRestrictedHint;
 
   /// No description provided for @phoneControlEnableAssistant.
@@ -23571,7 +23697,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryMissingDataBody.
   ///
   /// In en, this message translates to:
-  /// **'The current database is missing, but this device still contains previous data. Kelivo has paused startup and has not created an empty database. Your remaining files and copies are being preserved.'**
+  /// **'The current database is missing, but this device still contains previous data. VOID has paused startup and has not created an empty database. Your remaining files and copies are being preserved.'**
   String get recoveryMissingDataBody;
 
   /// No description provided for @recoveryEmptyDataTitle.
@@ -23583,7 +23709,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryEmptyDataBody.
   ///
   /// In en, this message translates to:
-  /// **'The current database has no conversations, but previous copies were found. Kelivo has paused startup so you can recover a copy or explicitly keep the current data. Nothing will be overwritten automatically.'**
+  /// **'The current database has no conversations, but previous copies were found. VOID has paused startup so you can recover a copy or explicitly keep the current data. Nothing will be overwritten automatically.'**
   String get recoveryEmptyDataBody;
 
   /// No description provided for @recoveryKeepCurrent.
@@ -23637,7 +23763,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryStorageFailureBody.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not activate its protected data storage. Startup has stopped and the original data has been kept. Export a copy of your data or retry; no empty database will be created.'**
+  /// **'VOID could not activate its protected data storage. Startup has stopped and the original data has been kept. Export a copy of your data or retry; no empty database will be created.'**
   String get recoveryStorageFailureBody;
 
   /// No description provided for @recoveryProtectingTitle.
@@ -23823,7 +23949,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupEncryptionUnsupported.
   ///
   /// In en, this message translates to:
-  /// **'This encrypted backup requires a newer version of Kelivo.'**
+  /// **'This encrypted backup requires a newer version of VOID.'**
   String get backupEncryptionUnsupported;
 
   /// No description provided for @backupProgressEncrypting.
@@ -24135,7 +24261,7 @@ abstract class AppLocalizations {
   /// No description provided for @browserRestoreTabsDescription.
   ///
   /// In en, this message translates to:
-  /// **'Reopen your tabs when Kelivo starts.'**
+  /// **'Reopen your tabs when VOID starts.'**
   String get browserRestoreTabsDescription;
 
   /// No description provided for @browserSaveHistory.
@@ -26973,7 +27099,7 @@ abstract class AppLocalizations {
   /// No description provided for @toolPermissionRequestApprovalDesc.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.'**
+  /// **'VOID will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.'**
   String get toolPermissionRequestApprovalDesc;
 
   /// No description provided for @contextLimitedInputHint.
@@ -27081,7 +27207,7 @@ abstract class AppLocalizations {
   /// No description provided for @dataDirectoryMoving.
   ///
   /// In en, this message translates to:
-  /// **'Moving and verifying data… Please keep Kelivo open.'**
+  /// **'Moving and verifying data… Please keep VOID open.'**
   String get dataDirectoryMoving;
 
   /// No description provided for @dataDirectoryStartupFailed.
@@ -27153,7 +27279,7 @@ abstract class AppLocalizations {
   /// No description provided for @dataDirectoryGenericError.
   ///
   /// In en, this message translates to:
-  /// **'The operation could not finish. Check available disk space, folder permissions and whether another Kelivo process is running, then retry. Existing data has been kept.'**
+  /// **'The operation could not finish. Check available disk space, folder permissions and whether another VOID process is running, then retry. Existing data has been kept.'**
   String get dataDirectoryGenericError;
 
   /// No description provided for @dataDirectoryCancelHint.

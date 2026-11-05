@@ -46,6 +46,23 @@ IconData localToolIcon(String id) {
       return Lucide.ListPlus;
     case LocalToolNames.remindersComplete:
       return Lucide.CheckCircle;
+    case LocalToolNames.xSearch:
+      return Lucide.AtSign;
+    case LocalToolNames.sports:
+      return Lucide.Trophy;
+    case LocalToolNames.imageGeneration:
+      return Lucide.Image;
+    case LocalToolNames.editImage:
+      return Lucide.ImageDown;
+    case LocalToolNames.mediaProcess:
+      return Lucide.FileVideo;
+    case LocalToolNames.documentTool:
+      return Lucide.FileText;
+    case LocalToolNames.sandboxVps:
+    case LocalToolNames.bash:
+      return Lucide.Terminal;
+    case LocalToolNames.inspectSite:
+      return Lucide.Bug;
     default:
       return Lucide.Wrench;
   }
@@ -85,6 +102,24 @@ String localToolTitle(AppLocalizations l10n, String id) {
       return l10n.assistantEditLocalToolRemindersCreateTitle;
     case LocalToolNames.remindersComplete:
       return l10n.assistantEditLocalToolRemindersCompleteTitle;
+    case LocalToolNames.xSearch:
+      return l10n.assistantEditLocalToolXSearchTitle;
+    case LocalToolNames.sports:
+      return l10n.assistantEditLocalToolSportsTitle;
+    case LocalToolNames.imageGeneration:
+      return l10n.assistantEditLocalToolImageGenerationTitle;
+    case LocalToolNames.editImage:
+      return l10n.assistantEditLocalToolEditImageTitle;
+    case LocalToolNames.mediaProcess:
+      return l10n.assistantEditLocalToolMediaProcessTitle;
+    case LocalToolNames.documentTool:
+      return l10n.assistantEditLocalToolDocumentTitle;
+    case LocalToolNames.sandboxVps:
+      return l10n.assistantEditLocalToolSandboxVpsTitle;
+    case LocalToolNames.bash:
+      return 'Bash & Shell';
+    case LocalToolNames.inspectSite:
+      return l10n.assistantEditLocalToolSiteInspectTitle;
     default:
       return id;
   }

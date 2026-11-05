@@ -44,7 +44,16 @@ MarkstreamExtensions _extensions({LiteralSpanBuilder? literalSpanBuilder}) =>
         'kelivo-ui': _nativeUi,
         'kelivo-web': _nativeUi,
         'math': _math,
+        'latex': _math,
+        'katex': _math,
+        'tex': _math,
         'mermaid': _diagram,
+        'graph': _diagram,
+        'chart': _diagram,
+        'flowchart': _diagram,
+        'flow_chart': _diagram,
+        'sequencediagram': _diagram,
+        'sequence_diagram': _diagram,
         'svg': _diagram,
         'xml': _diagram,
         'html': _diagram,
@@ -114,12 +123,20 @@ Widget _diagram(
   MarkstreamRenderContext rendering,
 ) {
   final language = node.info.trim().split(RegExp(r'\s+')).first.toLowerCase();
-  if (language == 'mermaid' || isSvgCodeBlock(language, node.code)) {
+  final isMermaidLike =
+      language == 'mermaid' ||
+      language == 'graph' ||
+      language == 'chart' ||
+      language == 'flowchart' ||
+      language == 'flow_chart' ||
+      language == 'sequencediagram' ||
+      language == 'sequence_diagram';
+  if (isMermaidLike || isSvgCodeBlock(language, node.code)) {
     return KelivoDiagramBlock(
       node: node,
       theme: rendering.theme,
       streaming: rendering.streaming && !node.closed,
-      isSvg: language != 'mermaid',
+      isSvg: !isMermaidLike && isSvgCodeBlock(language, node.code),
     );
   }
   // HTML snippets and complete HTML documents use the same code chrome and

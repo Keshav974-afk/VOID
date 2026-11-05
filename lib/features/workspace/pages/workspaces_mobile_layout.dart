@@ -23,7 +23,7 @@ class WorkspacesMobileLayout extends StatelessWidget {
           semanticLabel: l10n.settingsPageBackButton,
           onTap: () => Navigator.of(context).maybePop(),
         ),
-        title: Text(l10n.workspacesTitle),
+        title: const Text('Projects'),
         actions: workspaceMgmtCreateActions(context),
       ),
       body: const Padding(

@@ -10,6 +10,10 @@ import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
 import 'screen_time_tool_ui.dart';
 import 'weather_tool_ui.dart';
+import '../../../core/services/x_search/x_search_service.dart';
+import '../../../core/services/sports/sports_service.dart';
+import '../../../core/services/sandbox_vps/sandbox_vps_service.dart';
+import '../../../core/services/inspect/site_inspection_service.dart';
 
 /// Built-in search is cited elsewhere and must not create a timeline card.
 const String kBuiltinSearchToolName = 'builtin_search';
@@ -390,6 +394,30 @@ double estimateToolExtraHeight({
     final weather = WeatherToolResult.tryParse(cleanText);
     if (weather != null && !weather.isError) {
       return _estimateWeatherExtra(weather, fontScale);
+    }
+  }
+  if (toolName == LocalToolNames.xSearch) {
+    final xRes = XSearchResult.tryParse(cleanText);
+    if (xRes != null && xRes.posts.isNotEmpty) {
+      return xRes.posts.length * 110.0 * fontScale;
+    }
+  }
+  if (toolName == LocalToolNames.sports) {
+    final sportsRes = SportsToolResult.tryParse(cleanText);
+    if (sportsRes != null && sportsRes.games.isNotEmpty) {
+      return sportsRes.games.length * 75.0 * fontScale;
+    }
+  }
+  if (toolName == LocalToolNames.sandboxVps) {
+    final vpsRes = SandboxVpsToolResult.tryParse(cleanText);
+    if (vpsRes != null) {
+      return 140.0 * fontScale;
+    }
+  }
+  if (toolName == LocalToolNames.inspectSite) {
+    final siteRes = SiteInspectToolResult.tryParse(cleanText);
+    if (siteRes != null) {
+      return 180.0 * fontScale;
     }
   }
 

@@ -16,13 +16,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/form_sheet.dart';
 import '../../../shared/widgets/ios_settings_rows.dart';
-import '../../../shared/widgets/ios_tile_button.dart';
 import '../../../shared/widgets/option_sheet.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../widgets/scheduled_task_tile.dart';
 import '../../settings/pages/mobile_background_settings_page.dart';
 import '../../settings/widgets/custom_theme_widgets.dart';
+import 'package:Kelivo/theme/app_font_weights.dart';
 
 String _repeatLabel(ScheduledTask task, AppLocalizations l) {
   if (task.onceDate != null) return scheduledRepeatLabel(task.repeat, l);
@@ -595,31 +595,91 @@ class _ScheduledTasksPageState extends State<ScheduledTasksPage>
             const SizedBox(height: 20),
           ],
           if (service.loaded && service.tasks.isEmpty) ...[
-            const SizedBox(height: 36),
-            Icon(
-              LucideIcons.clock,
-              size: 44,
-              color: cs.onSurface.withValues(alpha: .4),
+            const SizedBox(height: 120),
+            Center(
+              child: Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(
+                        LucideIcons.history,
+                        size: 30,
+                        color: cs.onSurface.withValues(alpha: 0.85),
+                      ),
+                      Positioned(
+                        right: 2,
+                        bottom: 2,
+                        child: Icon(
+                          LucideIcons.zap,
+                          size: 14,
+                          color: const Color(0xFFFF7A00),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Text(
               l.scheduledTasksEmpty,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontSize: 19,
+                fontWeight: AppFontWeights.emphasis,
                 color: cs.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
-            IosSectionFooter(text: l.scheduledTasksEmptyDetail),
-            const SizedBox(height: 20),
-            IosTileButton(
-              label: l.scheduledTasksAdd,
-              icon: LucideIcons.plus,
-              onTap: _edit,
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                l.scheduledTasksEmptyDetail,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: cs.onSurface.withValues(alpha: 0.60),
+                ),
+              ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 28),
+            Center(
+              child: GestureDetector(
+                onTap: _edit,
+                child: Container(
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(23),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(LucideIcons.plus, size: 18, color: cs.onSurface),
+                      const SizedBox(width: 8),
+                      Text(
+                        l.scheduledTasksAdd,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: AppFontWeights.emphasis,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 60),
           ],
           for (final task in service.tasks) ...[
             ScheduledTaskTile(

@@ -9,6 +9,10 @@ import '../../selection/selection_controller.dart';
 import '../../theme/markstream_theme.dart';
 import '../source_highlights.dart';
 
+/// Marker interface for math widgets that expand to the full display width
+/// (e.g. equation arrays with numbered or literal tags).
+abstract interface class FullWidthMathWidget {}
+
 class MarkstreamMathBlock extends StatelessWidget {
   const MarkstreamMathBlock({
     super.key,
@@ -22,39 +26,44 @@ class MarkstreamMathBlock extends StatelessWidget {
   final MarkstreamTheme theme;
   final MathRenderer? renderer;
   @override
-  Widget build(BuildContext context) => MarkstreamSelectionFragment(
-    node: node,
-    segments: [
-      TextSegment(text: toPlainText(node), sourceSpan: node.span, node: node),
-    ],
-    child: SourceHighlightScope.of(context).atom(
-      node.span,
-      SelectableSpanAdapter(
-        selectedText: toPlainText(node),
-        child: SelectionContainer.disabled(
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              primary: false,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: constraints.hasBoundedWidth
-                      ? constraints.maxWidth
-                      : 0,
-                ),
-                child: Padding(
-                  // Glyphs can paint slightly beyond their TeX layout bounds.
-                  // Keep their vertical breathing room inside the scroll clip.
-                  padding: theme.mathPadding,
-                  child: Center(
-                    child:
-                        renderer?.build(
-                          context,
-                          tex,
-                          style: theme.body,
-                          displayMode: true,
-                        ) ??
-                        Text(tex, style: theme.body),
+  Widget build(BuildContext context) {
+    final mathWidget =
+        renderer?.build(
+          context,
+          tex,
+          style: theme.body,
+          displayMode: true,
+        ) ??
+        Text(tex, style: theme.body);
+    final usesFullWidth = mathWidget is FullWidthMathWidget;
+
+    return MarkstreamSelectionFragment(
+      node: node,
+      segments: [
+        TextSegment(text: toPlainText(node), sourceSpan: node.span, node: node),
+      ],
+      child: SourceHighlightScope.of(context).atom(
+        node.span,
+        SelectableSpanAdapter(
+          selectedText: toPlainText(node),
+          child: SelectionContainer.disabled(
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                primary: false,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: constraints.hasBoundedWidth
+                        ? constraints.maxWidth
+                        : 0,
+                  ),
+                  child: Padding(
+                    // Glyphs can paint slightly beyond their TeX layout bounds.
+                    // Keep their vertical breathing room inside the scroll clip.
+                    padding: theme.mathPadding,
+                    child: usesFullWidth
+                        ? mathWidget
+                        : Center(child: mathWidget),
                   ),
                 ),
               ),
@@ -62,6 +71,6 @@ class MarkstreamMathBlock extends StatelessWidget {
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

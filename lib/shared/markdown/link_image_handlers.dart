@@ -9,12 +9,15 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:Kelivo/core/services/workspace/file_link_resolver.dart';
 import 'package:Kelivo/features/workspace/workspace_file_navigation.dart';
 import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
+import 'package:Kelivo/features/chat/pages/pdf_viewer_page.dart';
 import 'package:Kelivo/icons/lucide_adapter.dart';
 import 'package:Kelivo/l10n/app_localizations.dart';
 import 'package:Kelivo/shared/widgets/snackbar.dart';
 import 'package:Kelivo/utils/sandbox_path_resolver.dart';
 import 'package:Kelivo/utils/svg_image_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:Kelivo/core/models/vps_config.dart';
+import 'package:Kelivo/core/services/sandbox_vps/sandbox_vps_service.dart';
 
 /// Source is read lazily when opening the gallery, avoiding another parse on
 /// every streaming frame. Existing image widgets only rebuild for a new scope.
@@ -51,6 +54,65 @@ class KelivoLinkHandler implements LinkHandler {
       );
       return;
     }
+
+    // Direct local or remote VPS file link handling
+    String cleanPath = url;
+    if (cleanPath.startsWith('file://')) {
+      try {
+        cleanPath = Uri.parse(cleanPath).toFilePath();
+      } catch (_) {}
+    }
+    if (cleanPath.startsWith('/') ||
+        RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(cleanPath)) {
+      final file = File(cleanPath);
+      final isPdf = cleanPath.toLowerCase().endsWith('.pdf');
+      if (await file.exists()) {
+        if (isPdf && context.mounted) {
+          Navigator.of(context).push(PdfViewerPage.route(filePath: cleanPath));
+          return;
+        }
+        await OpenFilex.open(cleanPath);
+        return;
+      }
+      if (cleanPath.startsWith('/tmp/') ||
+          cleanPath.startsWith('/root/') ||
+          cleanPath.startsWith('/var/')) {
+        try {
+          if (context.mounted) {
+            showAppSnackBar(
+              context,
+              message: 'Fetching file from Sandbox VPS...',
+              type: NotificationType.info,
+            );
+          }
+          final downloaded = await SandboxVpsService.instance
+              .downloadBinaryFile(
+                config: const VpsConfig(),
+                remotePath: cleanPath,
+              );
+          if (context.mounted) {
+            if (isPdf) {
+              Navigator.of(context).push(
+                PdfViewerPage.route(filePath: downloaded.path),
+              );
+            } else {
+              await OpenFilex.open(downloaded.path);
+            }
+          }
+          return;
+        } catch (e) {
+          if (context.mounted) {
+            showAppSnackBar(
+              context,
+              message: 'Failed to open file: $e',
+              type: NotificationType.error,
+            );
+          }
+          return;
+        }
+      }
+    }
+    if (!context.mounted) return;
     final l10n = AppLocalizations.of(context)!;
     try {
       final uri = Uri.parse(

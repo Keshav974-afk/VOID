@@ -298,13 +298,13 @@ class TtsProvider extends ChangeNotifier {
       }
     } catch (_) {}
     try {
-      await _tts.awaitSpeakCompletion(true);
+      await _tts.awaitSpeakCompletion(false);
     } catch (_) {}
     try {
-      await _tts.awaitSynthCompletion(true);
+      await _tts.awaitSynthCompletion(false);
     } catch (_) {}
     try {
-      await _tts.setQueueMode(1);
+      await _tts.setQueueMode(0);
     } catch (_) {}
   }
 
@@ -347,23 +347,114 @@ class TtsProvider extends ChangeNotifier {
   }
 
   Future<void> _selectEngine() async {
-    try {
-      final engines = await _tts.getEngines;
-      if (engines is List && engines.isNotEmpty) {
-        String? chosen;
-        for (final e in engines) {
-          final s = e.toString();
-          if (s.toLowerCase().contains('google')) {
-            chosen = s;
-            break;
-          }
-        }
-        chosen ??= engines.first.toString();
+    if (_engineId != null && _engineId!.isNotEmpty) {
+      try {
+        await _tts.setEngine(_engineId!);
+      } catch (_) {}
+    }
+  }
+
+  Future<String?> _detectAndSetBestLanguage(String text) async {
+    if (_languageTag != null && _languageTag!.isNotEmpty) {
+      final ok = await _tts.isLanguageAvailable(_languageTag!);
+      if (ok == true) {
+        await _tts.setLanguage(_languageTag!);
+        return _languageTag;
+      }
+    }
+
+    // Auto-detect based on script
+    // 1. Devanagari (Nepali, Hindi, Marathi, etc.)
+    if (RegExp(r'[\u0900-\u097F]').hasMatch(text)) {
+      for (final candidate in ['ne-NP', 'hi-IN', 'ne', 'hi']) {
         try {
-          await _tts.setEngine(chosen);
+          final res = await _tts.isLanguageAvailable(candidate);
+          if (res == true) {
+            await _tts.setLanguage(candidate);
+            return candidate;
+          }
         } catch (_) {}
       }
-    } catch (_) {}
+    }
+
+    // 2. CJK (Chinese)
+    if (RegExp(r'[\u4E00-\u9FFF]').hasMatch(text)) {
+      for (final candidate in ['zh-CN', 'zh-TW', 'zh-HK', 'zh']) {
+        try {
+          final res = await _tts.isLanguageAvailable(candidate);
+          if (res == true) {
+            await _tts.setLanguage(candidate);
+            return candidate;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // 3. Japanese (Hiragana / Katakana)
+    if (RegExp(r'[\u3040-\u309F\u30A0-\u30FF]').hasMatch(text)) {
+      for (final candidate in ['ja-JP', 'ja']) {
+        try {
+          final res = await _tts.isLanguageAvailable(candidate);
+          if (res == true) {
+            await _tts.setLanguage(candidate);
+            return candidate;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // 4. Korean (Hangul)
+    if (RegExp(r'[\uAC00-\uD7AF]').hasMatch(text)) {
+      for (final candidate in ['ko-KR', 'ko']) {
+        try {
+          final res = await _tts.isLanguageAvailable(candidate);
+          if (res == true) {
+            await _tts.setLanguage(candidate);
+            return candidate;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // 5. Arabic
+    if (RegExp(r'[\u0600-\u06FF]').hasMatch(text)) {
+      for (final candidate in ['ar', 'ar-SA']) {
+        try {
+          final res = await _tts.isLanguageAvailable(candidate);
+          if (res == true) {
+            await _tts.setLanguage(candidate);
+            return candidate;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // 6. Cyrillic (Russian, etc.)
+    if (RegExp(r'[\u0400-\u04FF]').hasMatch(text)) {
+      for (final candidate in ['ru-RU', 'ru']) {
+        try {
+          final res = await _tts.isLanguageAvailable(candidate);
+          if (res == true) {
+            await _tts.setLanguage(candidate);
+            return candidate;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Default to device locale or en-US
+    final loc = ui.PlatformDispatcher.instance.locale;
+    final defaultTag = _localeToTag(loc);
+    for (final candidate in [defaultTag, 'en-US', 'en']) {
+      try {
+        final res = await _tts.isLanguageAvailable(candidate);
+        if (res == true) {
+          await _tts.setLanguage(candidate);
+          return candidate;
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   Future<void> setSpeechRate(double rate) async {
@@ -936,6 +1027,12 @@ class TtsProvider extends ChangeNotifier {
     }
     await _ensureBound();
     try {
+      await _detectAndSetBestLanguage(text);
+    } catch (_) {}
+    try {
+      await _tts.setVolume(1.0);
+    } catch (_) {}
+    try {
       await _tts.setSpeechRate(
         TtsPlaybackSpeed.toSystemRate(_playbackState.speed),
       );
@@ -951,22 +1048,22 @@ class TtsProvider extends ChangeNotifier {
       res = await _tts.speak(text, focus: true);
     } catch (_) {}
     if (_speakOk(res)) return true;
-    await _selectEngine();
-    for (var i = 0; i < 5; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 180));
+    for (var i = 0; i < 3; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
       try {
+        await _detectAndSetBestLanguage(text);
+        await _tts.setVolume(1.0);
         res = await _tts.speak(text, focus: true);
       } catch (_) {}
       if (_speakOk(res)) return true;
     }
     await _recreateEngine();
-    for (var i = 0; i < 5; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      try {
-        res = await _tts.speak(text, focus: true);
-      } catch (_) {}
+    try {
+      await _detectAndSetBestLanguage(text);
+      await _tts.setVolume(1.0);
+      res = await _tts.speak(text, focus: true);
       if (_speakOk(res)) return true;
-    }
+    } catch (_) {}
     return false;
   }
 

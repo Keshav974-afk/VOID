@@ -29,7 +29,8 @@ export 'src/flutter/selection/selection_controller.dart'
         MarkstreamCopyLimitException;
 export 'src/flutter/performance_limits.dart';
 export 'src/flutter/render/blocks/code_block.dart' show MarkstreamCodeBlock;
-export 'src/flutter/render/blocks/math_block.dart' show MarkstreamMathBlock;
+export 'src/flutter/render/blocks/math_block.dart'
+    show MarkstreamMathBlock, FullWidthMathWidget;
 export 'src/flutter/render/blocks/directive_card.dart'
     show MarkstreamDirectiveCard;
 

@@ -114,6 +114,10 @@ void main() {
       expect(skill.record.enabled, isFalse);
       expect(skill.record.useCount, 1);
       expect(restarted.resolveForAssistant(null).map((s) => s.record.id), [
+        'code-sandbox',
+        'composio',
+        'deep-research',
+        'phone-control',
         'visualize',
       ]);
     },
@@ -126,16 +130,34 @@ void main() {
       await service.loaded;
       await service.delete('skill-creator');
       await service.rescan();
-      expect(service.skills.map((s) => s.record.id), ['visualize']);
+      expect(service.skills.map((s) => s.record.id), [
+        'code-sandbox',
+        'composio',
+        'deep-research',
+        'phone-control',
+        'visualize',
+      ]);
 
       final restarted = createService();
       await restarted.loaded;
-      expect(restarted.skills.map((s) => s.record.id), ['visualize']);
+      expect(restarted.skills.map((s) => s.record.id), [
+        'code-sandbox',
+        'composio',
+        'deep-research',
+        'phone-control',
+        'visualize',
+      ]);
       expect(
         (await store.listByKind(
           ExtensionEntityStore.kindSkill,
         )).map((s) => s.id),
-        ['visualize'],
+        containsAll([
+          'code-sandbox',
+          'composio',
+          'deep-research',
+          'phone-control',
+          'visualize',
+        ]),
       );
     },
   );
@@ -196,7 +218,7 @@ void main() {
       );
       final upgraded = createService();
       await upgraded.loaded;
-      expect(upgraded.skills, hasLength(3));
+      expect(upgraded.skills, hasLength(7));
       final creator = upgraded.skills.singleWhere(
         (s) => s.name == 'skill-creator',
       );
@@ -215,11 +237,18 @@ void main() {
     final service = createService();
     await service.loaded;
     expect(service.skills.map((s) => s.record.id), [
+      'code-sandbox',
+      'composio',
+      'deep-research',
       'my-skill',
+      'phone-control',
       'skill-creator',
       'visualize',
     ]);
-    expect(service.skills.first.record.source, SkillSource.file);
+    expect(
+      service.skills.firstWhere((s) => s.record.id == 'my-skill').record.source,
+      SkillSource.file,
+    );
   });
 
   test('asset failure can retry on the next startup', () async {

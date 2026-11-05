@@ -1,7 +1,10 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_math_fork/ast.dart'
+    show EquationArrayNode, GreenNode, TransparentNode;
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_math_fork/tex.dart';
 import 'package:markstream/markstream.dart';
+import 'package:Kelivo/theme/theme_factory.dart' show getPlatformFontFallback;
 
 /// The parser retains original LaTeX; repairs belong only to its visual adapter.
 class KelivoMathRenderer implements MathRenderer {
@@ -15,6 +18,7 @@ class KelivoMathRenderer implements MathRenderer {
     required bool displayMode,
   }) => _ParsedMath(
     tex: tex,
+    displayMode: displayMode,
     builder: (context, renderer) =>
         renderer.build(context, tex, style: style, displayMode: displayMode),
   );
@@ -36,6 +40,7 @@ class KelivoMathBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _ParsedMath(
     tex: node.code,
+    displayMode: true,
     builder: (context, renderer) => renderer.ast == null
         ? fallback
         : MarkstreamMathBlock(
@@ -47,10 +52,47 @@ class KelivoMathBlock extends StatelessWidget {
   );
 }
 
+class FullWidthMath extends StatelessWidget implements FullWidthMathWidget {
+  const FullWidthMath({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
+bool _usesFullWidthEquationLayout(Widget math) {
+  if (math is! Math) return false;
+  final root = math.ast?.greenRoot;
+  if (root == null) return false;
+
+  final flattened = <GreenNode>[];
+  void collect(GreenNode node) {
+    if (node is TransparentNode) {
+      for (final child in node.children) {
+        collect(child);
+      }
+    } else {
+      flattened.add(node);
+    }
+  }
+
+  for (final child in root.children) {
+    collect(child);
+    if (flattened.length > 1) return false;
+  }
+  final child = flattened.length == 1 ? flattened.single : null;
+  return child is EquationArrayNode && child.displayLayout;
+}
+
 class _ParsedMath extends StatefulWidget {
-  const _ParsedMath({required this.tex, required this.builder});
+  const _ParsedMath({
+    required this.tex,
+    this.displayMode = false,
+    required this.builder,
+  });
 
   final String tex;
+  final bool displayMode;
   final Widget Function(BuildContext, _ParsedMathRenderer) builder;
 
   @override
@@ -71,7 +113,10 @@ class _ParsedMathState extends State<_ParsedMath> {
   @override
   void didUpdateWidget(_ParsedMath oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.tex != widget.tex) _parse();
+    if (oldWidget.tex != widget.tex ||
+        oldWidget.displayMode != widget.displayMode) {
+      _parse();
+    }
   }
 
   void _parse() {
@@ -79,7 +124,13 @@ class _ParsedMathState extends State<_ParsedMath> {
     SyntaxTree? ast;
     try {
       ast = SyntaxTree(
-        greenRoot: TexParser(normalized, const TexParserSettings()).parse(),
+        greenRoot: TexParser(
+          normalized,
+          TexParserSettings(
+            displayMode: widget.displayMode,
+            strict: Strict.ignore,
+          ),
+        ).parse(),
       );
     } catch (_) {
       // Preserve malformed input; changed streaming text gets a fresh parse.
@@ -103,14 +154,24 @@ class _ParsedMathRenderer implements MathRenderer {
     String tex, {
     required TextStyle style,
     required bool displayMode,
-  }) => ast == null
-      ? Text(normalized, style: style)
-      : Math(
-          ast: ast,
-          mathStyle: displayMode ? MathStyle.display : MathStyle.text,
-          textStyle: style,
-          onErrorFallback: (_) => Text(normalized, style: style),
-        );
+  }) {
+    final effectiveStyle = style.copyWith(
+      fontFamilyFallback: style.fontFamilyFallback ?? getPlatformFontFallback(),
+    );
+    if (ast == null) {
+      return Text(normalized, style: effectiveStyle);
+    }
+    final mathWidget = Math(
+      ast: ast,
+      mathStyle: displayMode ? MathStyle.display : MathStyle.text,
+      textStyle: effectiveStyle,
+      onErrorFallback: (_) => Text(normalized, style: effectiveStyle),
+    );
+    if (displayMode && _usesFullWidthEquationLayout(mathWidget)) {
+      return FullWidthMath(child: mathWidget);
+    }
+    return mathWidget;
+  }
 }
 
 String normalizeMathTex(String tex) {
@@ -342,6 +403,11 @@ bool _isCommandArgumentBrace(String tex, int open) {
   final prev = _previousNonWhitespaceIndex(tex, open - 1);
   if (prev == -1) return false;
 
+  if (tex.codeUnitAt(prev) == 0x2A &&
+      _endsControlWordAt(tex, _previousNonWhitespaceIndex(tex, prev - 1))) {
+    return true;
+  }
+
   if (tex.codeUnitAt(prev) == 0x5D) {
     final optionalOpen = _findMatchingOpenBracket(tex, prev);
     if (optionalOpen != -1) {
@@ -441,4 +507,171 @@ bool _isAsciiLetterOrDigit(int codeUnit) {
   return _isAsciiDigit(codeUnit) ||
       (codeUnit >= 0x41 && codeUnit <= 0x5A) ||
       (codeUnit >= 0x61 && codeUnit <= 0x7A);
+}
+
+/// Standard LaTeX math environments supported by flutter_math_fork.
+const markdownMathEnvironments = <String>{
+  'array',
+  'darray',
+  'matrix',
+  'pmatrix',
+  'bmatrix',
+  'Bmatrix',
+  'vmatrix',
+  'Vmatrix',
+  'smallmatrix',
+  'subarray',
+  'cases',
+  'dcases',
+  'rcases',
+  'drcases',
+  'aligned',
+  'alignedat',
+  'equation',
+  'equation*',
+  'align',
+  'align*',
+  'alignat',
+  'alignat*',
+  'gather',
+  'gather*',
+  'gathered',
+  'split',
+};
+
+final _mathBeginRegex = RegExp(
+  r'\\begin\{(' +
+      markdownMathEnvironments.map(RegExp.escape).join('|') +
+      r')\}',
+);
+
+/// Wraps bare LaTeX math environments in `\[\n...\n\]` so the markdown parser
+/// recognizes them as display math blocks.
+String wrapBareMathEnvironments(String input) {
+  if (!input.contains(r'\begin{')) return input;
+
+  final protectedRanges = <_MathSpan>[];
+
+  // Protect fenced code blocks: ```...``` or ~~~...~~~
+  final fenceRegex = RegExp(
+    r'^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n[ \t]*\1[ \t]*$',
+    multiLine: true,
+  );
+  for (final m in fenceRegex.allMatches(input)) {
+    protectedRanges.add(_MathSpan(m.start, m.end));
+  }
+
+  // Protect existing display math blocks: $$...$$
+  final doubleDollarRegex = RegExp(r'\$\$[\s\S]*?\$\$');
+  for (final m in doubleDollarRegex.allMatches(input)) {
+    protectedRanges.add(_MathSpan(m.start, m.end));
+  }
+
+  // Protect existing bracket math blocks: \[...\]
+  final bracketMathRegex = RegExp(r'\\\[[\s\S]*?\\\]');
+  for (final m in bracketMathRegex.allMatches(input)) {
+    protectedRanges.add(_MathSpan(m.start, m.end));
+  }
+
+  bool isProtected(int offset) {
+    for (final p in protectedRanges) {
+      if (offset >= p.start && offset < p.end) return true;
+    }
+    return false;
+  }
+
+  final bareSpans = <_MathSpan>[];
+  var searchFrom = 0;
+
+  while (searchFrom < input.length) {
+    final match = _mathBeginRegex.firstMatch(input.substring(searchFrom));
+    if (match == null) break;
+
+    final beginStart = searchFrom + match.start;
+    final envName = match.group(1)!;
+
+    if (isProtected(beginStart)) {
+      searchFrom = searchFrom + match.end;
+      continue;
+    }
+
+    // Verify it begins on a line boundary (only whitespace before it on the same line)
+    if (beginStart > 0) {
+      final lineStart = input.lastIndexOf('\n', beginStart - 1);
+      final preceding = input.substring(
+        lineStart == -1 ? 0 : lineStart + 1,
+        beginStart,
+      );
+      if (preceding.trim().isNotEmpty) {
+        searchFrom = searchFrom + match.end;
+        continue;
+      }
+    }
+
+    // Find the matching \end{envName}, handling nesting
+    final endPattern = '\\end{$envName}';
+    final beginPattern = '\\begin{$envName}';
+    var depth = 1;
+    var scanIdx = searchFrom + match.end;
+    int? matchedEnd;
+
+    while (scanIdx < input.length) {
+      final nextBegin = input.indexOf(beginPattern, scanIdx);
+      final nextEnd = input.indexOf(endPattern, scanIdx);
+
+      if (nextEnd == -1) break; // Unclosed environment
+
+      if (nextBegin != -1 && nextBegin < nextEnd) {
+        depth++;
+        scanIdx = nextBegin + beginPattern.length;
+      } else {
+        depth--;
+        if (depth == 0) {
+          // Check for trailing whitespace on the same line after \end{envName}
+          var endPos = nextEnd + endPattern.length;
+          while (endPos < input.length &&
+              (input.codeUnitAt(endPos) == 0x20 ||
+                  input.codeUnitAt(endPos) == 0x09)) {
+            endPos++;
+          }
+          matchedEnd = endPos;
+          break;
+        }
+        scanIdx = nextEnd + endPattern.length;
+      }
+    }
+
+    if (matchedEnd != null) {
+      bareSpans.add(_MathSpan(beginStart, matchedEnd));
+      searchFrom = matchedEnd;
+    } else {
+      searchFrom = searchFrom + match.end;
+    }
+  }
+
+  if (bareSpans.isEmpty) return input;
+
+  final buf = StringBuffer();
+  var cursor = 0;
+  for (final span in bareSpans) {
+    buf.write(input.substring(cursor, span.start));
+    if (span.start > 0 && input.codeUnitAt(span.start - 1) != 0x0A) {
+      buf.write('\n\n');
+    }
+    buf.write('\\[\n');
+    buf.write(input.substring(span.start, span.end).trim());
+    buf.write('\n\\]');
+    if (span.end < input.length && input.codeUnitAt(span.end) != 0x0A) {
+      buf.write('\n\n');
+    }
+    cursor = span.end;
+  }
+  buf.write(input.substring(cursor));
+  return buf.toString();
+}
+
+class _MathSpan {
+  const _MathSpan(this.start, this.end);
+  final int start;
+  final int end;
 }

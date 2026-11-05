@@ -1641,6 +1641,10 @@ class HomePageController extends ChangeNotifier {
     await _viewModel.toggleTemporaryConversation();
   }
 
+  Future<void> sendQueuedMessageNow() async {
+    await _viewModel.sendCurrentQueuedInputNow();
+  }
+
   Future<void> cancelQueuedMessage() async {
     final serial = _composerSwitch;
     final draining = _drainComposerInput();
@@ -2782,11 +2786,14 @@ class HomePageController extends ChangeNotifier {
     final text = projected.hasUi
         ? projected.speech(mode)
         : TtsTextSelection.apply(message.content, mode: mode);
-    if (text.trim().isEmpty) return;
+    final effectiveText = text.trim().isNotEmpty
+        ? text
+        : TtsTextSelection.stripMarkdown(message.content).trim();
+    if (effectiveText.isEmpty) return;
     // Automatic narration acknowledges preparation, so ChatActions can release
     // generation resources while the independent speech session keeps running.
     await tts.speak(
-      text,
+      effectiveText,
       waitForCompletion: !autoPlay,
       plainText: projected.hasUi,
     );

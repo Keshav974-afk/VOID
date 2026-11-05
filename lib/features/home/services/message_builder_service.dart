@@ -1,3 +1,4 @@
+import 'local_tools_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../intelligent_ui/host/ui_user_context_parts.dart';
 import '../../intelligent_ui/models/ui_context_attachment.dart';
@@ -1938,7 +1939,16 @@ class MessageBuilderService {
         modelName: modelId,
         userNickname: contextProvider.read<UserProvider>().name,
       );
-      final sys = PromptTransformer.replacePlaceholders(prompt, vars);
+      var sys = PromptTransformer.replacePlaceholders(prompt, vars);
+      if (!sys.contains('Local vs Remote VPS Execution Boundary') &&
+          !sys.contains('LOCAL FIRST: Every task') &&
+          (assistant.localToolIds.contains(LocalToolNames.sandboxVps) ||
+              assistant.localToolIds.contains(LocalToolNames.documentTool))) {
+        sys = '$sys\n\n'
+            'Local vs Remote VPS Execution Boundary (STRICT):\n'
+            '- LOCAL FIRST: Every task that can be done locally MUST be done locally on the user\'s device. Specifically, for ALL PDF creation, letters, forms, and documents, ALWAYS use manage_document (action: \'create_pdf\'). NEVER write Python scripts, pandoc commands, or use bash/sandbox_vps to generate PDFs or documents. Documents created with manage_document run natively on the device and offer instant interactive viewing, pinch/zoom, and direct downloading.\n'
+            '- REMOTE VPS ONLY WHEN NECESSARY: Use sandbox_vps or bash ONLY for tasks that CANNOT be done locally on the user\'s device (e.g. running Linux shell commands, compiling code, testing scripts, installing packages via apt/pip, running backend services, curl, or network tools). If a task can be done locally, DO NOT use the VPS.';
+      }
       final sysMessage = <String, dynamic>{'role': 'system', 'content': sys};
       ContextSegmentTags.replaceWithSingle(
         sysMessage,

@@ -15,6 +15,7 @@ class ScheduledTasksScaffold extends StatelessWidget {
     this.actionIcon,
     this.actionLabel,
     this.onAction,
+    this.leadingIcon = LucideIcons.x,
     this.embedded = false,
   });
 
@@ -23,6 +24,7 @@ class ScheduledTasksScaffold extends StatelessWidget {
   final IconData? actionIcon;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final IconData? leadingIcon;
   final bool embedded;
 
   @override
@@ -67,7 +69,7 @@ class ScheduledTasksScaffold extends StatelessWidget {
                       width: 56,
                       child: Center(
                         child: IosIconButton(
-                          icon: LucideIcons.arrowLeft,
+                          icon: leadingIcon ?? LucideIcons.x,
                           size: 22,
                           minSize: 44,
                           color:

@@ -18,6 +18,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   share_plus
   speech_to_text_windows
   super_native_extensions
+  syncfusion_pdfviewer_windows
   tray_manager
   url_launcher_windows
   webview_windows

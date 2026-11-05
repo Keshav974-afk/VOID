@@ -20,6 +20,7 @@ class ThemePalette {
 }
 
 class ThemePalettes {
+  static const String grokId = 'grok';
   static const String defaultId = 'default';
   static const String blueId = 'blue';
   static const String greenId = 'green';
@@ -630,7 +631,75 @@ class ThemePalettes {
       surfaceTint: Color(0xFF00B96B),
     ),
   );
+
+  static const ThemePalette grok = ThemePalette(
+    id: grokId,
+    zhName: 'Grok 极客',
+    enName: 'Grok Electric',
+    light: ColorScheme(
+      brightness: Brightness.light,
+      primary: Color(0xFF0F1419),
+      onPrimary: Color(0xFFFFFFFF),
+      primaryContainer: Color(0xFFE7E7E8),
+      onPrimaryContainer: Color(0xFF0F1419),
+      secondary: Color(0xFF536471),
+      onSecondary: Color(0xFFFFFFFF),
+      secondaryContainer: Color(0xFFEFF3F4),
+      onSecondaryContainer: Color(0xFF0F1419),
+      tertiary: Color(0xFFFF6B00),
+      onTertiary: Color(0xFFFFFFFF),
+      tertiaryContainer: Color(0xFFFFECE0),
+      onTertiaryContainer: Color(0xFF381400),
+      error: Color(0xFFF4212E),
+      onError: Color(0xFFFFFFFF),
+      errorContainer: Color(0xFFFFEAEB),
+      onErrorContainer: Color(0xFF410006),
+      surface: Color(0xFFFFFFFF),
+      onSurface: Color(0xFF0F1419),
+      onSurfaceVariant: Color(0xFF536471),
+      outline: Color(0x1F000000),
+      outlineVariant: Color(0xFFCFD9DE),
+      shadow: Color(0xFF000000),
+      scrim: Color(0xFF000000),
+      inverseSurface: Color(0xFF000000),
+      onInverseSurface: Color(0xFFFFFFFF),
+      inversePrimary: Color(0xFFE7E9EA),
+      surfaceTint: Color(0xFF0F1419),
+    ),
+    dark: ColorScheme(
+      brightness: Brightness.dark,
+      primary: Color(0xFFFFFFFF),
+      onPrimary: Color(0xFF000000),
+      primaryContainer: Color(0xFF1E2124),
+      onPrimaryContainer: Color(0xFFE7E9EA),
+      secondary: Color(0xFF71767B),
+      onSecondary: Color(0xFF000000),
+      secondaryContainer: Color(0xFF16181C),
+      onSecondaryContainer: Color(0xFFE7E9EA),
+      tertiary: Color(0xFFFF7A00),
+      onTertiary: Color(0xFF000000),
+      tertiaryContainer: Color(0xFF381400),
+      onTertiaryContainer: Color(0xFFFFDBC9),
+      error: Color(0xFFF4212E),
+      onError: Color(0xFFFFFFFF),
+      errorContainer: Color(0xFF52000A),
+      onErrorContainer: Color(0xFFFFB4AB),
+      surface: Color(0xFF050505),
+      onSurface: Color(0xFFE7E9EA),
+      onSurfaceVariant: Color(0xFF71767B),
+      outline: Color(0x33FFFFFF),
+      outlineVariant: Color(0xFF2F3336),
+      shadow: Color(0xFF000000),
+      scrim: Color(0xFF000000),
+      inverseSurface: Color(0xFFFFFFFF),
+      onInverseSurface: Color(0xFF0F1419),
+      inversePrimary: Color(0xFF0F1419),
+      surfaceTint: Color(0xFFFFFFFF),
+    ),
+  );
+
   static const List<ThemePalette> all = <ThemePalette>[
+    grok,
     defaultPalette,
     blue,
     green,

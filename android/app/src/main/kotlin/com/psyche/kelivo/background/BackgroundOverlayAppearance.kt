@@ -4,25 +4,26 @@ import kotlin.math.max
 import kotlin.math.min
 
 /** Logical-pixel bounds match the Flutter editor. Persisted values are still
- * checked here before they become a WindowManager layout or bitmap size. */
+ * checked here before they become a WindowManager layout or bitmap size.
+ * Defaults to a sleek compact circle (68x68 dp) with revolving ring and stopwatch. */
 internal data class BackgroundOverlayAppearance(private val values: Map<*, *>) {
     private fun size(key: String, fallback: Float, min: Float, max: Float): Float {
         val value = (values[key] as? Number)?.toFloat() ?: return fallback
         return if (value.isFinite()) value.coerceIn(min, max) else fallback
     }
-    val width = size("width", 290f, 48f, 400f)
-    val height = size("height", 84f, 48f, 180f)
-    val cornerRadius = size("cornerRadius", 24f, 0f, 90f)
-    val iconSize = size("iconSize", 34f, 16f, 120f)
-    val progressSize = size("progressSize", 42f, 20f, 140f)
-    val progressStrokeWidth = size("progressStrokeWidth", 2f, 1f, 12f)
+    val width = size("width", 68f, 48f, 400f)
+    val height = size("height", 68f, 48f, 180f)
+    val cornerRadius = size("cornerRadius", 34f, 0f, 90f)
+    val iconSize = size("iconSize", 24f, 16f, 120f)
+    val progressSize = size("progressSize", 68f, 20f, 140f)
+    val progressStrokeWidth = size("progressStrokeWidth", 2.5f, 1f, 12f)
     val showProgress = values["showProgress"] != false
-    val showTitle = values["showTitle"] != false
-    val showSubtitle = values["showSubtitle"] != false
+    val showTitle = values["showTitle"] == true
+    val showSubtitle = values["showSubtitle"] == true
     val showTime = values["showTime"] != false
-    val showClose = values["showClose"] != false
+    val showClose = values["showClose"] == true
     val showBackground = values["showBackground"] != false
-    val showBorder = values["showBorder"] == true
+    val showBorder = values["showBorder"] != false
     val hasText = showTitle || showSubtitle || showTime
     val iconOnly = !hasText && !showClose
     val badgeSize = if (showProgress) max(iconSize, progressSize) else iconSize

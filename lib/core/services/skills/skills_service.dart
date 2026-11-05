@@ -81,6 +81,10 @@ class SkillsService extends ChangeNotifier {
 
   static const _bundledSkillFiles = <String, List<String>>{
     'skill-creator': ['SKILL.md'],
+    'composio': ['SKILL.md'],
+    'phone-control': ['SKILL.md'],
+    'deep-research': ['SKILL.md'],
+    'code-sandbox': ['SKILL.md'],
     'visualize': [
       'SKILL.md',
       'references/protocol.md',

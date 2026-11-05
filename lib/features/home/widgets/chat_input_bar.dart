@@ -215,6 +215,14 @@ class ChatInputBarController {
     state?._abandonVoiceSession();
   }
 
+  void startVoiceInput() {
+    final state = _root._state;
+    state?._startVoiceInput();
+  }
+
+  VoidCallback? onStartLiveCall;
+  void startLiveCall() => onStartLiveCall?.call();
+
   bool get hasUnreadyImages =>
       _state?._hasUnreadyImages ??
       (_pendingDraft?.images.any((image) => image.processing || image.failed) ??
@@ -653,6 +661,7 @@ class ChatInputBar extends StatefulWidget {
     this.queuedSubtitle,
     this.queuedPaused = false,
     this.onCancelQueuedInput,
+    this.onSendNowQueuedInput,
     this.onExpandedChanged,
     this.reasoningActive = false,
     this.reasoning,
@@ -717,6 +726,7 @@ class ChatInputBar extends StatefulWidget {
   final String? queuedSubtitle;
   final bool queuedPaused;
   final VoidCallback? onCancelQueuedInput;
+  final VoidCallback? onSendNowQueuedInput;
 
   /// Reports when the composer starts filling the chat area and when it has
   /// finished shrinking back, so the host can ignore its transient heights.
@@ -1637,10 +1647,16 @@ class _ChatInputBarState extends State<ChatInputBar>
   Future<void> _startVoiceInput() async {
     final asr = widget.asrProvider;
     final settings = context.read<SettingsProvider>();
-    final selected = settings.selectedAsrService;
-    final recognizer = selected != null && asr != null && asr.canUse(selected)
-        ? selected
-        : null;
+    final selected =
+        settings.selectedAsrService ??
+        SystemAsrOptions(id: 'system_default', name: 'System');
+    var recognizer = asr != null && asr.canUse(selected) ? selected : null;
+    if (recognizer == null && asr != null) {
+      final defaultSys = SystemAsrOptions(id: 'system_default', name: 'System');
+      if (asr.canUse(defaultSys)) {
+        recognizer = defaultSys;
+      }
+    }
     final canSaveAudio =
         recognizer is! SystemAsrOptions && _modelAcceptsAudio(settings);
     if (_composerLocked ||
@@ -4013,6 +4029,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                     context,
                   )!.chatInputBarQueuedCancel,
                   onCancel: widget.onCancelQueuedInput,
+                  onSendNow: widget.onSendNowQueuedInput,
                 ),
                 const SizedBox(height: AppSpacing.xs),
               ],
@@ -4427,15 +4444,147 @@ class _ChatInputBarState extends State<ChatInputBar>
                                             children: [
                                               // Responsive left action bar that overflows into a + menu on desktop
                                               Expanded(
-                                                child:
-                                                    _buildResponsiveLeftActions(
-                                                      context,
-                                                    ),
+                                                child: Row(
+                                                  children: [
+                                                    if (isMobileLayout) ...[
+                                                      if (widget
+                                                          .showMoreButton) ...[
+                                                        _CompactIconButton(
+                                                          tooltip:
+                                                              AppLocalizations.of(
+                                                                context,
+                                                              )!.chatInputBarMoreTooltip,
+                                                          icon: Lucide.Plus,
+                                                          active:
+                                                              widget.moreOpen,
+                                                          onTap: _composerLocked
+                                                              ? null
+                                                              : widget.onMore,
+                                                          childBuilder: (c) => AnimatedSwitcher(
+                                                            duration:
+                                                                const Duration(
+                                                                  milliseconds:
+                                                                      200,
+                                                                ),
+                                                            transitionBuilder:
+                                                                (
+                                                                  child,
+                                                                  anim,
+                                                                ) => RotationTransition(
+                                                                  turns: Tween<double>(
+                                                                    begin: 0.85,
+                                                                    end: 1,
+                                                                  ).animate(anim),
+                                                                  child: FadeTransition(
+                                                                    opacity:
+                                                                        anim,
+                                                                    child:
+                                                                        child,
+                                                                  ),
+                                                                ),
+                                                            child: Icon(
+                                                              widget.moreOpen
+                                                                  ? Lucide.X
+                                                                  : Lucide.Plus,
+                                                              key: ValueKey(
+                                                                widget.moreOpen
+                                                                    ? 'close'
+                                                                    : 'add',
+                                                              ),
+                                                              size: 20,
+                                                              color: c,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                      ],
+                                                      GestureDetector(
+                                                        onTap: _composerLocked
+                                                            ? null
+                                                            : widget
+                                                                  .onSelectModel,
+                                                        child: Container(
+                                                          height: 32,
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 10,
+                                                                vertical: 4,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: theme
+                                                                .colorScheme
+                                                                .onSurface
+                                                                .withValues(
+                                                                  alpha: 0.08,
+                                                                ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  16,
+                                                                ),
+                                                          ),
+                                                          child: Row(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              Icon(
+                                                                Lucide.Zap,
+                                                                size: 13,
+                                                                color: theme
+                                                                    .colorScheme
+                                                                    .onSurface,
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 4,
+                                                              ),
+                                                              Text(
+                                                                'Fast',
+                                                                style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  fontWeight:
+                                                                      AppFontWeights
+                                                                          .emphasis,
+                                                                  color: theme
+                                                                      .colorScheme
+                                                                      .onSurface,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 3,
+                                                              ),
+                                                              Icon(
+                                                                Lucide
+                                                                    .ChevronDown,
+                                                                size: 13,
+                                                                color: theme
+                                                                    .colorScheme
+                                                                    .onSurface
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.60,
+                                                                    ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ] else ...[
+                                                      Expanded(
+                                                        child:
+                                                            _buildResponsiveLeftActions(
+                                                              context,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
                                               ),
                                               Row(
                                                 children: [
-                                                  if (widget
-                                                      .showMoreButton) ...[
+                                                  if (!isMobileLayout &&
+                                                      widget.showMoreButton) ...[
                                                     _CompactIconButton(
                                                       tooltip: AppLocalizations.of(
                                                         context,
@@ -4497,7 +4646,8 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                           : widget
                                                                 .onOpenContextUsage,
                                                     ),
-                                                  if (showVoiceInput) ...[
+                                                  if (showVoiceInput ||
+                                                      isMobileLayout) ...[
                                                     _CompactIconButton(
                                                       tooltip: AppLocalizations.of(
                                                         context,
@@ -4513,26 +4663,165 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                     ),
                                                     const SizedBox(width: 8),
                                                   ],
-                                                  _CompactSendButton(
-                                                    enabled:
-                                                        hasInput &&
-                                                        !_composerLocked &&
-                                                        !_hasUnreadyImages,
-                                                    loading:
-                                                        widget.loading &&
-                                                        (!hasInput ||
-                                                            _composerLocked),
-                                                    onSend: _handleSend,
-                                                    onStop: widget.loading
-                                                        ? widget.onStop
-                                                        : null,
-                                                    color: theme
-                                                        .colorScheme
-                                                        .primary,
-                                                    icon: Lucide.ArrowUp,
-                                                    tooltip: widget
-                                                        .sendButtonTooltip,
-                                                  ),
+                                                  if (isMobileLayout &&
+    !hasInput &&
+    !widget.loading) ...[
+                                                    GestureDetector(
+                                                      onTap:
+                                                          _composerLocked ||
+                                                              widget.loading
+                                                          ? null
+                                                          : () {
+                                                              if (widget.mediaController?.onStartLiveCall != null) {
+                                                                widget.mediaController!.startLiveCall();
+                                                              } else {
+                                                                unawaited(_startVoiceInput());
+                                                              }
+                                                            },
+                                                      child: Container(
+                                                        height: 36,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 14,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: isDark
+                                                              ? Colors.white
+                                                              : const Color(
+                                                                  0xFF0F1419,
+                                                                ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                18,
+                                                              ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Row(
+                                                              mainAxisSize:
+                                                                  MainAxisSize
+                                                                      .min,
+                                                              children: [
+                                                                Container(
+                                                                  width: 2.5,
+                                                                  height: 10,
+                                                                  decoration: BoxDecoration(
+                                                                    color:
+                                                                        isDark
+                                                                        ? Colors
+                                                                              .black
+                                                                        : Colors
+                                                                              .white,
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          2,
+                                                                        ),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  width: 2.5,
+                                                                ),
+                                                                Container(
+                                                                  width: 2.5,
+                                                                  height: 16,
+                                                                  decoration: BoxDecoration(
+                                                                    color:
+                                                                        isDark
+                                                                        ? Colors
+                                                                              .black
+                                                                        : Colors
+                                                                              .white,
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          2,
+                                                                        ),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  width: 2.5,
+                                                                ),
+                                                                Container(
+                                                                  width: 2.5,
+                                                                  height: 12,
+                                                                  decoration: BoxDecoration(
+                                                                    color:
+                                                                        isDark
+                                                                        ? Colors
+                                                                              .black
+                                                                        : Colors
+                                                                              .white,
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          2,
+                                                                        ),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  width: 2.5,
+                                                                ),
+                                                                Container(
+                                                                  width: 2.5,
+                                                                  height: 8,
+                                                                  decoration: BoxDecoration(
+                                                                    color:
+                                                                        isDark
+                                                                        ? Colors
+                                                                              .black
+                                                                        : Colors
+                                                                              .white,
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          2,
+                                                                        ),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 8,
+                                                            ),
+                                                            Text(
+                                                              'Speak',
+                                                              style: TextStyle(
+                                                                fontSize: 14,
+                                                                fontWeight:
+                                                                    AppFontWeights
+                                                                        .emphasis,
+                                                                color: isDark
+                                                                    ? Colors
+                                                                          .black
+                                                                    : Colors
+                                                                          .white,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ] else ...[
+                                                    _CompactSendButton(
+                                                      enabled:
+                                                          hasInput &&
+                                                          !_composerLocked &&
+                                                          !_hasUnreadyImages,
+                                                      loading:
+                                                          widget.loading &&
+                                                          (!hasInput ||
+                                                              _composerLocked),
+                                                      onSend: _handleSend,
+                                                      onStop: widget.loading
+                                                          ? widget.onStop
+                                                          : null,
+                                                      color: theme
+                                                          .colorScheme
+                                                          .primary,
+                                                      icon: Lucide.ArrowUp,
+                                                      tooltip: widget
+                                                          .sendButtonTooltip,
+                                                    ),
+                                                  ],
                                                 ],
                                               ),
                                             ],
@@ -4617,6 +4906,7 @@ class _QueuedInputBanner extends StatelessWidget {
     this.subtitle,
     this.paused = false,
     this.onCancel,
+    this.onSendNow,
   });
 
   final String label;
@@ -4625,6 +4915,7 @@ class _QueuedInputBanner extends StatelessWidget {
   final String? subtitle;
   final bool paused;
   final VoidCallback? onCancel;
+  final VoidCallback? onSendNow;
 
   @override
   Widget build(BuildContext context) {
@@ -4705,6 +4996,36 @@ class _QueuedInputBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
+          if (onSendNow != null) ...[
+            IosCardPress(
+              onTap: onSendNow,
+              borderRadius: BorderRadius.circular(10),
+              baseColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Lucide.Send,
+                    size: 13,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    AppLocalizations.of(context)!.chatInputBarQueuedSendNow,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: AppFontWeights.emphasis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xxs),
+          ],
           IosCardPress(
             onTap: onCancel,
             borderRadius: BorderRadius.circular(10),

@@ -83,7 +83,9 @@ import '../utils/model_display_helper.dart';
 import '../utils/chat_layout_constants.dart';
 import '../controllers/home_page_controller.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
+import '../../../shared/widgets/void_logo.dart';
 import 'home_mobile_layout.dart';
+import '../widgets/grok_mode_selector.dart';
 import 'home_desktop_layout.dart';
 import 'package:Kelivo/theme/app_semantic_colors.dart';
 
@@ -187,6 +189,7 @@ class _HomePageState extends State<HomePage>
   late final Future<void> _chatReady;
   bool _readingIncomingShares = false;
   bool _incomingShareChanged = false;
+  GrokMode _grokMode = GrokMode.ask;
 
   // ============================================================================
   // Page Controller (manages all business logic and state)
@@ -777,6 +780,17 @@ class _HomePageState extends State<HomePage>
       drawerController: _drawerController,
       assistantPickerCloseTick: _assistantPickerCloseTick,
       loadingConversationIds: _controller.loadingConversationIds,
+      grokMode: _grokMode,
+      onGrokModeChanged: (mode) {
+        setState(() => _grokMode = mode);
+        if (mode == GrokMode.imagine) {
+          _inputController.text = 'Generate image: ';
+          _inputFocus.requestFocus();
+        } else if (mode == GrokMode.build) {
+          _inputController.text = 'Write code / execute: ';
+          _inputFocus.requestFocus();
+        }
+      },
       title: title,
       providerName: providerName,
       modelDisplay: modelDisplay,
@@ -1163,7 +1177,7 @@ class _HomePageState extends State<HomePage>
           ? (chat.getConversation(conversationId)?.chatSuggestions ?? const [])
           : const [],
     );
-    return MessageListView(
+    final messageList = MessageListView(
       contextTask: compression,
       contextTaskRevision: compression == null
           ? null
@@ -1296,6 +1310,25 @@ class _HomePageState extends State<HomePage>
         _controller.toggleReasoningSegment(messageId, segmentIndex);
       },
     );
+
+    if (_controller.chatController.collapsedMessages.isEmpty) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: isDark ? 0.16 : 0.08,
+                child: const VoidLogo(size: 135, grokStyle: true),
+              ),
+            ),
+          ),
+          messageList,
+        ],
+      );
+    }
+    return messageList;
   }
 
   Widget _buildChatInputBar(BuildContext context, {required bool isTablet}) {
@@ -1306,6 +1339,10 @@ class _HomePageState extends State<HomePage>
       conversation: conversation,
       assistant: context.watch<AssistantProvider>().currentAssistant,
     );
+    final assistantMessages =
+        _controller.messages.where((m) => m.role == 'assistant');
+    final latestAi =
+        assistantMessages.isNotEmpty ? assistantMessages.last.content : null;
     return ChatInputSection(
       inputBarKey: _inputBarKey,
       chatModelProviderKey: chatModel.providerKey,
@@ -1319,6 +1356,8 @@ class _HomePageState extends State<HomePage>
       mediaController: _mediaController,
       isTablet: isTablet,
       isLoading: _controller.isCurrentConversationLoading,
+      hasMessages: _controller.messages.isNotEmpty,
+      latestAiResponse: latestAi,
       isToolModel: _controller.isToolModel,
       isReasoningModel: _controller.isReasoningModel,
       isReasoningEnabled: _controller.isReasoningEnabled,
@@ -1422,6 +1461,7 @@ class _HomePageState extends State<HomePage>
           ? AppLocalizations.of(context)!.chatInputBarQueuedAfterCompress
           : null,
       onCancelQueuedInput: _controller.cancelQueuedMessage,
+      onSendNowQueuedInput: _controller.sendQueuedMessageNow,
       onExpandedChanged: _controller.setInputBarExpanded,
       onQuickPhrase: _showQuickPhraseMenu,
       onLongPressQuickPhrase: () {

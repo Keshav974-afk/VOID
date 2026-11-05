@@ -518,7 +518,7 @@ Future<void> _initRestoreFailureWindow() async {
       return;
     }
     await windowManager.waitUntilReadyToShow(
-      const WindowOptions(title: 'Kelivo'),
+      const WindowOptions(title: 'VOID'),
       () async {
         await windowManager.show();
         await windowManager.focus();
@@ -543,7 +543,7 @@ class _RestoreProgressApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'VOID',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -574,7 +574,7 @@ class _RestoreFailureApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'VOID',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -608,7 +608,7 @@ Future<void> _initDesktopWindow() async {
             false);
     // Initialize and show desktop window with persisted size/position
     await DesktopWindowController.instance.initializeAndShow(
-      title: 'Kelivo',
+      title: 'VOID',
       linuxHideTitleBar: linuxHideTitleBar,
     );
   } catch (_) {
@@ -678,7 +678,7 @@ class MigrationApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'VOID',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -1114,7 +1114,7 @@ class MyApp extends StatelessWidget {
               // debugPrint('[Theme/App] Dark scaffoldBg=${dark.colorScheme.surface.value.toRadixString(16)} card≈${dark.colorScheme.surface.value.toRadixString(16)} shadow=${dark.colorScheme.shadow.value.toRadixString(16)}');
               return MaterialApp(
                 debugShowCheckedModeBanner: false,
-                title: 'Kelivo',
+                title: 'VOID',
                 navigatorKey: rootNavigatorKey,
                 // App UI language; null = follow system (respects iOS per-app language)
                 locale: settings.appLocaleForMaterialApp,

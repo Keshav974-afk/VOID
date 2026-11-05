@@ -146,15 +146,31 @@ final class _BlockSession {
     final block = leaf;
     if (!options.tables || block == null || block.kind != _Kind.paragraph)
       return;
+    if (block.text.isEmpty) return;
     final mapped = MappedText(block.text.cast<TextNode>());
-    final firstBreak = mapped.text.indexOf('\n');
-    if (firstBreak >= 0) {
-      final rest = mapped.text.substring(firstBreak + 1);
-      if (!RegExp(r'^[|:\- \t]+$').hasMatch(rest)) return;
+    final breaks = <int>[];
+    for (var i = 0; i < mapped.text.length; i++) {
+      if (mapped.text.codeUnitAt(i) == 10) breaks.add(i);
     }
-    final firstEnd = firstBreak < 0 ? mapped.text.length : firstBreak;
-    if (!mapped.text.substring(0, firstEnd).trimLeft().startsWith('|')) return;
-    final span = mapped.span(0, firstEnd);
+    int headerOffset = 0;
+    int firstEnd = mapped.text.length;
+    if (breaks.isNotEmpty) {
+      final lastLineStart = breaks.last + 1;
+      final lastLineText = mapped.text.substring(lastLineStart);
+      if (RegExp(r'^[|:\- \t]+$').hasMatch(lastLineText) && breaks.length >= 2) {
+        headerOffset = breaks[breaks.length - 2] + 1;
+        firstEnd = breaks.last;
+      } else if (RegExp(r'^[|:\- \t]+$').hasMatch(lastLineText)) {
+        headerOffset = 0;
+        firstEnd = breaks.last;
+      } else {
+        headerOffset = lastLineStart;
+        firstEnd = mapped.text.length;
+      }
+    }
+    final headerSlice = mapped.text.substring(headerOffset, firstEnd).trimLeft();
+    if (!headerSlice.startsWith('|')) return;
+    final span = mapped.span(headerOffset, firstEnd);
     final header = splitTableLine(
       source,
       span.start,
@@ -509,12 +525,12 @@ final class _BlockSession {
 
   bool _tableStart(LineCursor cursor) {
     final block = leaf!;
-    if (!options.tables ||
-        block.lastLine == null ||
-        block.text.any((n) => n is TextNode && n.text.contains('\n')))
+    if (!options.tables || block.lastLine == null) return false;
+    final headerStart = block.lastLine!.start;
+    final headerEnd = block.lastLine!.end;
+    if (!source.substring(headerStart, cursor.line.end).contains('|')) {
       return false;
-    if (!source.substring(block.start, cursor.line.end).contains('|'))
-      return false;
+    }
     final delimiter = splitTableLine(
       source,
       cursor.offset,
@@ -527,8 +543,8 @@ final class _BlockSession {
     if (alignments == null) return false;
     final header = splitTableLine(
       source,
-      block.start,
-      block.end,
+      headerStart,
+      headerEnd,
       math: options.inlineMath,
       dollarMath: options.dollarInlineMath,
       maxMathLength: options.maxInlineMathLength,
@@ -539,13 +555,40 @@ final class _BlockSession {
     if (header.cells.length != alignments.length ||
         !(header.hasPipe || delimiter.hasPipe))
       return false;
+
+    if (headerStart > block.start) {
+      // Split preceding paragraph text from the table
+      while (block.text.isNotEmpty && block.text.last.span.start >= headerStart) {
+        block.text.removeLast();
+      }
+      if (block.text.isNotEmpty && block.text.last.span.end >= headerStart) {
+        block.text.removeLast();
+      }
+      block.end = block.text.isNotEmpty ? block.text.last.span.end : headerStart;
+
+      final tableBlock = _add(_Kind.table, headerStart)
+        ..alignments = alignments
+        ..end = cursor.line.end
+        ..lastLine = cursor.line;
+      tableBlock.rows.add(
+        TableRowNode(
+          span: SourceSpan(headerStart, headerEnd),
+          children: header.cells,
+          header: true,
+        ),
+      );
+      leaf = tableBlock;
+      _touch(cursor.line);
+      return true;
+    }
+
     block
       ..kind = _Kind.table
       ..alignments = alignments
       ..end = cursor.line.end;
     block.rows.add(
       TableRowNode(
-        span: SourceSpan(block.start, block.lastLine!.end),
+        span: SourceSpan(headerStart, headerEnd),
         children: header.cells,
         header: true,
       ),

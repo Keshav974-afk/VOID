@@ -74,9 +74,11 @@ Stream<StreamChunk> sendOpenAIStream(
 
   final spec = ModelSpecResolver.instance.spec(config, modelId);
   final wantsImageOutput = spec.output.contains(Modality.image);
-  final bool canImageInput = spec.input.contains(Modality.image);
+  final bool canImageInput =
+      spec.input.contains(Modality.image) ||
+      spec.type == ModelType.chat;
   final vendor = VendorDefaults.forProvider(config);
-  final bool allowRemoteImages = canImageInput && spec.remoteImageUrls;
+  final bool allowRemoteImages = true;
   // OpenRouter sends deltas, not cumulative snapshots. The decoder joins
   // fragments into complete blocks after collecting the response.
   final reasoningDetailsAllowSnapshots =
@@ -347,7 +349,6 @@ Stream<StreamChunk> sendOpenAIStream(
 
         void addImage(String url) {
           if (url.isEmpty) return;
-          if (!allowRemoteImages && isRemoteHttpUrl(url)) return;
           if (seenImageUrls.add(url)) {
             parts.add({'type': 'input_image', 'image_url': url});
           }
@@ -367,11 +368,9 @@ Stream<StreamChunk> sendOpenAIStream(
           final String? url;
           if (ref.kind == 'data') {
             url = ref.src;
-          } else if (ref.kind == 'path') {
+          } else {
             url = await tryEncodeBase64DataUrl(ref.src);
             if (url == null) continue;
-          } else {
-            url = ref.src; // http(s)
           }
           // For assistant messages, collect images; for user messages, add directly
           if (isAssistant) {
@@ -407,19 +406,9 @@ Stream<StreamChunk> sendOpenAIStream(
             }
             continue;
           }
-          if (!allowRemoteImages && isRemoteHttpUrl(p)) {
-            // Keep the remote reference visible as text when image embed is off.
-            final normalized = normalizeSrc(p);
-            if (!seenImageSources.add(normalized)) continue;
-            parts.add({
-              'type': isAssistant ? 'output_text' : 'input_text',
-              'text': p,
-            });
-            continue;
-          }
           final normalized = normalizeSrc(p);
           if (!seenImageSources.add(normalized)) continue;
-          final dataUrl = (isRemoteHttpUrl(p) || p.startsWith('data:'))
+          final dataUrl = p.startsWith('data:')
               ? p
               : await tryEncodeBase64DataUrl(p, explicitMime: mediaRef.mime);
           if (dataUrl == null) continue;

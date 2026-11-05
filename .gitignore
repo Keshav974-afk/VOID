@@ -70,6 +70,7 @@ internationalization.md
 /.agents/
 /skills-lock.json
 /.scratch/
+scratch/
 /.grok/
 
 # Local iOS profiling tools and device measurements

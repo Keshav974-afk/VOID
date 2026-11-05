@@ -826,6 +826,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
           ),
           const SizedBox(height: 12),
         ],
+        _buildProviderConsoleBanner(context, widget.keyName),
         // 顶部管理分组标题（左侧缩进以对齐卡片内容）
         Padding(
           padding: const EdgeInsets.only(left: 12),
@@ -1536,6 +1537,101 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
   }
 
   // Legacy network tab removed (replaced by ProviderNetworkPage)
+
+  Widget _buildProviderConsoleBanner(BuildContext context, String keyName) {
+    final cs = Theme.of(context).colorScheme;
+    final k = keyName.toLowerCase();
+    String? url;
+    String? desc;
+
+    if (k.contains('xai') || k.contains('grok')) {
+      url = 'https://console.x.ai';
+      desc =
+          'Get your xAI API key from the xAI Developer Console to power VOID with Grok-3 and Grok Imagine.';
+    } else if (k.contains('openai')) {
+      url = 'https://platform.openai.com/api-keys';
+      desc = 'Get your OpenAI API key from the OpenAI Developer Platform.';
+    } else if (k.contains('claude') || k.contains('anthropic')) {
+      url = 'https://console.anthropic.com';
+      desc = 'Get your Anthropic API key from the Anthropic Console.';
+    } else if (k.contains('gemini') || k.contains('google')) {
+      url = 'https://aistudio.google.com/app/apikey';
+      desc = 'Get your free Google Gemini API key from Google AI Studio.';
+    } else if (k.contains('deepseek')) {
+      url = 'https://platform.deepseek.com/api_keys';
+      desc = 'Get your DeepSeek API key from the DeepSeek Open Platform.';
+    } else if (RegExp(r'kimi|moonshot|月之暗面').hasMatch(k)) {
+      url = 'https://platform.moonshot.cn/console/api-keys';
+      desc =
+          'Get your Kimi / Moonshot API key from the Moonshot Developer Console.';
+    } else if (RegExp(r'zhipu|智谱|glm').hasMatch(k)) {
+      url = 'https://open.bigmodel.cn/usercenter/apikeys';
+      desc = 'Get your Zhipu GLM API key from the BigModel Open Platform.';
+    } else if (RegExp(r'qwen|aliyun|dashscope').hasMatch(k)) {
+      url = 'https://bailian.console.aliyun.com/';
+      desc =
+          'Get your Qwen API key from the Alibaba Cloud DashScope / Bailian Console.';
+    } else if (k.contains('openrouter')) {
+      url = 'https://openrouter.ai/keys';
+      desc =
+          'Get your OpenRouter API key to access 100+ models with unified billing.';
+    }
+
+    if (url == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (desc != null) ...[
+              Text(
+                desc,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: cs.onSurface.withValues(alpha: 0.85),
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
+            Row(
+              children: [
+                Icon(Lucide.KeyRound, size: 13, color: cs.primary),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () async {
+                    final uri = Uri.tryParse(url!);
+                    if (uri != null) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  },
+                  child: Text(
+                    'Get API Key: $url',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: AppFontWeights.emphasis,
+                      color: cs.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _inputRow(
     BuildContext context, {

@@ -14,6 +14,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   restart_app
   screen_retriever_linux
   super_native_extensions
+  syncfusion_pdfviewer_linux
   tray_manager
   url_launcher_linux
   window_manager

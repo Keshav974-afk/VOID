@@ -58,6 +58,7 @@ import 'quote_chip.dart';
 import 'quote_source_highlight.dart';
 import 'package:Kelivo/shared/widgets/app_selection_area.dart';
 import '../../../shared/widgets/snackbar.dart';
+import 'grok_thoughts_sheet.dart';
 import '../../../shared/widgets/audio_clip_player.dart';
 import '../../../core/utils/multimodal_input_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -89,6 +90,16 @@ import 'chat_suggestion_bubbles.dart';
 import 'token_display_widget.dart';
 import 'screen_time_tool_ui.dart';
 import 'weather_tool_ui.dart';
+import 'x_tool_ui.dart';
+import 'sports_tool_ui.dart';
+import 'sandbox_vps_tool_ui.dart';
+import 'site_inspect_tool_ui.dart';
+import '../../../core/services/x_search/x_search_service.dart';
+import '../../../core/services/sports/sports_service.dart';
+import '../../../core/services/sandbox_vps/sandbox_vps_service.dart';
+import '../../../core/services/inspect/site_inspection_service.dart';
+import '../../../core/services/document/document_tool_service.dart';
+import 'generated_file_card.dart';
 import 'tool_detail_text_section.dart';
 import 'produced_files_row.dart';
 import 'workspace_tool_detail.dart';
@@ -3479,6 +3490,26 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 conversationId: widget.message.conversationId,
               ),
             ],
+            // Auto-render any generated files (PDF, images, etc.) mentioned in the assistant's response
+            Builder(
+              builder: (context) {
+                final messageFiles = extractGeneratedFilePaths(
+                  widget.message.content,
+                );
+                if (messageFiles.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final filePath in messageFiles)
+                        GeneratedFileCard(filePath: filePath),
+                    ],
+                  ),
+                );
+              },
+            ),
             if (hasTranslation) ...[
               const SizedBox(height: 12),
               SizedBox(
@@ -4880,6 +4911,8 @@ class _ChainOfThoughtCard extends StatefulWidget {
 
 class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
   bool _showAllSteps = false;
+  bool _showThoughtSteps = false;
+  bool _showWorkSteps = false;
 
   Object _reasoningStepSignature({
     required ReasoningSegment step,
@@ -5179,10 +5212,231 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
       ),
     );
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      widthFactor: fillWidth ? null : 1,
-      child: card,
+    var totalDurationMs = 0;
+    var hasLoading = false;
+    final thoughtBullets = <String>[];
+    final thoughtItems = <GrokThoughtItem>[];
+    final searchQueries = <String>[];
+    final orderedTimelineSteps = <GrokTimelineStepItem>[];
+    var currentSearchQueries = <String>[];
+    var searchesCount = 0;
+    var commandsCount = 0;
+
+    void flushSearches() {
+      if (currentSearchQueries.isNotEmpty) {
+        orderedTimelineSteps.add(
+          GrokSearchesStepItem(
+            count: currentSearchQueries.length,
+            queries: List<String>.from(currentSearchQueries),
+          ),
+        );
+        currentSearchQueries = <String>[];
+      }
+    }
+
+    for (final step in filteredSteps) {
+      if (step.isReasoning) {
+        final r = step.reasoning!;
+        if (r.loading) hasLoading = true;
+        if (r.startAt != null && r.finishedAt != null) {
+          totalDurationMs += r.finishedAt!
+              .difference(r.startAt!)
+              .inMilliseconds;
+        }
+        if (r.text.isNotEmpty) {
+          final lines = r.text
+              .split('\n')
+              .map((l) => l.trim().replaceAll(RegExp(r'^[•\-\*]\s*'), ''))
+              .where((l) => l.isNotEmpty && l.length > 5 && !l.startsWith('#'))
+              .toList();
+          if (lines.isNotEmpty) {
+            thoughtBullets.addAll(lines.take(6));
+            flushSearches();
+            orderedTimelineSteps.add(
+              GrokThoughtStepItem(
+                title: lines.first,
+                extraBullets: lines.skip(1).take(5).toList(),
+              ),
+            );
+          }
+        }
+      } else if (step.tool != null) {
+        final t = step.tool!;
+        final name = t.toolName.toLowerCase();
+        final isSearch = name.contains('search') || name.contains('x_search');
+        final isCmd =
+            name.contains('command') ||
+            name.contains('bash') ||
+            name.contains('shell') ||
+            name.contains('sandbox') ||
+            name.contains('vps') ||
+            name.contains('inspect');
+
+        if (isSearch) {
+          searchesCount++;
+          if (t.arguments.containsKey('query') && t.arguments['query'] != null) {
+            final q = t.arguments['query'].toString().trim();
+            if (q.isNotEmpty && !searchQueries.contains(q)) {
+              searchQueries.add(q);
+              currentSearchQueries.add(q);
+            }
+          } else if (t.arguments.containsKey('queries') &&
+              t.arguments['queries'] is List) {
+            for (final q in t.arguments['queries']) {
+              final s = q?.toString().trim() ?? '';
+              if (s.isNotEmpty && !searchQueries.contains(s)) {
+                searchQueries.add(s);
+                currentSearchQueries.add(s);
+              }
+            }
+          } else if (t.arguments.containsKey('q') && t.arguments['q'] != null) {
+            final q = t.arguments['q'].toString().trim();
+            if (q.isNotEmpty && !searchQueries.contains(q)) {
+              searchQueries.add(q);
+              currentSearchQueries.add(q);
+            }
+          }
+        } else {
+          flushSearches();
+          if (isCmd) commandsCount++;
+
+          String? code;
+          if (t.arguments.containsKey('command')) {
+            code = t.arguments['command']?.toString();
+          } else if (t.arguments.containsKey('script')) {
+            code = t.arguments['script']?.toString();
+          } else if (t.arguments.containsKey('query')) {
+            code = t.arguments['query']?.toString();
+          } else if (t.arguments.containsKey('url')) {
+            code = 'curl -s -L "${t.arguments['url']}"';
+          }
+
+          var summary = t.arguments['toolSummary']?.toString() ??
+              t.arguments['summary']?.toString() ??
+              t.arguments['description']?.toString() ??
+              t.arguments['command']?.toString() ??
+              t.toolName;
+          if (summary.length > 50) {
+            summary = '${summary.substring(0, 47)}...';
+          }
+
+          final output = t.content?.trim();
+
+          final item = GrokThoughtItem(
+            title: summary,
+            code: code,
+            output: output,
+            language: name.contains('python') ? 'Python' : 'Bash',
+            isSearch: isSearch,
+            isCommand: isCmd,
+            searchQueries: List<String>.from(searchQueries),
+          );
+          thoughtItems.add(item);
+
+          orderedTimelineSteps.add(
+            GrokCommandStepItem(
+              title: summary,
+              code: code,
+              output: output,
+              language: item.language,
+            ),
+          );
+        }
+      } else if (step.browserTools case final tools?) {
+        for (final t in tools) {
+          final name = t.toolName.toLowerCase();
+          final isSearch = name.contains('search') || name.contains('x_search');
+          if (isSearch) {
+            searchesCount++;
+            final q = t.arguments['query']?.toString().trim() ??
+                t.arguments['q']?.toString().trim();
+            if (q != null && q.isNotEmpty && !searchQueries.contains(q)) {
+              searchQueries.add(q);
+              currentSearchQueries.add(q);
+            }
+          }
+        }
+      }
+    }
+    flushSearches();
+
+    final hasReasoningSteps = filteredSteps.any(
+      (s) =>
+          s.isReasoning &&
+          ((s.reasoning?.text.isNotEmpty ?? false) ||
+              (s.reasoning?.loading ?? false)),
+    );
+
+    final hasToolSteps = searchesCount > 0 ||
+        commandsCount > 0 ||
+        thoughtItems.any((it) => it.isCommand || it.isSearch || it.code != null) ||
+        filteredSteps.any((s) => s.tool != null || s.browserTools != null);
+
+    final thoughtDurationSeconds = totalDurationMs > 0
+        ? math.max(1, (totalDurationMs / 1000).round())
+        : math.max(1, thoughtBullets.isNotEmpty ? 2 : 1);
+
+    final workDurationSeconds = math.max(
+      1,
+      searchesCount * 2 + commandsCount * 2 + 1,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (hasReasoningSteps) ...[
+          GrokThoughtBadge(
+            durationSeconds: thoughtDurationSeconds,
+            isLoading: hasLoading || widget.streaming,
+            isExpanded: _showThoughtSteps,
+            onTap: () {
+              setState(() {
+                _showThoughtSteps = !_showThoughtSteps;
+              });
+            },
+          ),
+          if (_showThoughtSteps)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: fillWidth ? null : 1,
+                child: card,
+              ),
+            ),
+        ],
+        if (hasToolSteps) ...[
+          if (hasReasoningSteps) const SizedBox(height: 6),
+          GrokWorkBadge(
+            durationSeconds: workDurationSeconds,
+            isLoading: hasLoading || widget.streaming,
+            isExpanded: _showWorkSteps,
+            onTap: () {
+              setState(() {
+                _showWorkSteps = !_showWorkSteps;
+              });
+            },
+          ),
+          if (_showWorkSteps)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 8),
+              child: GrokWorkTimelineWidget(
+                orderedSteps: orderedTimelineSteps,
+                searchesCount: searchesCount,
+                searchQueries: searchQueries,
+                items: thoughtItems,
+                thoughtBullets: hasReasoningSteps ? const [] : thoughtBullets,
+              ),
+            ),
+        ],
+        if (!hasReasoningSteps && !hasToolSteps && filteredSteps.isNotEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: fillWidth ? null : 1,
+            child: card,
+          ),
+      ],
     );
   }
 }
@@ -6353,6 +6607,18 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
     final weatherResult = widget.part.toolName == LocalToolNames.weather
         ? WeatherToolResult.tryParse(cleanText)
         : null;
+    final xSearchResult = widget.part.toolName == LocalToolNames.xSearch
+        ? XSearchResult.tryParse(cleanText)
+        : null;
+    final sportsResult = widget.part.toolName == LocalToolNames.sports
+        ? SportsToolResult.tryParse(cleanText)
+        : null;
+    final vpsResult = widget.part.toolName == LocalToolNames.sandboxVps
+        ? SandboxVpsToolResult.tryParse(cleanText)
+        : null;
+    final siteInspectResult = widget.part.toolName == LocalToolNames.inspectSite
+        ? SiteInspectToolResult.tryParse(cleanText)
+        : null;
     final String summaryText = approvalRequest != null
         ? UnicodeSanitizer.sanitize(_argsSummary(approvalRequest.arguments))
         : cleanText.isNotEmpty
@@ -6393,6 +6659,14 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
           )
         : weatherResult != null && !weatherResult.isError
         ? WeatherToolSummary(result: weatherResult, textColor: fg.body)
+        : xSearchResult != null && xSearchResult.posts.isNotEmpty
+        ? XToolUi(result: xSearchResult, textColor: fg.body)
+        : sportsResult != null && sportsResult.games.isNotEmpty
+        ? SportsToolUi(result: sportsResult, textColor: fg.body)
+        : vpsResult != null
+        ? SandboxVpsToolUi(result: vpsResult, textColor: fg.body)
+        : siteInspectResult != null
+        ? SiteInspectToolUi(result: siteInspectResult, textColor: fg.body)
         : !shouldShowSummary || summaryText.trim().isEmpty
         ? null
         : Text(
@@ -6549,21 +6823,6 @@ class _ToolCallItemState extends State<_ToolCallItem> {
 
     final (_, paths) = parseToolResultImages(content, metadata: metadata);
     _imagePaths = paths;
-  }
-
-  /// Build image widget from path (http(s), data URI, or local file).
-  Widget _buildImageFromPath(
-    String path, {
-    double? height,
-    BoxFit fit = BoxFit.contain,
-  }) {
-    return _buildResolvedImage(
-      context,
-      path,
-      height: height,
-      maxLogicalWidth: kToolImageCardMaxWidth,
-      fit: fit,
-    );
   }
 
   @override
@@ -6857,6 +7116,133 @@ class _ToolCallItemState extends State<_ToolCallItem> {
             ],
             if (!widget.part.loading &&
                 !isPendingApproval &&
+                widget.part.toolName == LocalToolNames.xSearch) ...[
+              Builder(
+                builder: (context) {
+                  final xRes = XSearchResult.tryParse(widget.part.content);
+                  if (xRes == null || xRes.posts.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: XToolUi(result: xRes, textColor: fg.body),
+                  );
+                },
+              ),
+            ],
+            if (!widget.part.loading &&
+                !isPendingApproval &&
+                widget.part.toolName == LocalToolNames.sports) ...[
+              Builder(
+                builder: (context) {
+                  final sRes = SportsToolResult.tryParse(widget.part.content);
+                  if (sRes == null || sRes.games.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SportsToolUi(result: sRes, textColor: fg.body),
+                  );
+                },
+              ),
+            ],
+            if (!widget.part.loading &&
+                !isPendingApproval &&
+                widget.part.toolName == LocalToolNames.sandboxVps) ...[
+              Builder(
+                builder: (context) {
+                  final vRes = SandboxVpsToolResult.tryParse(
+                    widget.part.content,
+                  );
+                  if (vRes == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SandboxVpsToolUi(result: vRes, textColor: fg.body),
+                  );
+                },
+              ),
+            ],
+            if (!widget.part.loading &&
+                !isPendingApproval &&
+                widget.part.toolName == LocalToolNames.inspectSite) ...[
+              Builder(
+                builder: (context) {
+                  final sRes = SiteInspectToolResult.tryParse(
+                    widget.part.content,
+                  );
+                  if (sRes == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SiteInspectToolUi(result: sRes, textColor: fg.body),
+                  );
+                },
+              ),
+            ],
+            if (!widget.part.loading && !isPendingApproval) ...[
+              Builder(
+                builder: (context) {
+                  final isDoc =
+                      widget.part.toolName == LocalToolNames.documentTool ||
+                      widget.part.toolName == 'create_pdf' ||
+                      widget.part.toolName == 'generate_pdf' ||
+                      widget.part.toolName == 'pdf' ||
+                      widget.part.toolName == 'document';
+                  final docRes = DocumentToolResult.tryParse(
+                    widget.part.content,
+                  );
+                  final fileCards = <Widget>[];
+                  final seenPaths = <String>{};
+
+                  if (docRes != null &&
+                      docRes.outputPath != null &&
+                      docRes.outputPath!.isNotEmpty) {
+                    seenPaths.add(docRes.outputPath!);
+                    fileCards.add(
+                      GeneratedFileCard(
+                        filePath: docRes.outputPath!,
+                        pageCount: docRes.pageCount,
+                        status: docRes.status,
+                        text: docRes.text,
+                      ),
+                    );
+                  } else if (isDoc &&
+                      widget.part.arguments.containsKey('output_path')) {
+                    final rawPath = widget.part.arguments['output_path']
+                        ?.toString();
+                    if (rawPath != null && rawPath.isNotEmpty) {
+                      seenPaths.add(rawPath);
+                      fileCards.add(GeneratedFileCard(filePath: rawPath));
+                    }
+                  }
+
+                  // Also detect file paths from sandbox_vps / bash / any tool outputs or arguments
+                  final detectedPaths = {
+                    ...extractGeneratedFilePaths(widget.part.content ?? ''),
+                    ...extractGeneratedFilePaths(
+                      widget.part.arguments.toString(),
+                    ),
+                  };
+                  for (final path in detectedPaths) {
+                    if (!seenPaths.contains(path)) {
+                      seenPaths.add(path);
+                      fileCards.add(GeneratedFileCard(filePath: path));
+                    }
+                  }
+
+                  if (fileCards.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: fileCards,
+                    ),
+                  );
+                },
+              ),
+            ],
+            if (!widget.part.loading &&
+                !isPendingApproval &&
                 widget.part.toolName == LocalToolNames.screenTime) ...[
               Builder(
                 builder: (context) {
@@ -6908,29 +7294,16 @@ class _ToolCallItemState extends State<_ToolCallItem> {
             ],
             if (!isWorkspace && isPendingApproval)
               SwitchToFullAccess(conversationId: widget.conversationId),
-            // Show image thumbnails if available
+            // Show generated images with full preview and download/open actions
             if (hasImages) ...[
               const SizedBox(height: 10),
-              SizedBox(
-                height: kToolImageCardHeight,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _imagePaths.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (ctx, i) {
-                    final path = _imagePaths[i];
-                    return GestureDetector(
-                      onTap: () => _showFullImage(context, path),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: _buildImageFromPath(
-                          path,
-                          height: kToolImageCardHeight,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final path in _imagePaths)
+                    GeneratedFileCard(filePath: path, isImage: true),
+                ],
               ),
             ],
           ],
@@ -6951,36 +7324,6 @@ class _ToolCallItemState extends State<_ToolCallItem> {
       return;
     }
     _showToolDetail(context, widget.part);
-  }
-
-  /// Show full-size image using ImageViewerPage for save/share/copy support.
-  /// [path] can be a local file path or HTTP URL.
-  void _showFullImage(BuildContext context, String path) {
-    Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        opaque: false,
-        pageBuilder: (_, __, ___) => ImageViewerPage(images: [path]),
-        transitionDuration: const Duration(milliseconds: 360),
-        reverseTransitionDuration: const Duration(milliseconds: 280),
-        transitionsBuilder: (context, anim, sec, child) {
-          final curved = CurvedAnimation(
-            parent: anim,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
-          return FadeTransition(
-            opacity: curved,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.02),
-                end: Offset.zero,
-              ).animate(curved),
-              child: child,
-            ),
-          );
-        },
-      ),
-    );
   }
 }
 

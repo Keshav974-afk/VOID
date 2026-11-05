@@ -18,6 +18,7 @@ import 'desktop_settings_navigation_bus.dart';
 import '../core/services/notification_service.dart';
 import '../features/chat/widgets/chat_assistant_background.dart';
 import '../features/chat/widgets/frosted/chat_frosted_backdrop.dart';
+import '../shared/widgets/void_logo.dart';
 import '../theme/surface_ladder.dart';
 
 /// Desktop home screen: left compact rail + main content.
@@ -364,12 +365,7 @@ class _TitleBarLeading extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // App icon
-        Image.asset(
-          'assets/icons/kelivo.png',
-          width: 16,
-          height: 16,
-          filterQuality: FilterQuality.medium,
-        ),
+        const VoidLogo(size: 16),
         const SizedBox(width: 8),
         // App name
         Text(

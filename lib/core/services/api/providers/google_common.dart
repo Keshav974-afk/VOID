@@ -488,22 +488,19 @@ Stream<StreamChunk> sendGoogleStream(
             }
             final normalized = normalizeSrc(p);
             if (!seenSources.add(normalized)) continue;
-            if (p.startsWith('data:')) {
-              final mime = mimeForInternalMediaRef(mediaRef);
-              final idx = p.indexOf('base64,');
+            final dataUrl = await tryEncodeBase64DataUrl(
+              p,
+              explicitMime: mediaRef.mime,
+            );
+            if (dataUrl != null) {
+              final mime = mimeFromDataUrl(dataUrl);
+              final idx = dataUrl.indexOf('base64,');
               if (idx > 0) {
-                final b64 = p.substring(idx + 7);
+                final b64 = dataUrl.substring(idx + 7);
                 parts.add({
                   'inline_data': {'mime_type': mime, 'data': b64},
                 });
               }
-            } else if (!(p.startsWith('http://') || p.startsWith('https://'))) {
-              final mime = mimeForInternalMediaRef(mediaRef);
-              final b64 = await tryEncodeBase64File(p, withPrefix: false);
-              if (b64 == null) continue;
-              parts.add({
-                'inline_data': {'mime_type': mime, 'data': b64},
-              });
             } else {
               parts.add({'text': '(image) $p'});
             }
@@ -956,22 +953,19 @@ Stream<StreamChunk> sendGoogleStream(
           }
           final normalized = normalizeSrc(p);
           if (!seenSources.add(normalized)) continue;
-          if (p.startsWith('data:')) {
-            final mime = mimeForInternalMediaRef(mediaRef);
-            final idx = p.indexOf('base64,');
+          final dataUrl = await tryEncodeBase64DataUrl(
+            p,
+            explicitMime: mediaRef.mime,
+          );
+          if (dataUrl != null) {
+            final mime = mimeFromDataUrl(dataUrl);
+            final idx = dataUrl.indexOf('base64,');
             if (idx > 0) {
-              final b64 = p.substring(idx + 7);
+              final b64 = dataUrl.substring(idx + 7);
               parts.add({
                 'inline_data': {'mime_type': mime, 'data': b64},
               });
             }
-          } else if (!(p.startsWith('http://') || p.startsWith('https://'))) {
-            final mime = mimeForInternalMediaRef(mediaRef);
-            final b64 = await tryEncodeBase64File(p, withPrefix: false);
-            if (b64 == null) continue;
-            parts.add({
-              'inline_data': {'mime_type': mime, 'data': b64},
-            });
           } else {
             // http url fallback reference text
             parts.add({'text': '(image) $p'});

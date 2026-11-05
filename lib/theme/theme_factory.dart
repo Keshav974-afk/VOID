@@ -7,22 +7,50 @@ import 'package:Kelivo/theme/surface_ladder.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 
-// CJK/Latin fallback to stabilize fontWeight (w100-w600) on iOS for Chinese
+// Multi-script fallback (Devanagari, Arabic, CJK, Emoji, Latin) to properly render all languages without dotted circles
 const List<String> kDefaultFontFamilyFallback = <String>[
   'PingFang SC',
+  'Kohinoor Devanagari',
+  'Geeza Pro',
+  'Thonburi',
+  'Apple Color Emoji',
   'Heiti SC',
   'Hiragino Sans GB',
   'Roboto',
 ];
 
-const List<String> kAndroidFontFamilyFallback = <String>['sans-serif'];
+const List<String> kAndroidFontFamilyFallback = <String>[
+  'Noto Sans Devanagari',
+  'Noto Sans Bengali',
+  'Noto Sans Tamil',
+  'Noto Sans Telugu',
+  'Noto Sans Malayalam',
+  'Noto Sans Kannada',
+  'Noto Sans Gurmukhi',
+  'Noto Sans Gujarati',
+  'Noto Sans Myanmar',
+  'Noto Sans Tibetan',
+  'Noto Sans Arabic',
+  'Noto Sans Thai',
+  'Noto Sans SC',
+  'Noto Sans CJK SC',
+  'Noto Sans JP',
+  'Noto Sans KR',
+  'Noto Color Emoji',
+  'sans-serif',
+];
 
-// Windows-specific font fallback to fix Chinese font rendering issues
+// Windows-specific font fallback with Nirmala UI for Indian/Devanagari scripts and YaHei for Chinese
 const List<String> kWindowsFontFamilyFallback = <String>[
   'Twemoji Country Flags',
   'Segoe UI',
+  'Nirmala UI',
   'Microsoft YaHei',
   'SimHei',
+  'Meiryo',
+  'Leelawadee UI',
+  'Segoe UI Symbol',
+  'Segoe UI Emoji',
 ];
 
 // Get platform-appropriate font fallback list

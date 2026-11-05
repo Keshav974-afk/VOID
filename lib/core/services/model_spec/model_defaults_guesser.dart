@@ -123,21 +123,18 @@ class _ReasoningRule {
 /// Central guesser for model-id-derived capability and reasoning defaults.
 class ModelDefaultsGuesser {
   static final RegExp _vision = RegExp(
-    r'(gpt-4o|gpt-4\.1|gpt-5(?!-chat)|gpt-6|o\d|gemini|claude|kimi-k2([-.])(?:5|6|7)|kimi-k3(?:$|[/_:@.-])|muse-spark-1(?:$|[/_:@.-])|doubao.+(?:1([-.])(?:6|8)|seed-2|seed-evolving)|grok-4|step-3|intern-s1|minimax-m3(?:$|[/_:@])|mimo-v2(?:-omni(?:$|[/_:@])|\.5(?:$|[/_:@])|\.6(?:$|[/_:@.-]))|sensenova-6\.7-flash-lite)',
+    r'(gpt-4o|gpt-4\.1|gpt-5(?!-chat)|gpt-6|o\d|gemini|claude|kimi-k2([-.])(?:5|6|7)|kimi-k3(?:$|[/_:@.-])|muse-spark-1(?:$|[/_:@.-])|doubao.+(?:1([-.])(?:6|8)|seed-2|seed-evolving)|grok-(?:2|3|4|vision)|step-3|intern-s1|minimax-m3(?:$|[/_:@])|mimo-v2(?:-omni(?:$|[/_:@])|\.5(?:$|[/_:@])|\.6(?:$|[/_:@.-]))|sensenova-6\.7-flash-lite)',
     caseSensitive: false,
   );
 
   static final RegExp _tool = RegExp(
-    (r'(gpt-4o|gpt-4\.1|gpt-oss|gpt-5(?!-chat)|gpt-6|o\d|'
-            r'gemini|claude|'
-            r'qwen-?3|doubao.+(?:1([-.])(?:6|8)|seed-2|seed-evolving)|grok-4|kimi-k2|'
-            r'kimi-k3(?:$|[/_:@.-])|muse-spark-1(?:$|[/_:@.-])|'
-            r'step-3|intern-s1|glm-4([-.])(?:5|6|7)|glm-5|minimax-(?:m2|m3)|'
-            r'deepseek-(?:r1|v3|chat|v3\.1|v3\.2|v4|flash)|'
-            r'deepseek-reasoner|'
-            r'mimo-v2|'
-            r'sensenova-6\.7-flash-lite|'
-            r'laguna'
+    (r'(gpt|gemini|claude|qwen|llama|mistral|doubao|grok|kimi|muse|'
+            r'step|intern|glm|minimax|'
+            r'deepseek|'
+            r'mimo|'
+            r'sensenova|'
+            r'laguna|'
+            r'o\d'
             r')')
         .replaceAll(' ', ''),
     caseSensitive: false,
@@ -149,7 +146,7 @@ class ModelDefaultsGuesser {
             r'gemini-3-pro-image-preview|'
             r'gemma[-_]?4|'
             r'claude|'
-            r'qwen-?3|doubao.+(?:1([-.])(?:6|8)|seed-2|seed-evolving)|grok-4|kimi-k2|'
+            r'qwen-?3|doubao.+(?:1([-.])(?:6|8)|seed-2|seed-evolving)|grok-(?:2|3|4|beta)|kimi-k2|'
             r'kimi-k3(?:$|[/_:@.-])|muse-spark-1(?:$|[/_:@.-])|'
             r'step-3|intern-s1|glm-4([-.])(?:5|6|7)|glm-5|minimax-(?:m2|m3)|'
             r'deepseek-(?:r1|v3\.1|v3\.2|v4|flash)|'
@@ -176,6 +173,13 @@ class ModelDefaultsGuesser {
     _ReasoningRule(
       matches: (id) => _matches(id, r'(^|[/_:@])grok-4\.5(?:$|[-.])'),
       apply: _grok45,
+    ),
+    _ReasoningRule(
+      matches: (id) => _matches(
+        id,
+        r'(^|[/_:@])grok-(?:3|3-mini|3-thinking|beta)(?:$|[-.])',
+      ),
+      apply: _grok3,
     ),
     _ReasoningRule(
       matches: (id) => _matches(id, r'(^|[/_:@])muse-spark-1\.3(?:$|[-.])'),
@@ -274,6 +278,16 @@ class ModelDefaultsGuesser {
         draft.input.add(Modality.pdf);
       } else if (_matches(id, r'(^|/)qwen[^/]*-omni(?:-|$)')) {
         draft.input.addAll([Modality.audio, Modality.video]);
+      }
+
+      // Universal multimodal capability: all chat models can receive images and documents
+      if (draft.type == ModelType.chat) {
+        if (!draft.input.contains(Modality.image)) {
+          draft.input.add(Modality.image);
+        }
+        if (!draft.input.contains(Modality.pdf)) {
+          draft.input.add(Modality.pdf);
+        }
       }
     }
 
@@ -813,6 +827,13 @@ _ReasoningHit _grok46(String id) {
 }
 
 _ReasoningHit _grok45(String id) {
+  return _ladder(
+    efforts: const ['low', 'medium', 'high'],
+    dialect: ReasoningDialect.openaiReasoningEffort,
+  );
+}
+
+_ReasoningHit _grok3(String id) {
   return _ladder(
     efforts: const ['low', 'medium', 'high'],
     dialect: ReasoningDialect.openaiReasoningEffort,

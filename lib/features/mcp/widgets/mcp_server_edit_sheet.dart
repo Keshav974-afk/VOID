@@ -261,6 +261,109 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
             ],
           )
         else ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Wrap(
+              spacing: 8,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Lucide.Layers, size: 14),
+                  label: const Text('Composio'),
+                  backgroundColor: cs.primaryContainer.withValues(alpha: 0.35),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: AppFontWeights.medium,
+                    color: cs.onSurface,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _nameCtrl.text = 'Composio';
+                      _transport = McpTransportType.http;
+                      _urlCtrl.text = 'https://backend.composio.dev/api/v1/mcp';
+                      if (!_headers.any((h) => h.key.text.toLowerCase() == 'x-api-key')) {
+                        _headers.add(
+                          _HeaderEntry(
+                            TextEditingController(text: 'x-api-key'),
+                            TextEditingController(text: ''),
+                          ),
+                        );
+                      }
+                    });
+                  },
+                ),
+                ActionChip(
+                  avatar: const Icon(Lucide.GitFork, size: 14),
+                  label: const Text('GitHub'),
+                  backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: AppFontWeights.medium,
+                    color: cs.onSurface,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _nameCtrl.text = 'GitHub';
+                      _transport = McpTransportType.stdio;
+                      _cmdCtrl.text = 'npx';
+                      _argsCtrl.text = '-y\n@modelcontextprotocol/server-github';
+                      if (!_env.any((e) => e.key.text == 'GITHUB_PERSONAL_ACCESS_TOKEN')) {
+                        _env.add(
+                          _HeaderEntry(
+                            TextEditingController(text: 'GITHUB_PERSONAL_ACCESS_TOKEN'),
+                            TextEditingController(text: ''),
+                          ),
+                        );
+                      }
+                    });
+                  },
+                ),
+                ActionChip(
+                  avatar: const Icon(Lucide.Search, size: 14),
+                  label: const Text('Brave Search'),
+                  backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: AppFontWeights.medium,
+                    color: cs.onSurface,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _nameCtrl.text = 'Brave Search';
+                      _transport = McpTransportType.stdio;
+                      _cmdCtrl.text = 'npx';
+                      _argsCtrl.text = '-y\n@modelcontextprotocol/server-brave-search';
+                      if (!_env.any((e) => e.key.text == 'BRAVE_API_KEY')) {
+                        _env.add(
+                          _HeaderEntry(
+                            TextEditingController(text: 'BRAVE_API_KEY'),
+                            TextEditingController(text: ''),
+                          ),
+                        );
+                      }
+                    });
+                  },
+                ),
+                ActionChip(
+                  avatar: const Icon(Lucide.Brain, size: 14),
+                  label: const Text('Memory Graph'),
+                  backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: AppFontWeights.medium,
+                    color: cs.onSurface,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _nameCtrl.text = 'Memory Graph';
+                      _transport = McpTransportType.stdio;
+                      _cmdCtrl.text = 'npx';
+                      _argsCtrl.text = '-y\n@modelcontextprotocol/server-memory';
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
           _inputRow(
             label: l10n.mcpServerEditSheetNameLabel,
             controller: _nameCtrl,

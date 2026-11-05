@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kReleaseMode;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 typedef SystemAsrTranscriptCallback =
@@ -86,16 +87,43 @@ class SpeechToTextSystemAsrBackend implements SystemAsrBackend {
   Future<bool> initialize({
     required SystemAsrErrorCallback onError,
     required void Function(String status) onStatus,
-  }) {
+  }) async {
     if (!canInitializeSystemAsrOnPlatform(defaultTargetPlatform)) {
-      return Future<bool>.value(false);
+      return false;
+    }
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS) {
+      try {
+        final status = await Permission.microphone.status;
+        if (!status.isGranted) {
+          final req = await Permission.microphone.request();
+          if (!req.isGranted) {
+            onError(
+              const SystemAsrError(
+                message: 'Microphone permission not granted',
+                isPermanent: true,
+              ),
+            );
+            return false;
+          }
+        }
+      } catch (_) {}
     }
     return _speechToText.initialize(
-      onError: (error) => onError(
-        SystemAsrError(message: error.errorMsg, isPermanent: error.permanent),
-      ),
+      onError: (error) {
+        final isPermanent =
+            error.permanent ||
+            error.errorMsg.contains('busy') ||
+            error.errorMsg.contains('denied');
+        onError(
+          SystemAsrError(message: error.errorMsg, isPermanent: isPermanent),
+        );
+      },
       onStatus: onStatus,
-      options: <SpeechConfigOption>[SpeechToText.androidIntentLookup],
+      options: <SpeechConfigOption>[
+        SpeechToText.androidIntentLookup,
+        SpeechToText.androidAlwaysUseStop,
+      ],
     );
   }
 
@@ -135,7 +163,7 @@ class SpeechToTextSystemAsrBackend implements SystemAsrBackend {
         pauseFor: pauseFor,
         listenMode: ListenMode.dictation,
         partialResults: true,
-        cancelOnError: true,
+        cancelOnError: false,
       ),
     );
   }
@@ -172,7 +200,11 @@ class SystemAsrService {
 
   Future<bool> initialize() {
     _ensureNotDisposed();
-    return _initializeFuture ??= _initializeOnce();
+    if (_available) return Future<bool>.value(true);
+    return _initializeFuture ??= _initializeOnce().then((val) {
+      if (!val) _initializeFuture = null;
+      return val;
+    });
   }
 
   Future<bool> _initializeOnce() async {

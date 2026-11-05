@@ -82,6 +82,7 @@ import 'setting/scheduled_tasks_pane.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart' show LucideIcons;
 import 'setting/hotkeys_pane.dart';
 import 'setting/network_proxy_pane.dart';
+import 'setting/vps_settings_pane.dart';
 import 'setting/auto_retry_pane.dart';
 import 'setting/about_pane.dart';
 import 'setting/stats_pane.dart';
@@ -135,6 +136,7 @@ enum _SettingsMenuItem {
   memory,
   tts,
   networkProxy,
+  sandboxVps,
   backup,
   scheduledTasks,
   hotkeys,
@@ -349,6 +351,10 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                           return const DesktopNetworkProxyPane(
                             key: ValueKey('networkProxy'),
                           );
+                        case _SettingsMenuItem.sandboxVps:
+                          return const DesktopVpsSettingsPane(
+                            key: ValueKey('sandboxVps'),
+                          );
                         case _SettingsMenuItem.backup:
                           return const DesktopBackupPane(
                             key: ValueKey('backup'),
@@ -467,6 +473,11 @@ class _SettingsMenu extends StatelessWidget {
         _SettingsMenuItem.networkProxy,
         lucide.Lucide.EthernetPort,
         l10n.settingsPageNetworkProxy,
+      ),
+      (
+        _SettingsMenuItem.sandboxVps,
+        lucide.Lucide.Server,
+        l10n.settingsPageSandboxVps,
       ),
       (
         _SettingsMenuItem.backup,

@@ -7,6 +7,8 @@ import android.app.KeyguardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import java.net.URLEncoder
 import android.graphics.Path
 import android.graphics.Point
 import android.graphics.Rect
@@ -43,7 +45,7 @@ class PhoneControlService : AccessibilityService() {
         fun execute(json: String, complete: (String) -> Unit) {
             val service = connected
             if (service == null) {
-                complete(error("SERVICE_UNAVAILABLE", "Enable Kelivo phone control in Android Accessibility settings. If already enabled, turn the service off and on again.").toString())
+                complete(error("SERVICE_UNAVAILABLE", "Enable VOID phone control in Android Accessibility settings. If already enabled, turn the service off and on again.").toString())
                 return
             }
             service.execute(json) { complete(it.toString()) }
@@ -160,6 +162,7 @@ class PhoneControlService : AccessibilityService() {
                 if (!finished) {
                     finished = true
                     requests.remove(reply)
+                    (application as? KelivoApplication)?.backgroundRuntime?.phoneControlFinished()
                     complete(if (epoch == generation.get() && !destroyed) value
                         else error("INTERRUPTED", "Phone control was interrupted."))
                 }
@@ -199,16 +202,71 @@ class PhoneControlService : AccessibilityService() {
                 "read_screen" -> complete(readScreen())
                 "list_apps" -> complete(listApps())
                 "open_app" -> {
-                    val name = requiredString(args, "package_name")
-                    val intent = packageManager.getLaunchIntentForPackage(name)
-                    if (intent == null) {
-                        complete(error("APP_NOT_FOUND", "No launchable app for this package. Use list_apps to find a package name."))
-                    } else {
+                    val rawName = args.optString("package_name").ifEmpty { args.optString("app_name") }
+                    val uriString = args.optString("uri").ifEmpty { args.optString("data_uri") }
+                    val resolvedPkg = if (rawName.isNotEmpty()) resolvePackage(rawName) else null
+
+                    if (uriString.isNotEmpty()) {
                         clearSnapshot()
                         ensureActive()
-                        startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                        complete(JSONObject().put("success", true).put("package_name", name))
+                        val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
+                            resolvedPkg?.let { setPackage(it) }
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        try {
+                            startActivity(viewIntent)
+                            complete(JSONObject().put("success", true).put("uri", uriString).put("package_name", resolvedPkg ?: ""))
+                        } catch (e: Exception) {
+                            complete(error("LAUNCH_FAILED", "Failed to launch intent: ${e.message}"))
+                        }
+                    } else if (resolvedPkg != null) {
+                        val intent = packageManager.getLaunchIntentForPackage(resolvedPkg)
+                        if (intent == null) {
+                            complete(error("APP_NOT_FOUND", "No launchable app found for $rawName."))
+                        } else {
+                            clearSnapshot()
+                            ensureActive()
+                            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            complete(JSONObject().put("success", true).put("package_name", resolvedPkg))
+                        }
+                    } else {
+                        complete(error("APP_NOT_FOUND", "No launchable app found matching '$rawName'. Use list_apps to find available apps."))
                     }
+                }
+                "whatsapp_send" -> {
+                    val text = args.optString("text").ifEmpty { args.optString("message") }
+                    val phone = args.optString("phone").trim().replace("+", "").replace(" ", "").replace("-", "")
+                    val encodedText = URLEncoder.encode(text, "UTF-8")
+                    val uri = if (phone.isNotEmpty()) {
+                        Uri.parse("https://api.whatsapp.com/send?phone=$phone&text=$encodedText")
+                    } else {
+                        Uri.parse("whatsapp://send?text=$encodedText")
+                    }
+                    val pkg = resolvePackage("whatsapp") ?: "com.whatsapp"
+                    val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                        setPackage(pkg)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    clearSnapshot()
+                    ensureActive()
+                    try {
+                        startActivity(intent)
+                        complete(JSONObject().put("success", true).put("message", "WhatsApp opened with drafted message."))
+                    } catch (e: Exception) {
+                        complete(error("WHATSAPP_FAILED", "Could not launch WhatsApp: ${e.message}"))
+                    }
+                }
+                "click_text" -> {
+                    val targetText = args.optString("text").ifEmpty { args.optString("query") }
+                    if (targetText.isEmpty()) {
+                        complete(error("INVALID_ARGUMENT", "text or query is required for click_text."))
+                    } else {
+                        findAndClickText(targetText, complete)
+                    }
+                }
+                "type_text" -> {
+                    val textToType = args.optString("text")
+                    typeText(textToType, complete)
                 }
                 "back", "home", "recents", "notifications", "quick_settings" -> {
                     clearSnapshot()
@@ -223,6 +281,10 @@ class PhoneControlService : AccessibilityService() {
                     complete(actionResult(performGlobalAction(globalAction)))
                 }
                 "tap", "long_press", "set_text", "scroll", "swipe" -> {
+                    if (action == "tap" && (args.has("text") || args.has("query")) && !args.has("node_id") && !args.has("x")) {
+                        findAndClickText(args.optString("text").ifEmpty { args.optString("query") }, complete)
+                        return
+                    }
                     val coordinates = action == "swipe" || (action in listOf("tap", "long_press") && !args.has("node_id"))
                     if (!validateSnapshot(args, coordinates)) {
                         complete(error("STALE_SCREEN", "The screen changed or this snapshot expired. Call read_screen again before acting."))
@@ -523,6 +585,151 @@ class PhoneControlService : AccessibilityService() {
     private fun actionResult(success: Boolean): JSONObject = if (success) {
         JSONObject().put("success", true).put("message", "Action accepted. Call read_screen to verify the result.")
     } else error("ACTION_FAILED", "The target did not accept this action. Read the screen and choose an actionable node or use coordinates.")
+
+    private fun resolvePackage(query: String): String? {
+        val clean = query.trim().lowercase()
+        if (clean.isEmpty()) return null
+        val wellKnown = mapOf(
+            "whatsapp" to "com.whatsapp",
+            "whatsapp business" to "com.whatsapp.w4b",
+            "chrome" to "com.android.chrome",
+            "youtube" to "com.google.android.youtube",
+            "gmail" to "com.google.android.gm",
+            "maps" to "com.google.android.apps.maps",
+            "google maps" to "com.google.android.apps.maps",
+            "settings" to "com.android.settings",
+            "clock" to "com.google.android.deskclock",
+            "calculator" to "com.google.android.calculator",
+            "calendar" to "com.google.android.calendar",
+            "contacts" to "com.google.android.contacts",
+            "messages" to "com.google.android.apps.messaging",
+            "sms" to "com.google.android.apps.messaging",
+            "telegram" to "org.telegram.messenger",
+            "instagram" to "com.instagram.android",
+            "spotify" to "com.spotify.music",
+            "twitter" to "com.twitter.android",
+            "x" to "com.twitter.android"
+        )
+        val candidate = wellKnown[clean]
+        if (candidate != null && packageManager.getLaunchIntentForPackage(candidate) != null) {
+            return candidate
+        }
+        if (packageManager.getLaunchIntentForPackage(query) != null) {
+            return query
+        }
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val apps = packageManager.queryIntentActivities(launcherIntent, 0)
+        val exactLabel = apps.firstOrNull { it.loadLabel(packageManager).toString().equals(query, ignoreCase = true) }
+        if (exactLabel != null) return exactLabel.activityInfo.packageName
+        val partialLabel = apps.firstOrNull { it.loadLabel(packageManager).toString().contains(query, ignoreCase = true) }
+        if (partialLabel != null) return partialLabel.activityInfo.packageName
+        val partialPkg = apps.firstOrNull { it.activityInfo.packageName.contains(clean, ignoreCase = true) }
+        if (partialPkg != null) return partialPkg.activityInfo.packageName
+        return null
+    }
+
+    private fun findAndClickText(query: String, complete: (JSONObject) -> Unit) {
+        ensureActive()
+        val root = rootInActiveWindow
+            ?: run {
+                complete(error("NO_WINDOW", "No active window."))
+                return
+            }
+        val clean = query.trim().lowercase()
+        var targetNode: AccessibilityNodeInfo? = null
+        fun search(node: AccessibilityNodeInfo) {
+            if (targetNode != null) return
+            val text = node.text?.toString()?.lowercase().orEmpty()
+            val desc = node.contentDescription?.toString()?.lowercase().orEmpty()
+            if (node.isVisibleToUser && (text.contains(clean) || desc.contains(clean))) {
+                var cur: AccessibilityNodeInfo? = node
+                while (cur != null) {
+                    if (cur.isClickable) {
+                        targetNode = AccessibilityNodeInfo.obtain(cur)
+                        return
+                    }
+                    cur = cur.parent
+                }
+                targetNode = AccessibilityNodeInfo.obtain(node)
+                return
+            }
+            for (i in 0 until node.childCount) {
+                if (targetNode != null) break
+                node.getChild(i)?.let {
+                    search(it)
+                    it.recycle()
+                }
+            }
+        }
+        try {
+            search(root)
+            val target = targetNode
+            if (target != null) {
+                val clicked = target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                val bounds = Rect().also(target::getBoundsInScreen)
+                target.recycle()
+                if (clicked) {
+                    clearSnapshot()
+                    complete(JSONObject().put("success", true).put("message", "Clicked element matching: $query"))
+                    return
+                }
+                val tapArgs = JSONObject().put("x", bounds.centerX()).put("y", bounds.centerY())
+                gesture("tap", tapArgs, complete)
+                return
+            }
+            complete(error("TEXT_NOT_FOUND", "Could not find element matching '$query' on the current screen."))
+        } finally {
+            root.recycle()
+        }
+    }
+
+    private fun typeText(text: String, complete: (JSONObject) -> Unit) {
+        ensureActive()
+        val root = rootInActiveWindow
+            ?: run {
+                complete(error("NO_WINDOW", "No active window."))
+                return
+            }
+        var targetNode: AccessibilityNodeInfo? = null
+        fun search(node: AccessibilityNodeInfo) {
+            if (targetNode != null && targetNode?.isFocused == true) return
+            if (node.isVisibleToUser && node.isEditable) {
+                if (node.isFocused) {
+                    targetNode?.recycle()
+                    targetNode = AccessibilityNodeInfo.obtain(node)
+                    return
+                } else if (targetNode == null) {
+                    targetNode = AccessibilityNodeInfo.obtain(node)
+                }
+            }
+            for (i in 0 until node.childCount) {
+                if (targetNode != null && targetNode?.isFocused == true) break
+                node.getChild(i)?.let {
+                    search(it)
+                    it.recycle()
+                }
+            }
+        }
+        try {
+            search(root)
+            val target = targetNode
+            if (target != null) {
+                val args = Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                }
+                val done = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                target.recycle()
+                if (done) {
+                    clearSnapshot()
+                    complete(JSONObject().put("success", true).put("message", "Text entered successfully."))
+                    return
+                }
+            }
+            complete(error("NO_EDITABLE_FIELD", "No focused or editable input field found on screen."))
+        } finally {
+            root.recycle()
+        }
+    }
 
     private fun requiredString(args: JSONObject, name: String): String {
         val value = args.opt(name)

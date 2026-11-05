@@ -648,17 +648,23 @@ class ClaudeHistory {
         }
         return;
       }
-      final mime = normalizeClaudeImageMime(
-        (explicitMime != null && explicitMime.trim().isNotEmpty)
-            ? explicitMime.trim()
-            : mimeFromPath(source),
+      final dataUrl = await tryEncodeBase64DataUrl(
+        source,
+        explicitMime: explicitMime,
       );
-      final b64 = await tryEncodeBase64File(source, withPrefix: false);
-      if (b64 == null) return;
-      images.add({
-        'type': 'image',
-        'source': {'type': 'base64', 'media_type': mime, 'data': b64},
-      });
+      if (dataUrl == null) return;
+      final idx = dataUrl.indexOf('base64,');
+      if (idx > 0) {
+        final mime = normalizeClaudeImageMime(mimeFromDataUrl(dataUrl));
+        images.add({
+          'type': 'image',
+          'source': {
+            'type': 'base64',
+            'media_type': mime,
+            'data': dataUrl.substring(idx + 7),
+          },
+        });
+      }
     }
 
     final parsed = await parseTextAndImages(

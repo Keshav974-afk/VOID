@@ -178,8 +178,8 @@ void main() {
       isA<ParagraphNode>(),
     );
     expect(
-      parser.parse('intro\na | b\n--- | ---').children.single,
-      isA<ParagraphNode>(),
+      parser.parse('intro\na | b\n--- | ---').children.map((n) => n.type),
+      ['paragraph', 'table'],
     );
     final table = parser
         .parse('name | value\n--- | ---\nline\n\nAfter')
@@ -189,12 +189,24 @@ void main() {
       _text((table.first as TableNode).children[1].children.first),
       'line',
     );
+    const tableWithIntro =
+        "Here's what I found for your key:\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Status | Available |\n"
+        "| Currency | USD |\n\n"
+        "So your account is fully available.";
+    final nodes = parser.parse(tableWithIntro).children;
+    expect(nodes.map((n) => n.type), ['paragraph', 'table', 'paragraph']);
+    final parsedTable = nodes[1] as TableNode;
+    expect(parsedTable.children, hasLength(3)); // 1 header + 2 rows
     expect(
-      const BlockParser(options: ParserOptions.commonMark())
-          .parse('a | b\n--- | ---')
-          .children
-          .single,
-      isA<ParagraphNode>(),
+      parsedTable.children.first.children.map(_text).toList(),
+      ['Field', 'Value'],
+    );
+    expect(
+      parsedTable.children[1].children.map(_text).toList(),
+      ['Status', 'Available'],
     );
   });
   test('tables remain inside list and quote containers', () {

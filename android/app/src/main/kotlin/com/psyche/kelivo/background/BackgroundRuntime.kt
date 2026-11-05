@@ -82,6 +82,7 @@ class BackgroundRuntime(private val context: Context) {
      * would receive them and reopen Kelivo. Cleared when the tasks end. */
     var phoneControlActive = false
         private set
+    var phoneControlStartedAt = 0L
     private val overlay by lazy { BackgroundOverlay(context, this, prefs) }
 
     fun enabled(key: String) = settings[key] == true
@@ -153,6 +154,12 @@ class BackgroundRuntime(private val context: Context) {
 
     fun phoneControlStarted() {
         phoneControlActive = true
+        phoneControlStartedAt = System.currentTimeMillis()
+        overlay.refresh()
+    }
+
+    fun phoneControlFinished() {
+        phoneControlActive = false
         overlay.refresh()
     }
 

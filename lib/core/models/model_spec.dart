@@ -632,7 +632,8 @@ class ModelSpec {
 
   String get upstreamId => apiModelId ?? id;
 
-  bool get supportsTool => abilities.contains(ModelAbility.tool);
+  bool get supportsTool =>
+      type == ModelType.chat || abilities.contains(ModelAbility.tool);
 
   bool get supportsReasoning => abilities.contains(ModelAbility.reasoning);
 

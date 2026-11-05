@@ -575,15 +575,12 @@ Future<List<Map<String, dynamic>>> buildOpenAIChatCompletionMessages(
           }
           final normalized = normalizeSrc(mediaPath);
           if (!seenSources.add(normalized)) continue;
-          final bool isInlineUrl =
-              isRemoteHttpUrl(mediaPath) || mediaPath.startsWith('data:');
           final String mime = mimeForInternalMediaRef(mediaRef);
-          if (isAudioMime(mime) ||
-              (role == 'user' && (isVideoMime(mime) || isPdfMime(mime)))) {
+          if (isAudioMime(mime) || (role == 'user' && isVideoMime(mime))) {
             continue;
           }
           final bool isVideo = isVideoMime(mime);
-          final String? dataUrl = isInlineUrl
+          final String? dataUrl = mediaPath.startsWith('data:')
               ? mediaPath
               : await tryEncodeBase64DataUrl(
                   mediaPath,
@@ -781,14 +778,12 @@ Future<List<Map<String, dynamic>>> buildOpenAIChatCompletionMessages(
       }
       final normalized = normalizeSrc(p);
       if (!seenSources.add(normalized)) continue;
-      final bool isInlineUrl = isRemoteHttpUrl(p) || p.startsWith('data:');
       final String mime = mimeForInternalMediaRef(mediaRef);
-      if (isAudioMime(mime) ||
-          (role == 'user' && (isVideoMime(mime) || isPdfMime(mime)))) {
+      if (isAudioMime(mime) || (role == 'user' && isVideoMime(mime))) {
         continue;
       }
       final bool isVideo = isVideoMime(mime);
-      final String? dataUrl = isInlineUrl
+      final String? dataUrl = p.startsWith('data:')
           ? p
           : await tryEncodeBase64DataUrl(p, explicitMime: mediaRef.mime);
       if (dataUrl == null) continue;
