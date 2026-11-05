@@ -13,8 +13,11 @@ import '../../../core/services/document/document_tool_service.dart';
 import '../../../core/services/inspect/site_inspection_service.dart';
 import '../../../core/services/media/media_tool_service.dart';
 import '../../../core/services/sandbox_vps/sandbox_vps_service.dart';
+import '../../../core/services/reminder/reminder_model.dart';
+import '../../../core/services/reminder/reminder_service.dart';
 import '../../../core/services/sports/sports_service.dart';
 import '../../../core/services/video/minimax_video_service.dart';
+import '../../../core/services/composio/composio_service.dart';
 import '../../../core/services/weather/universal_weather_service.dart';
 import '../../../core/services/x_search/x_search_service.dart';
 import 'calculator_service.dart';
@@ -40,6 +43,8 @@ class LocalToolNames {
   static const String remindersQuery = 'reminders_query';
   static const String remindersCreate = 'reminders_create';
   static const String remindersComplete = 'reminders_complete';
+  static const String setReminder = 'set_reminder';
+  static const String composioConnect = 'composio_connect';
   static const String xSearch = 'x_search';
   static const String sports = 'get_sports';
   static const String imageGeneration = 'generate_image';
@@ -68,6 +73,8 @@ class LocalToolNames {
     remindersQuery,
     remindersCreate,
     remindersComplete,
+    setReminder,
+    composioConnect,
     xSearch,
     sports,
     imageGeneration,
@@ -538,6 +545,10 @@ class LocalToolsService {
         return _bashDefinition;
       case LocalToolNames.inspectSite:
         return _inspectSiteDefinition;
+      case LocalToolNames.setReminder:
+        return _setReminderDefinition();
+      case LocalToolNames.composioConnect:
+        return _composioConnectDefinition();
       default:
         throw ArgumentError.value(name, 'name', 'Unknown local tool');
     }
@@ -599,8 +610,18 @@ class LocalToolsService {
         name == 'extract_text' ||
         name == 'merge_pdfs';
 
+    final isReminderTool =
+        name == LocalToolNames.setReminder || name == 'set_reminder';
+
+    final isComposioTool =
+        name == LocalToolNames.composioConnect ||
+        name == 'composio_connect' ||
+        name == 'connect_composio';
+
     if (!isCommandTool &&
         !isDocumentTool &&
+        !isReminderTool &&
+        !isComposioTool &&
         name != LocalToolNames.inspectSite &&
         name != 'inspect_site') {
       if (assistant == null || !assistant.localToolIds.contains(name)) {
@@ -828,17 +849,35 @@ class LocalToolsService {
       );
       return _invokeDeviceTool('getHealthSummary', {'types': types});
     }
-    if (name == LocalToolNames.remindersQuery &&
-        DeviceLocalTools.remindersSupported) {
-      return _invokeDeviceTool('queryReminders', args);
+    if (name == LocalToolNames.setReminder) {
+      return _executeSetReminder(args);
     }
-    if (name == LocalToolNames.remindersCreate &&
-        DeviceLocalTools.remindersSupported) {
-      return _invokeDeviceTool('createReminder', args);
+    if (name == LocalToolNames.composioConnect) {
+      return _executeComposioConnect(args);
     }
-    if (name == LocalToolNames.remindersComplete &&
-        DeviceLocalTools.remindersSupported) {
-      return _invokeDeviceTool('completeReminder', args);
+    if (name == LocalToolNames.remindersQuery) {
+      if (DeviceLocalTools.remindersSupported) {
+        return _invokeDeviceTool('queryReminders', args);
+      }
+      final active = ReminderService.instance.activeReminders;
+      return jsonEncode(active.map((r) => r.toJson()).toList());
+    }
+    if (name == LocalToolNames.remindersCreate) {
+      if (DeviceLocalTools.remindersSupported) {
+        return _invokeDeviceTool('createReminder', args);
+      }
+      return _executeSetReminder(args);
+    }
+    if (name == LocalToolNames.remindersComplete) {
+      if (DeviceLocalTools.remindersSupported) {
+        return _invokeDeviceTool('completeReminder', args);
+      }
+      final id = (args['id'] as String?)?.trim();
+      if (id != null) {
+        await ReminderService.instance.dismiss(id);
+        return jsonEncode({'status': 'completed', 'id': id});
+      }
+      return jsonEncode({'status': 'error', 'message': 'Missing reminder id'});
     }
     return null;
   }
@@ -1748,6 +1787,229 @@ class LocalToolsService {
     final mm = (abs.inMinutes % 60).toString().padLeft(2, '0');
     return "The device timezone is '${now.timeZoneName}' (UTC offset $sign$hh:$mm); "
         'times without an explicit offset are interpreted in this timezone.';
+  }
+
+  static Map<String, dynamic> _setReminderDefinition() => {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.setReminder,
+      'description':
+          'Schedule an automated reminder or alarm on the user device. Supports two modes: '
+          '"notification" (notification with sound) and "alarm" (high-priority popup dialog '
+          'alert with alarm sound, visible on lock screen and app). Categories include "water" '
+          '(water time with water glass icon), "study" (study/exam reminder with study icon), '
+          '"medicine", "exercise", "task", and "general". Accepts relative seconds (e.g. 1800 for 30m) '
+          'or ISO-8601/HH:mm time.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'title': {
+            'type': 'string',
+            'description':
+                'Reminder title (e.g. "Drink Water", "Math Study Session", "Take medicine").',
+          },
+          'notes': {
+            'type': 'string',
+            'description': 'Optional description or instructions.',
+          },
+          'delay_seconds': {
+            'type': 'integer',
+            'description':
+                'Delay in seconds from now (e.g. 60 for 1m, 600 for 10m, 1800 for 30m, 3600 for 1h).',
+          },
+          'due_time': {
+            'type': 'string',
+            'description':
+                'Optional specific date-time (ISO-8601 e.g. "2026-11-05T19:00:00" or time "19:00").',
+          },
+          'type': {
+            'type': 'string',
+            'enum': ['notification', 'alarm'],
+            'description':
+                'Reminder type: "notification" (notification only) or "alarm" (popup alert modal). Defaults to notification, or alarm if user mentions alarm/popup.',
+          },
+          'category': {
+            'type': 'string',
+            'enum': [
+              'water',
+              'study',
+              'medicine',
+              'exercise',
+              'calendar',
+              'task',
+              'general',
+            ],
+            'description':
+                'Category: "water" for water time, "study" for study sessions, "medicine", "exercise", "calendar", "task", or "general".',
+          },
+        },
+        'required': ['title'],
+      },
+    },
+  };
+
+  static Future<String> _executeSetReminder(Map<String, dynamic> args) async {
+    final title = (args['title'] as String?)?.trim() ?? 'Reminder';
+    final notes = (args['notes'] as String?)?.trim() ?? '';
+    final delaySeconds = args['delay_seconds'] is num
+        ? (args['delay_seconds'] as num).toInt()
+        : int.tryParse(args['delay_seconds']?.toString() ?? '');
+    final dueTimeStr = (args['due_time'] ?? args['due']) as String?;
+    final typeStr = (args['type'] as String?)?.toLowerCase().trim();
+    final type = typeStr == 'alarm'
+        ? ReminderType.alarm
+        : ReminderType.notification;
+
+    DateTime dueAt;
+    if (delaySeconds != null && delaySeconds > 0) {
+      dueAt = DateTime.now().add(Duration(seconds: delaySeconds));
+    } else if (dueTimeStr != null && dueTimeStr.isNotEmpty) {
+      final parsed = DateTime.tryParse(dueTimeStr);
+      if (parsed != null) {
+        dueAt = parsed;
+      } else {
+        final parts = dueTimeStr.split(':');
+        if (parts.length >= 2) {
+          final hour = int.tryParse(parts[0].trim());
+          final min = int.tryParse(parts[1].trim());
+          if (hour != null && min != null) {
+            final now = DateTime.now();
+            var candidate = DateTime(now.year, now.month, now.day, hour, min);
+            if (candidate.isBefore(now)) {
+              candidate = candidate.add(const Duration(days: 1));
+            }
+            dueAt = candidate;
+          } else {
+            dueAt = DateTime.now().add(const Duration(minutes: 5));
+          }
+        } else {
+          dueAt = DateTime.now().add(const Duration(minutes: 5));
+        }
+      }
+    } else {
+      dueAt = DateTime.now().add(const Duration(minutes: 5));
+    }
+
+    final catStr = args['category'] as String?;
+    final category = ReminderCategory.fromString(catStr ?? '$title $notes');
+
+    final reminder = await ReminderService.instance.scheduleReminder(
+      title: title,
+      notes: notes,
+      dueAt: dueAt,
+      type: type,
+      category: category,
+    );
+
+    final timeFormatted =
+        '${dueAt.hour.toString().padLeft(2, '0')}:${dueAt.minute.toString().padLeft(2, '0')}';
+
+    return jsonEncode({
+      'status': 'success',
+      'id': reminder.id,
+      'title': reminder.title,
+      'due_time': timeFormatted,
+      'type': reminder.type.name,
+      'category': reminder.category.name,
+      'category_label': reminder.category.label,
+      'message':
+          'Reminder scheduled for $timeFormatted (${reminder.type == ReminderType.alarm ? 'alarm popup' : 'notification only'}).',
+    });
+  }
+
+  static Map<String, dynamic> _composioConnectDefinition() => {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.composioConnect,
+      'description':
+          'Connect, manage, or authenticate 500+ external SaaS integrations (e.g. GitHub, Slack, Google Calendar, Gmail, Notion, Linear, Jira, Discord, Stripe, etc.) via Composio. Returns authentication status or direct connect URL.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'app': {
+            'type': 'string',
+            'description':
+                'Name or slug of the application or toolkit to connect (e.g. "github", "slack", "gmail", "notion", "googlecalendar").',
+          },
+          'action': {
+            'type': 'string',
+            'enum': ['connect', 'status', 'list'],
+            'description':
+                'Action to take: "connect" (generates auth/connect URL for user), "status" (check if app is connected), or "list" (list top available connectors). Defaults to "connect".',
+          },
+        },
+        'required': ['app'],
+      },
+    },
+  };
+
+  static Future<String> _executeComposioConnect(
+    Map<String, dynamic> args,
+  ) async {
+    final app = (args['app'] as String?)?.trim() ?? '';
+    final action =
+        (args['action'] as String?)?.trim().toLowerCase() ?? 'connect';
+
+    final apiKey = await ComposioService.instance.getStoredApiKey();
+
+    if (action == 'list') {
+      final toolkits = await ComposioService.instance.fetchToolkits(
+        apiKey: apiKey,
+      );
+      final summary = toolkits
+          .take(15)
+          .map(
+            (t) => {
+              'slug': t.slug,
+              'name': t.name,
+              'category': t.category,
+              'connected': t.isConnected,
+              'description': t.description,
+            },
+          )
+          .toList();
+      return jsonEncode({
+        'status': 'success',
+        'action': 'list',
+        'count': summary.length,
+        'connectors': summary,
+      });
+    }
+
+    if (app.isEmpty) {
+      return jsonEncode({
+        'status': 'error',
+        'message':
+            'Please specify an app name to connect (e.g. "github", "slack", "notion").',
+      });
+    }
+
+    if (action == 'status' && apiKey != null && apiKey.isNotEmpty) {
+      final connected = await ComposioService.instance.fetchConnectedSlugs(
+        apiKey: apiKey,
+      );
+      final isConn = connected.contains(app.toLowerCase());
+      return jsonEncode({
+        'status': 'success',
+        'app': app,
+        'connected': isConn,
+        'message': isConn
+            ? '$app is connected and authorized.'
+            : '$app is not yet connected.',
+      });
+    }
+
+    final authUrl = await ComposioService.instance.getAuthorizationUrl(
+      app,
+      apiKey: apiKey,
+    );
+    return jsonEncode({
+      'status': 'needs_auth',
+      'app': app,
+      'auth_url': authUrl,
+      'message':
+          'To connect $app, please open this link to authorize access: $authUrl',
+    });
   }
 
   /// Invokes a native device tool over the MethodChannel. The native side

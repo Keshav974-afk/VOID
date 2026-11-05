@@ -14,6 +14,7 @@ import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 import 'mcp_server_avatar.dart';
 import 'mcp_oauth_progress.dart';
+import 'composio_connectors_sheet.dart';
 
 /// Compact presentation shared by the mobile list and desktop settings pane.
 /// Selection stays owned by the list; this widget only renders its state.
@@ -243,6 +244,31 @@ class McpServerCard extends StatelessWidget {
                           tooltip: l10n.chatMessageWidgetMoreTooltip,
                           onTap: onMore,
                         ),
+                      if (server.name.toLowerCase().contains('composio') ||
+                          server.url.toLowerCase().contains('composio')) ...[
+                        IosTextButton(
+                          label: 'Connectors',
+                          icon: Lucide.Layers,
+                          fontSize: 11,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          onPressed: () {
+                            final apiKey = server.headers.entries
+                                .firstWhere(
+                                  (e) => e.key.toLowerCase() == 'x-api-key',
+                                  orElse: () => const MapEntry('', ''),
+                                )
+                                .value;
+                            ComposioConnectorsSheet.show(
+                              context,
+                              apiKey: apiKey,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       if (onEnabledChanged != null)
                         FocusableActionDetector(
                           mouseCursor: SystemMouseCursors.click,

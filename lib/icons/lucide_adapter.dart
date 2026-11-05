@@ -226,6 +226,11 @@ class Lucide {
   static const IconData Dumbbell = lucide.LucideIcons.dumbbell;
   static const IconData Bed = lucide.LucideIcons.bed;
   static const IconData Droplets = lucide.LucideIcons.droplets;
+  static const IconData GlassWater = lucide.LucideIcons.glassWater;
+  static const IconData Pill = lucide.LucideIcons.pill;
+  static const IconData AlarmClock = lucide.LucideIcons.alarmClock;
+  static const IconData GraduationCap = lucide.LucideIcons.graduationCap;
+  static const IconData Smile = lucide.LucideIcons.smile;
   static const IconData Weight = lucide.LucideIcons.weight;
   static const IconData Utensils = lucide.LucideIcons.utensils;
   static const IconData Wind = lucide.LucideIcons.wind;

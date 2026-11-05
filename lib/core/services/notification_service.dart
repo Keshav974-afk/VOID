@@ -4,6 +4,10 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+
+import 'reminder/reminder_model.dart';
 
 typedef ChatCompletionNotificationSender =
     Future<void> Function({
@@ -26,6 +30,16 @@ class NotificationService {
     final id = _pendingScheduledRunId;
     _pendingScheduledRunId = null;
     return id;
+  }
+
+  static final StreamController<String> _reminderTapController =
+      StreamController<String>.broadcast();
+  static String? _pendingReminderPayload;
+  static Stream<String> get reminderTaps => _reminderTapController.stream;
+  static String? takePendingReminderPayload() {
+    final payload = _pendingReminderPayload;
+    _pendingReminderPayload = null;
+    return payload;
   }
 
   static bool _inited = false;
@@ -54,6 +68,25 @@ class NotificationService {
     importance: Importance.high,
     playSound: true,
   );
+  static const AndroidNotificationChannel _reminderChannel =
+      AndroidNotificationChannel(
+        'void_reminders_v1',
+        'Reminders',
+        description: 'Notifications for routine and task reminders',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      );
+  static const AndroidNotificationChannel _alarmChannel =
+      AndroidNotificationChannel(
+        'void_alarms_v1',
+        'Alarms & Urgent Reminders',
+        description: 'Full-screen alarm alerts and popups',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+      );
 
   static Stream<String> get conversationTaps =>
       _conversationTapController.stream;
@@ -102,13 +135,20 @@ class NotificationService {
       onDidReceiveNotificationResponse: _handleNotificationResponse,
     );
 
-    // Create channel
+    // Initialize timezone database for scheduled reminders
+    try {
+      tz.initializeTimeZones();
+    } catch (_) {}
+
+    // Create channels
     final android = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
     if (android != null) {
       await android.createNotificationChannel(_channel);
+      await android.createNotificationChannel(_reminderChannel);
+      await android.createNotificationChannel(_alarmChannel);
       // Runtime notification permission (Android 13+) should be requested by app UI if needed
     }
     _inited = true;
@@ -184,6 +224,18 @@ class NotificationService {
   }
 
   static void _handleNotificationResponse(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload != null &&
+        (payload.startsWith('reminder:') ||
+            payload.startsWith('reminder-alarm:'))) {
+      if (_reminderTapController.hasListener) {
+        _reminderTapController.add(payload);
+      } else {
+        _pendingReminderPayload = payload;
+      }
+      return;
+    }
+
     final runId = scheduledRunIdFromPayload(response.payload);
     if (runId != null) {
       if (_scheduledRunTapController.hasListener) {
@@ -196,6 +248,126 @@ class NotificationService {
     final conversationId = conversationIdFromPayload(response.payload);
     if (conversationId == null) return;
     openConversation(conversationId);
+  }
+
+  static Future<void> showReminderNow(ReminderItem item) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    await ensureInitialized();
+    final notifId = notificationIdForReminder(item.id);
+    final isAlarm = item.isAlarm;
+
+    await _plugin.show(
+      notifId,
+      item.title,
+      item.notes.isNotEmpty
+          ? item.notes
+          : (isAlarm ? 'Alarm triggered — tap to open' : item.category.label),
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          isAlarm ? _alarmChannel.id : _reminderChannel.id,
+          isAlarm ? _alarmChannel.name : _reminderChannel.name,
+          channelDescription: isAlarm
+              ? _alarmChannel.description
+              : _reminderChannel.description,
+          importance: isAlarm ? Importance.max : Importance.high,
+          priority: isAlarm ? Priority.max : Priority.high,
+          playSound: true,
+          enableVibration: true,
+          fullScreenIntent: isAlarm,
+          category: isAlarm
+              ? AndroidNotificationCategory.alarm
+              : AndroidNotificationCategory.reminder,
+          visibility: NotificationVisibility.public,
+          ticker: item.title,
+          styleInformation: BigTextStyleInformation(
+            item.notes.isNotEmpty ? item.notes : item.title,
+          ),
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          interruptionLevel: isAlarm
+              ? InterruptionLevel.timeSensitive
+              : InterruptionLevel.active,
+        ),
+      ),
+      payload: '${isAlarm ? 'reminder-alarm:' : 'reminder:'}${item.id}',
+    );
+  }
+
+  static Future<void> scheduleReminderAt(ReminderItem item) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    await ensureInitialized();
+    final notifId = notificationIdForReminder(item.id);
+    final isAlarm = item.isAlarm;
+    final scheduledDate = tz.TZDateTime.from(item.dueAt, tz.local);
+
+    if (scheduledDate.isBefore(tz.TZDateTime.now(tz.local))) {
+      await showReminderNow(item);
+      return;
+    }
+
+    try {
+      await _plugin.zonedSchedule(
+        notifId,
+        item.title,
+        item.notes.isNotEmpty
+            ? item.notes
+            : (isAlarm ? 'Alarm triggered — tap to open' : item.category.label),
+        scheduledDate,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            isAlarm ? _alarmChannel.id : _reminderChannel.id,
+            isAlarm ? _alarmChannel.name : _reminderChannel.name,
+            channelDescription: isAlarm
+                ? _alarmChannel.description
+                : _reminderChannel.description,
+            importance: isAlarm ? Importance.max : Importance.high,
+            priority: isAlarm ? Priority.max : Priority.high,
+            playSound: true,
+            enableVibration: true,
+            fullScreenIntent: isAlarm,
+            category: isAlarm
+                ? AndroidNotificationCategory.alarm
+                : AndroidNotificationCategory.reminder,
+            visibility: NotificationVisibility.public,
+            ticker: item.title,
+            styleInformation: BigTextStyleInformation(
+              item.notes.isNotEmpty ? item.notes : item.title,
+            ),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+            interruptionLevel: isAlarm
+                ? InterruptionLevel.timeSensitive
+                : InterruptionLevel.active,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: '${isAlarm ? 'reminder-alarm:' : 'reminder:'}${item.id}',
+      );
+    } catch (_) {
+      // In case exact alarm permission isn't available on non-exact device configs
+    }
+  }
+
+  static Future<void> cancelReminder(String reminderId) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    await ensureInitialized();
+    await _plugin.cancel(notificationIdForReminder(reminderId));
+  }
+
+  static int notificationIdForReminder(String reminderId) {
+    var hash = 0x811c9dc5;
+    for (final byte in utf8.encode(reminderId)) {
+      hash = ((hash ^ byte) * 0x01000193) & 0x7fffffff;
+    }
+    const firstReminderNotificationId = 50000;
+    return firstReminderNotificationId +
+        (hash % (0x7fffffff - firstReminderNotificationId));
   }
 
   /// Also receives taps from the native ongoing notification, overlay and

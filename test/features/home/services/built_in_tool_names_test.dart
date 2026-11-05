@@ -39,6 +39,8 @@ void main() {
       LocalToolNames.remindersQuery,
       LocalToolNames.remindersCreate,
       LocalToolNames.remindersComplete,
+      LocalToolNames.setReminder,
+      LocalToolNames.composioConnect,
       LocalToolNames.xSearch,
       LocalToolNames.sports,
       LocalToolNames.imageGeneration,

@@ -109,6 +109,7 @@ import 'dart:io'
         stderr; // kept for global override usage inside provider
 import 'core/services/mobile_background.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/reminder/reminder_service.dart';
 import 'features/home/controllers/chat_actions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/models/workspace_binding.dart';
@@ -180,6 +181,9 @@ Future<void> main() async {
           await NotificationService.ensureInitialized();
         } catch (_) {}
       }
+      try {
+        await ReminderService.instance.init();
+      } catch (_) {}
       FlutterLogger.installGlobalHandlers();
       // The Linux runner starts hidden so decorations can be restored first.
       // Show before the restore gate so progress and failure screens stay visible.

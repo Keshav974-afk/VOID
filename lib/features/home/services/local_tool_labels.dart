@@ -65,6 +65,10 @@ IconData localToolIcon(String id) {
       return Lucide.Terminal;
     case LocalToolNames.inspectSite:
       return Lucide.Bug;
+    case LocalToolNames.setReminder:
+      return Lucide.AlarmClock;
+    case LocalToolNames.composioConnect:
+      return Lucide.Layers;
     default:
       return Lucide.Wrench;
   }
@@ -124,6 +128,10 @@ String localToolTitle(AppLocalizations l10n, String id) {
       return 'Bash & Shell';
     case LocalToolNames.inspectSite:
       return l10n.assistantEditLocalToolSiteInspectTitle;
+    case LocalToolNames.setReminder:
+      return 'Set Reminder & Alarm';
+    case LocalToolNames.composioConnect:
+      return 'Composio Connect';
     default:
       return id;
   }

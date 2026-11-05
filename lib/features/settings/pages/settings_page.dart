@@ -39,6 +39,9 @@ import '../../../core/services/haptics.dart';
 import 'package:Kelivo/theme/app_font_weights.dart';
 import 'package:Kelivo/theme/app_semantic_colors.dart';
 import '../../../core/providers/user_provider.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../shared/widgets/avatar_image.dart';
+import 'user_profile_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -142,61 +145,84 @@ class SettingsPage extends StatelessWidget {
           onColorMode: pickThemeMode,
         ),
         children: [
-          // Grok User Profile Header Card (Image 4 & 5)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1D9BF0),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    userProvider.name.isNotEmpty
-                        ? userProvider.name.characters.first.toUpperCase()
-                        : 'U',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userProvider.name,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: AppFontWeights.emphasis,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                      if (userProvider.email.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          userProvider.email,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: cs.onSurface.withValues(alpha: 0.60),
+          // User Profile Header Card
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const UserProfilePage()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _editAvatar(context),
+                    child: Stack(
+                      children: [
+                        _buildUserAvatar(userProvider, cs),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF27272A),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF121214),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: const Icon(
+                              Lucide.Camera,
+                              size: 10,
+                              color: Color(0xFFF4F4F5),
+                            ),
                           ),
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userProvider.name,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: AppFontWeights.emphasis,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                        if (userProvider.email.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            userProvider.email,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: cs.onSurface.withValues(alpha: 0.60),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Lucide.ChevronRight,
+                    size: 16,
+                    color: cs.onSurface.withValues(alpha: 0.4),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -587,6 +613,206 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  Widget _buildUserAvatar(UserProvider userProvider, ColorScheme cs) {
+    final type = userProvider.avatarType;
+    final value = userProvider.avatarValue;
+
+    if (type == 'url' && value != null && value.isNotEmpty) {
+      return AvatarImage(
+        key: ValueKey('settings_pfp_url_${value.hashCode}'),
+        source: value,
+        isNetwork: true,
+        size: 50,
+        fallback: _initialAvatar(userProvider.name, cs),
+      );
+    }
+    if (type == 'file' && value != null && value.isNotEmpty) {
+      return AvatarImage(
+        key: ValueKey('settings_pfp_file_${value.hashCode}'),
+        source: value,
+        size: 50,
+        fallback: _initialAvatar(userProvider.name, cs),
+      );
+    }
+    if (type == 'emoji' && value != null && value.isNotEmpty) {
+      return Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Text(value, style: const TextStyle(fontSize: 24)),
+      );
+    }
+    return _initialAvatar(userProvider.name, cs);
+  }
+
+  Widget _initialAvatar(String name, ColorScheme cs) {
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: const BoxDecoration(
+        color: Color(0xFF1D9BF0),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name.characters.first.toUpperCase() : 'U',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editAvatar(BuildContext context) async {
+    final userProvider = context.read<UserProvider>();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF121214),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        Widget row(IconData icon, String text, VoidCallback onTap) {
+          return ListTile(
+            leading: Icon(icon, size: 20, color: const Color(0xFFF4F4F5)),
+            title: Text(
+              text,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: AppFontWeights.medium,
+                color: const Color(0xFFF4F4F5),
+              ),
+            ),
+            onTap: () {
+              Navigator.of(ctx).pop();
+              onTap();
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              row(Lucide.Image, 'Choose from Gallery', () async {
+                try {
+                  final picker = ImagePicker();
+                  final file = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    maxWidth: 1024,
+                    imageQuality: 90,
+                  );
+                  if (file != null) {
+                    await userProvider.setAvatarFilePath(file.path);
+                  }
+                } catch (_) {}
+              }),
+              row(Lucide.Link, 'Enter Image URL', () async {
+                final ctrl = TextEditingController();
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (dCtx) => AlertDialog(
+                    backgroundColor: const Color(0xFF18181B),
+                    title: const Text(
+                      'Avatar URL',
+                      style: TextStyle(color: Color(0xFFF4F4F5)),
+                    ),
+                    content: TextField(
+                      controller: ctrl,
+                      style: const TextStyle(color: Color(0xFFF4F4F5)),
+                      decoration: const InputDecoration(
+                        hintText: 'https://example.com/avatar.png',
+                        hintStyle: TextStyle(color: Color(0xFF71717A)),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dCtx).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(dCtx).pop(true),
+                        child: const Text('Save'),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok == true && ctrl.text.trim().isNotEmpty) {
+                  await userProvider.setAvatarUrl(ctrl.text.trim());
+                }
+              }),
+              row(Lucide.Smile, 'Use Emoji', () async {
+                final emojis = [
+                  '😎',
+                  '🤖',
+                  '🚀',
+                  '🔥',
+                  '💻',
+                  '💡',
+                  '🌟',
+                  '🦊',
+                  '⚡',
+                  '🌌',
+                ];
+                final selected = await showDialog<String>(
+                  context: context,
+                  builder: (dCtx) => AlertDialog(
+                    backgroundColor: const Color(0xFF18181B),
+                    title: const Text(
+                      'Choose Emoji',
+                      style: TextStyle(color: Color(0xFFF4F4F5)),
+                    ),
+                    content: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: emojis
+                          .map(
+                            (e) => GestureDetector(
+                              onTap: () => Navigator.of(dCtx).pop(e),
+                              child: Text(
+                                e,
+                                style: const TextStyle(fontSize: 28),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                );
+                if (selected != null) {
+                  await userProvider.setAvatarEmoji(selected);
+                }
+              }),
+              row(Lucide.RotateCcw, 'Reset to Default', () async {
+                await userProvider.resetAvatar();
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 }

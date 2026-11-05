@@ -59,7 +59,9 @@ class _AvatarImageState extends State<AvatarImage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.source != widget.source ||
         oldWidget.isNetwork != widget.isNetwork) {
-      _path = _resolve();
+      setState(() {
+        _path = _resolve();
+      });
     }
   }
 

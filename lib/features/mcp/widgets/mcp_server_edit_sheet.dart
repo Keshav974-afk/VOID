@@ -19,6 +19,8 @@ import '../../../shared/widgets/ios_tile_button.dart';
 import '../../../theme/app_font_weights.dart';
 import 'package:Kelivo/theme/app_semantic_colors.dart';
 import 'package:Kelivo/shared/widgets/section_card.dart';
+import '../../../core/services/composio/composio_service.dart';
+import 'composio_connectors_sheet.dart';
 
 class _HeaderEntry {
   final TextEditingController key;
@@ -280,7 +282,9 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
                       _nameCtrl.text = 'Composio';
                       _transport = McpTransportType.http;
                       _urlCtrl.text = 'https://backend.composio.dev/api/v1/mcp';
-                      if (!_headers.any((h) => h.key.text.toLowerCase() == 'x-api-key')) {
+                      if (!_headers.any(
+                        (h) => h.key.text.toLowerCase() == 'x-api-key',
+                      )) {
                         _headers.add(
                           _HeaderEntry(
                             TextEditingController(text: 'x-api-key'),
@@ -294,7 +298,9 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
                 ActionChip(
                   avatar: const Icon(Lucide.GitFork, size: 14),
                   label: const Text('GitHub'),
-                  backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                  backgroundColor: cs.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   labelStyle: TextStyle(
                     fontSize: 12,
                     fontWeight: AppFontWeights.medium,
@@ -305,11 +311,16 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
                       _nameCtrl.text = 'GitHub';
                       _transport = McpTransportType.stdio;
                       _cmdCtrl.text = 'npx';
-                      _argsCtrl.text = '-y\n@modelcontextprotocol/server-github';
-                      if (!_env.any((e) => e.key.text == 'GITHUB_PERSONAL_ACCESS_TOKEN')) {
+                      _argsCtrl.text =
+                          '-y\n@modelcontextprotocol/server-github';
+                      if (!_env.any(
+                        (e) => e.key.text == 'GITHUB_PERSONAL_ACCESS_TOKEN',
+                      )) {
                         _env.add(
                           _HeaderEntry(
-                            TextEditingController(text: 'GITHUB_PERSONAL_ACCESS_TOKEN'),
+                            TextEditingController(
+                              text: 'GITHUB_PERSONAL_ACCESS_TOKEN',
+                            ),
                             TextEditingController(text: ''),
                           ),
                         );
@@ -320,7 +331,9 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
                 ActionChip(
                   avatar: const Icon(Lucide.Search, size: 14),
                   label: const Text('Brave Search'),
-                  backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                  backgroundColor: cs.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   labelStyle: TextStyle(
                     fontSize: 12,
                     fontWeight: AppFontWeights.medium,
@@ -331,7 +344,8 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
                       _nameCtrl.text = 'Brave Search';
                       _transport = McpTransportType.stdio;
                       _cmdCtrl.text = 'npx';
-                      _argsCtrl.text = '-y\n@modelcontextprotocol/server-brave-search';
+                      _argsCtrl.text =
+                          '-y\n@modelcontextprotocol/server-brave-search';
                       if (!_env.any((e) => e.key.text == 'BRAVE_API_KEY')) {
                         _env.add(
                           _HeaderEntry(
@@ -346,7 +360,9 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
                 ActionChip(
                   avatar: const Icon(Lucide.Brain, size: 14),
                   label: const Text('Memory Graph'),
-                  backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                  backgroundColor: cs.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   labelStyle: TextStyle(
                     fontSize: 12,
                     fontWeight: AppFontWeights.medium,
@@ -357,7 +373,8 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
                       _nameCtrl.text = 'Memory Graph';
                       _transport = McpTransportType.stdio;
                       _cmdCtrl.text = 'npx';
-                      _argsCtrl.text = '-y\n@modelcontextprotocol/server-memory';
+                      _argsCtrl.text =
+                          '-y\n@modelcontextprotocol/server-memory';
                     });
                   },
                 ),
@@ -556,6 +573,34 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
             ),
           ),
         ),
+        if (!isStdio &&
+            (_nameCtrl.text.toLowerCase().contains('composio') ||
+                _urlCtrl.text.toLowerCase().contains('composio') ||
+                entries.any(
+                  (h) => h.key.text.toLowerCase() == 'x-api-key',
+                ))) ...[
+          const SizedBox(height: 12),
+          IosTileButton(
+            icon: Lucide.Layers,
+            label: 'Manage Connectors (500+ Apps)',
+            backgroundColor: cs.primaryContainer,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            onTap: () {
+              final key = entries
+                  .firstWhere(
+                    (h) => h.key.text.toLowerCase() == 'x-api-key',
+                    orElse: () => _HeaderEntry(
+                      TextEditingController(),
+                      TextEditingController(),
+                    ),
+                  )
+                  .value
+                  .text
+                  .trim();
+              ComposioConnectorsSheet.show(context, apiKey: key);
+            },
+          ),
+        ],
       ],
     );
   }
@@ -676,6 +721,18 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
         if (h.key.text.trim().isNotEmpty)
           h.key.text.trim(): h.value.text.trim(),
     };
+    if (name.toLowerCase().contains('composio') ||
+        url.toLowerCase().contains('composio')) {
+      final compKey = headers.entries
+          .firstWhere(
+            (e) => e.key.toLowerCase() == 'x-api-key',
+            orElse: () => const MapEntry('', ''),
+          )
+          .value;
+      if (compKey.isNotEmpty) {
+        await ComposioService.instance.setStoredApiKey(compKey);
+      }
+    }
     if (isEdit) {
       final old = mcp.getById(widget.serverId!)!;
       await mcp.updateServerMetadata(

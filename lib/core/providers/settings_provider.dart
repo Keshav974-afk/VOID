@@ -6687,6 +6687,9 @@ class ProviderConfig {
     switch (kind) {
       case ProviderKind.google:
         const geminiModels = [
+          'gemini-argon',
+          'gemini-3.0-flash',
+          'gemini-3.0-pro',
           'gemini-2.5-pro',
           'gemini-2.5-flash',
           'gemini-2.5-flash-lite',
@@ -6698,6 +6701,24 @@ class ProviderConfig {
           'gemini-1.5-flash-8b',
         ];
         const geminiOverrides = {
+          'gemini-argon': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'gemini-3.0-flash': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'gemini-3.0-pro': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
           'gemini-2.5-pro': {
             'type': 'chat',
             'input': ['text', 'image', 'audio', 'video'],
@@ -6782,12 +6803,40 @@ class ProviderConfig {
         );
       case ProviderKind.claude:
         const claudeModels = [
+          'claude-fable',
+          'claude-4-sonnet',
+          'claude-4-opus',
+          'claude-3-7-sonnet-latest',
           'claude-3-7-sonnet-20250219',
           'claude-3-5-sonnet-20241022',
           'claude-3-5-haiku-20241022',
           'claude-3-opus-20240229',
         ];
         const claudeOverrides = {
+          'claude-fable': {
+            'type': 'chat',
+            'input': ['text', 'image'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'claude-4-sonnet': {
+            'type': 'chat',
+            'input': ['text', 'image'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'claude-4-opus': {
+            'type': 'chat',
+            'input': ['text', 'image'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'claude-3-7-sonnet-latest': {
+            'type': 'chat',
+            'input': ['text', 'image'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
           'claude-3-7-sonnet-20250219': {
             'type': 'chat',
             'input': ['text', 'image'],
@@ -6962,11 +7011,16 @@ class ProviderConfig {
     }
     if (lowerKey.contains('openai')) {
       return const [
+        'gpt-6',
+        'gpt-5',
+        'o3',
+        'o3-mini',
+        'o4-mini',
+        'gpt-4.5-preview',
         'gpt-4o',
         'gpt-4o-mini',
         'o1',
-        'o3-mini',
-        'gpt-4.5-preview',
+        'o1-pro',
         'chatgpt-4o-latest',
       ];
     }
@@ -6974,9 +7028,13 @@ class ProviderConfig {
       return const [
         'x-ai/grok-3',
         'anthropic/claude-3.7-sonnet',
+        'google/gemini-2.5-pro',
+        'google/gemini-2.5-flash',
+        'openai/gpt-4.5-preview',
+        'openai/o3-mini',
         'openai/gpt-4o',
+        'deepseek/deepseek-r1',
         'deepseek/deepseek-chat',
-        'google/gemini-2.0-flash-001',
       ];
     }
     if (lowerKey.contains('silicon')) {
@@ -7149,23 +7207,26 @@ class ProviderConfig {
     }
     if (lowerKey.contains('openai')) {
       return const {
-        'gpt-4o': {
+        'gpt-6': {
           'type': 'chat',
-          'input': ['text', 'image'],
+          'input': ['text', 'image', 'audio', 'video'],
           'output': ['text'],
-          'abilities': ['tool'],
+          'abilities': ['tool', 'reasoning'],
+          'reasoning': {'dialect': 'openaiReasoningEffort'},
         },
-        'gpt-4o-mini': {
+        'gpt-5': {
           'type': 'chat',
-          'input': ['text', 'image'],
+          'input': ['text', 'image', 'audio', 'video'],
           'output': ['text'],
-          'abilities': ['tool'],
+          'abilities': ['tool', 'reasoning'],
+          'reasoning': {'dialect': 'openaiReasoningEffort'},
         },
-        'o1': {
+        'o3': {
           'type': 'chat',
           'input': ['text', 'image'],
           'output': ['text'],
-          'abilities': ['reasoning'],
+          'abilities': ['tool', 'reasoning'],
+          'reasoning': {'dialect': 'openaiReasoningEffort'},
         },
         'o3-mini': {
           'type': 'chat',
@@ -7174,7 +7235,38 @@ class ProviderConfig {
           'abilities': ['tool', 'reasoning'],
           'reasoning': {'dialect': 'openaiReasoningEffort'},
         },
+        'o4-mini': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool', 'reasoning'],
+          'reasoning': {'dialect': 'openaiReasoningEffort'},
+        },
+        'o1': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['reasoning'],
+        },
+        'o1-pro': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['reasoning'],
+        },
         'gpt-4.5-preview': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'gpt-4o': {
+          'type': 'chat',
+          'input': ['text', 'image'],
+          'output': ['text'],
+          'abilities': ['tool'],
+        },
+        'gpt-4o-mini': {
           'type': 'chat',
           'input': ['text', 'image'],
           'output': ['text'],

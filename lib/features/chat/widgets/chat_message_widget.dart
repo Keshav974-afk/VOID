@@ -1898,15 +1898,21 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
           nudge: nudge,
         ),
       );
-    } else if (avatarType == 'url' && avatarValue != null) {
+    } else if (avatarType == 'url' &&
+        avatarValue != null &&
+        avatarValue.isNotEmpty) {
       avatarContent = AvatarImage(
+        key: ValueKey('user_avatar_url_${avatarValue.hashCode}'),
         source: avatarValue,
         isNetwork: true,
         size: 32,
         fallback: Icon(Lucide.User, size: 18, color: cs.primary),
       );
-    } else if (avatarType == 'file' && avatarValue != null) {
+    } else if (avatarType == 'file' &&
+        avatarValue != null &&
+        avatarValue.isNotEmpty) {
       avatarContent = AvatarImage(
+        key: ValueKey('user_avatar_file_${avatarValue.hashCode}'),
         source: avatarValue,
         size: 32,
         fallback: Icon(Lucide.User, size: 18, color: cs.primary),
@@ -5274,7 +5280,8 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
 
         if (isSearch) {
           searchesCount++;
-          if (t.arguments.containsKey('query') && t.arguments['query'] != null) {
+          if (t.arguments.containsKey('query') &&
+              t.arguments['query'] != null) {
             final q = t.arguments['query'].toString().trim();
             if (q.isNotEmpty && !searchQueries.contains(q)) {
               searchQueries.add(q);
@@ -5311,7 +5318,8 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
             code = 'curl -s -L "${t.arguments['url']}"';
           }
 
-          var summary = t.arguments['toolSummary']?.toString() ??
+          var summary =
+              t.arguments['toolSummary']?.toString() ??
               t.arguments['summary']?.toString() ??
               t.arguments['description']?.toString() ??
               t.arguments['command']?.toString() ??
@@ -5348,7 +5356,8 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
           final isSearch = name.contains('search') || name.contains('x_search');
           if (isSearch) {
             searchesCount++;
-            final q = t.arguments['query']?.toString().trim() ??
+            final q =
+                t.arguments['query']?.toString().trim() ??
                 t.arguments['q']?.toString().trim();
             if (q != null && q.isNotEmpty && !searchQueries.contains(q)) {
               searchQueries.add(q);
@@ -5367,9 +5376,12 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
               (s.reasoning?.loading ?? false)),
     );
 
-    final hasToolSteps = searchesCount > 0 ||
+    final hasToolSteps =
+        searchesCount > 0 ||
         commandsCount > 0 ||
-        thoughtItems.any((it) => it.isCommand || it.isSearch || it.code != null) ||
+        thoughtItems.any(
+          (it) => it.isCommand || it.isSearch || it.code != null,
+        ) ||
         filteredSteps.any((s) => s.tool != null || s.browserTools != null);
 
     final thoughtDurationSeconds = totalDurationMs > 0
