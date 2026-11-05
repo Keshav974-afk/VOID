@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
+import 'sherpa_tts_service.dart';
+
 enum NetworkTtsKind {
   openai,
   gemini,
@@ -19,6 +21,7 @@ enum NetworkTtsKind {
   mimo,
   step,
   fishAudio,
+  sherpaOnnx,
 }
 
 String networkTtsKindDisplayName(NetworkTtsKind k) {
@@ -47,6 +50,8 @@ String networkTtsKindDisplayName(NetworkTtsKind k) {
       return 'StepFun';
     case NetworkTtsKind.fishAudio:
       return 'Fish Audio';
+    case NetworkTtsKind.sherpaOnnx:
+      return 'On-Device (Kokoro / Piper)';
   }
 }
 
@@ -250,6 +255,17 @@ abstract class TtsServiceOptions {
           speed: _toDouble(json['speed'], 1.0),
           sampleRate: _toInt(json['sampleRate'], 44100),
           latency: (json['latency'] ?? 'normal').toString(),
+        );
+      case 'sherpa_onnx':
+      case 'sherpaOnnx':
+      case 'offline':
+        return SherpaOnnxTtsOptions(
+          id: id.isEmpty ? null : id,
+          enabled: enabled,
+          name: name.isEmpty ? 'On-Device Kokoro 82M' : name,
+          modelId: (json['modelId'] ?? 'kokoro-en-v0_19').toString(),
+          speed: _toDouble(json['speed'], 1.0),
+          speakerId: _toInt(json['speakerId'], 0),
         );
       default:
         // Fallback to OpenAI shape to avoid crash if kind missing
@@ -731,6 +747,32 @@ class FishAudioTtsOptions extends TtsServiceOptions {
   };
 }
 
+class SherpaOnnxTtsOptions extends TtsServiceOptions {
+  final String modelId;
+  final double speed;
+  final int speakerId;
+
+  SherpaOnnxTtsOptions({
+    super.id,
+    super.enabled = true,
+    super.name = 'On-Device Kokoro 82M',
+    this.modelId = 'kokoro-en-v0_19',
+    this.speed = 1.0,
+    this.speakerId = 0,
+  }) : super(kind: NetworkTtsKind.sherpaOnnx);
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'enabled': enabled,
+    'name': name,
+    'kind': 'sherpa_onnx',
+    'modelId': modelId,
+    'speed': speed,
+    'speakerId': speakerId,
+  };
+}
+
 class NetworkTtsResult {
   final Uint8List bytes;
   final String mime; // e.g. audio/mpeg or audio/wav
@@ -874,6 +916,8 @@ class NetworkTtsService {
             c,
             cancelled,
           );
+        case NetworkTtsKind.sherpaOnnx:
+          return await _sherpaOnnxSpeech(options as SherpaOnnxTtsOptions, text);
       }
     } finally {
       if (client == null) {
@@ -1631,6 +1675,30 @@ class NetworkTtsService {
       mime: _audioMimeForFormat(opt.format),
       sampleRate: opt.sampleRate,
     );
+  }
+
+  static Future<NetworkTtsResult> _sherpaOnnxSpeech(
+    SherpaOnnxTtsOptions opt,
+    String text,
+  ) async {
+    final service = SherpaTtsService();
+    final tempDir = await Directory.systemTemp.createTemp('void_tts_');
+    final outPath = '${tempDir.path}/out.wav';
+    try {
+      await service.synthesizeToWavFile(
+        modelId: opt.modelId,
+        text: text,
+        outputPath: outPath,
+        speed: opt.speed,
+        speakerId: opt.speakerId,
+      );
+      final bytes = await File(outPath).readAsBytes();
+      return NetworkTtsResult(bytes: bytes, mime: 'audio/wav');
+    } finally {
+      try {
+        if (await tempDir.exists()) await tempDir.delete(recursive: true);
+      } catch (_) {}
+    }
   }
 
   static Future<NetworkTtsResult> _qwenAudioSpeech(

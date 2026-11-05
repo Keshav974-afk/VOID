@@ -14,6 +14,7 @@ import '../../../core/services/inspect/site_inspection_service.dart';
 import '../../../core/services/media/media_tool_service.dart';
 import '../../../core/services/sandbox_vps/sandbox_vps_service.dart';
 import '../../../core/services/sports/sports_service.dart';
+import '../../../core/services/video/minimax_video_service.dart';
 import '../../../core/services/weather/universal_weather_service.dart';
 import '../../../core/services/x_search/x_search_service.dart';
 import 'calculator_service.dart';
@@ -42,6 +43,7 @@ class LocalToolNames {
   static const String xSearch = 'x_search';
   static const String sports = 'get_sports';
   static const String imageGeneration = 'generate_image';
+  static const String videoGeneration = 'generate_video';
   static const String editImage = 'edit_image';
   static const String mediaProcess = 'process_media';
   static const String documentTool = 'manage_document';
@@ -69,6 +71,7 @@ class LocalToolNames {
     xSearch,
     sports,
     imageGeneration,
+    videoGeneration,
     editImage,
     mediaProcess,
     documentTool,
@@ -511,6 +514,8 @@ class LocalToolsService {
         return _sportsDefinition;
       case LocalToolNames.imageGeneration:
         return _imageGenerationDefinition;
+      case LocalToolNames.videoGeneration:
+        return _videoGenerationDefinition;
       case LocalToolNames.editImage:
         return _editImageDefinition;
       case LocalToolNames.mediaProcess:
@@ -677,6 +682,23 @@ class LocalToolsService {
     if (name == LocalToolNames.mediaProcess) {
       return await MediaToolService.execute(args);
     }
+    if (name == LocalToolNames.videoGeneration) {
+      final prompt = (args['prompt'] ?? '').toString();
+      final model = (args['model'] ?? 'video-01').toString();
+      final firstFrame =
+          (args['first_frame_image'] ?? args['image_url'] ?? args['image_path'])
+              ?.toString();
+      final promptOptimizer = args['prompt_optimizer'] as bool? ?? true;
+      final apiKey = args['api_key']?.toString();
+      final res = await MiniMaxVideoService().generateVideo(
+        prompt: prompt,
+        model: model,
+        firstFrameImage: firstFrame,
+        promptOptimizer: promptOptimizer,
+        apiKey: apiKey,
+      );
+      return res.toJsonString();
+    }
     if (isDocumentTool) {
       final mutableArgs = Map<String, dynamic>.from(args);
       if (!mutableArgs.containsKey('action')) {
@@ -700,10 +722,12 @@ class LocalToolsService {
       final content = args['content']?.toString() ?? '';
 
       // Intercept accidental PDF generation attempts on the remote VPS and redirect to manage_document
-      final isPdfFileWrite = (action == 'write_file' || action == 'write') &&
+      final isPdfFileWrite =
+          (action == 'write_file' || action == 'write') &&
           remotePath.toLowerCase().endsWith('.pdf');
       final lowerCmd = command.toLowerCase();
-      final isPdfGenerationCommand = action == 'exec' &&
+      final isPdfGenerationCommand =
+          action == 'exec' &&
           (lowerCmd.contains('.pdf') &&
               (lowerCmd.contains('reportlab') ||
                   lowerCmd.contains('fpdf') ||
@@ -894,15 +918,18 @@ class LocalToolsService {
           },
           'app_name': {
             'type': 'string',
-            'description': 'Common app name for open_app (e.g. "whatsapp", "chrome", "youtube", "settings").',
+            'description':
+                'Common app name for open_app (e.g. "whatsapp", "chrome", "youtube", "settings").',
           },
           'phone': {
             'type': 'string',
-            'description': 'Optional phone number with country code for whatsapp_send.',
+            'description':
+                'Optional phone number with country code for whatsapp_send.',
           },
           'uri': {
             'type': 'string',
-            'description': 'Deep link URI for open_app (e.g. "whatsapp://send?text=...").',
+            'description':
+                'Deep link URI for open_app (e.g. "whatsapp://send?text=...").',
           },
         },
         'required': ['action'],
@@ -1368,6 +1395,42 @@ class LocalToolsService {
             'enum': ['1:1', '16:9', '9:16', '4:3', '3:4'],
             'description':
                 'Aspect ratio of the generated image. Default is "1:1".',
+          },
+        },
+        'required': ['prompt'],
+      },
+    },
+  };
+
+  static const Map<String, dynamic> _videoGenerationDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.videoGeneration,
+      'description':
+          'Generate high-definition AI videos using MiniMax / Hailuo Video-01 API (Text-to-Video and Image-to-Video). '
+          'Provide a descriptive prompt or starting frame image.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'prompt': {
+            'type': 'string',
+            'description':
+                'Detailed visual description of the video scene and motion.',
+          },
+          'model': {
+            'type': 'string',
+            'enum': ['video-01', 'video-01-live2d', 'video-01-director'],
+            'description': 'MiniMax video model. Defaults to "video-01".',
+          },
+          'first_frame_image': {
+            'type': 'string',
+            'description':
+                'Optional image URL or local file path for image-to-video generation.',
+          },
+          'prompt_optimizer': {
+            'type': 'boolean',
+            'description':
+                'Whether MiniMax should automatically enhance the video prompt.',
           },
         },
         'required': ['prompt'],

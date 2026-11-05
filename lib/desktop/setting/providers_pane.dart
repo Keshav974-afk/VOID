@@ -317,7 +317,9 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
       (name: l10n.providersPageAliyunName, key: 'Aliyun'),
       (name: l10n.providersPageZhipuName, key: 'Zhipu AI'),
       (name: 'Claude', key: 'Claude'),
-      (name: 'Grok', key: 'Grok'),
+      (name: 'xAI (Grok)', key: 'xAI'),
+      (name: 'Kimi (Moonshot)', key: 'Kimi'),
+      (name: 'MiniMax', key: 'MiniMax'),
       (name: l10n.providersPageByteDanceName, key: 'ByteDance'),
     ];
 

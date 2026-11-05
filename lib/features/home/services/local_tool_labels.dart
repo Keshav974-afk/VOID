@@ -52,6 +52,8 @@ IconData localToolIcon(String id) {
       return Lucide.Trophy;
     case LocalToolNames.imageGeneration:
       return Lucide.Image;
+    case LocalToolNames.videoGeneration:
+      return Lucide.Video;
     case LocalToolNames.editImage:
       return Lucide.ImageDown;
     case LocalToolNames.mediaProcess:
@@ -108,6 +110,8 @@ String localToolTitle(AppLocalizations l10n, String id) {
       return l10n.assistantEditLocalToolSportsTitle;
     case LocalToolNames.imageGeneration:
       return l10n.assistantEditLocalToolImageGenerationTitle;
+    case LocalToolNames.videoGeneration:
+      return 'MiniMax Video AI';
     case LocalToolNames.editImage:
       return l10n.assistantEditLocalToolEditImageTitle;
     case LocalToolNames.mediaProcess:

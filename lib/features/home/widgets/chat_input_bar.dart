@@ -32,6 +32,7 @@ import 'dart:io';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/quote_ref.dart';
 import '../../../core/models/model_spec.dart';
+import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/services/api/reasoning/reasoning_level_options.dart';
 import '../../chat/widgets/reasoning_level_sheet.dart';
@@ -3966,6 +3967,57 @@ class _ChatInputBarState extends State<ChatInputBar>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (hasImages)
+                Builder(
+                  builder: (context) {
+                    final selectedModel = widget.chatModelId ?? '';
+                    final providerKey = widget.chatModelProviderKey ?? '';
+                    if (selectedModel.isEmpty) return const SizedBox.shrink();
+                    final settings = context.watch<SettingsProvider>();
+                    final spec = ModelSpecResolver.instance.spec(
+                      settings.getProviderConfig(providerKey),
+                      selectedModel,
+                    );
+                    if (!spec.supportsImageInput && !widget.ocrActive) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFFF59E0B),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Lucide.TriangleAlert,
+                              size: 14,
+                              color: Color(0xFFD97706),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '$selectedModel cannot see images. Switch to Gemini, GPT-4o, or Claude to analyze images.',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF92400E),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               if (_docs.any((doc) => _missingDocumentPaths.contains(doc.path)))
                 Padding(
                   padding: const EdgeInsets.all(4),
@@ -4584,7 +4636,8 @@ class _ChatInputBarState extends State<ChatInputBar>
                                               Row(
                                                 children: [
                                                   if (!isMobileLayout &&
-                                                      widget.showMoreButton) ...[
+                                                      widget
+                                                          .showMoreButton) ...[
                                                     _CompactIconButton(
                                                       tooltip: AppLocalizations.of(
                                                         context,
@@ -4664,18 +4717,25 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                     const SizedBox(width: 8),
                                                   ],
                                                   if (isMobileLayout &&
-    !hasInput &&
-    !widget.loading) ...[
+                                                      !hasInput &&
+                                                      !widget.loading) ...[
                                                     GestureDetector(
                                                       onTap:
                                                           _composerLocked ||
                                                               widget.loading
                                                           ? null
                                                           : () {
-                                                              if (widget.mediaController?.onStartLiveCall != null) {
-                                                                widget.mediaController!.startLiveCall();
+                                                              if (widget
+                                                                      .mediaController
+                                                                      ?.onStartLiveCall !=
+                                                                  null) {
+                                                                widget
+                                                                    .mediaController!
+                                                                    .startLiveCall();
                                                               } else {
-                                                                unawaited(_startVoiceInput());
+                                                                unawaited(
+                                                                  _startVoiceInput(),
+                                                                );
                                                               }
                                                             },
                                                       child: Container(
@@ -5008,11 +5068,7 @@ class _QueuedInputBanner extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Lucide.Send,
-                    size: 13,
-                    color: theme.colorScheme.primary,
-                  ),
+                  Icon(Lucide.Send, size: 13, color: theme.colorScheme.primary),
                   const SizedBox(width: 4),
                   Text(
                     AppLocalizations.of(context)!.chatInputBarQueuedSendNow,

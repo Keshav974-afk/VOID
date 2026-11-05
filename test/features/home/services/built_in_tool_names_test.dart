@@ -42,6 +42,7 @@ void main() {
       LocalToolNames.xSearch,
       LocalToolNames.sports,
       LocalToolNames.imageGeneration,
+      LocalToolNames.videoGeneration,
       LocalToolNames.editImage,
       LocalToolNames.mediaProcess,
       LocalToolNames.documentTool,

@@ -242,6 +242,7 @@ class SystemAsrService {
   /// unavailable; an already active session is a programming error.
   Future<bool> start({
     String? localeId,
+    Duration? pauseFor,
     required SystemAsrTranscriptCallback onTranscript,
     required SystemAsrSoundLevelCallback onSoundLevel,
     required SystemAsrErrorCallback onError,
@@ -275,7 +276,7 @@ class SystemAsrService {
       await _backend.listen(
         localeId: localeId,
         listenFor: defaultListenFor,
-        pauseFor: defaultPauseFor,
+        pauseFor: pauseFor ?? defaultPauseFor,
         onTranscript: _handleTranscript,
         onSoundLevel: _handleSoundLevel,
       );

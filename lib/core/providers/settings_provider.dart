@@ -84,13 +84,12 @@ class SettingsProvider extends ChangeNotifier {
   static const String providerUngroupedGroupKey = '__ungrouped__';
   static const List<String> _builtInProviderKeysInOrder = [
     'xAI',
-    'Grok',
     'OpenAI',
     'Claude',
     'Gemini',
     'DeepSeek',
     'Kimi',
-    'Moonshot',
+    'MiniMax',
     'Qwen',
     'Aliyun',
     'Zhipu AI',
@@ -106,6 +105,8 @@ class SettingsProvider extends ChangeNotifier {
   ];
   static const Set<String> _builtInProviderKeys = {
     ..._builtInProviderKeysInOrder,
+    'Grok',
+    'Moonshot',
   };
   static bool isBuiltInProvider(String key) =>
       _builtInProviderKeys.contains(key);
@@ -6686,13 +6687,35 @@ class ProviderConfig {
     switch (kind) {
       case ProviderKind.google:
         const geminiModels = [
+          'gemini-2.5-pro',
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-lite',
           'gemini-2.0-flash',
           'gemini-2.0-flash-lite',
           'gemini-2.0-pro-exp-02-05',
           'gemini-1.5-pro',
           'gemini-1.5-flash',
+          'gemini-1.5-flash-8b',
         ];
         const geminiOverrides = {
+          'gemini-2.5-pro': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'gemini-2.5-flash': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+          },
+          'gemini-2.5-flash-lite': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool'],
+          },
           'gemini-2.0-flash': {
             'type': 'chat',
             'input': ['text', 'image', 'audio', 'video'],
@@ -6718,6 +6741,12 @@ class ProviderConfig {
             'abilities': ['tool', 'reasoning'],
           },
           'gemini-1.5-flash': {
+            'type': 'chat',
+            'input': ['text', 'image', 'audio', 'video'],
+            'output': ['text'],
+            'abilities': ['tool'],
+          },
+          'gemini-1.5-flash-8b': {
             'type': 'chat',
             'input': ['text', 'image', 'audio', 'video'],
             'output': ['text'],

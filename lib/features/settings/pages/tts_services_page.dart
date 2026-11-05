@@ -1707,6 +1707,13 @@ class _NetworkTtsEditorPageState extends State<_NetworkTtsEditorPage> {
               ? 'normal'
               : _latencyCtl.text.trim(),
         );
+      case NetworkTtsKind.sherpaOnnx:
+        return SherpaOnnxTtsOptions(
+          id: initial?.id,
+          enabled: true,
+          name: name.isEmpty ? 'On-Device Kokoro 82M' : name,
+          modelId: model.isEmpty ? 'kokoro-en-v0_19' : model,
+        );
     }
   }
 }
@@ -2230,6 +2237,7 @@ Widget _sheetDivider(BuildContext context) {
 }
 
 const List<NetworkTtsKind> _networkTtsKinds = [
+  NetworkTtsKind.sherpaOnnx,
   NetworkTtsKind.openai,
   NetworkTtsKind.gemini,
   NetworkTtsKind.azure,
@@ -2332,6 +2340,8 @@ String _defaultBaseUrl(NetworkTtsKind k) {
       return 'https://api.stepfun.com/v1';
     case NetworkTtsKind.fishAudio:
       return 'https://api.fish.audio';
+    case NetworkTtsKind.sherpaOnnx:
+      return 'on-device';
   }
 }
 
@@ -2361,6 +2371,8 @@ String _defaultModel(NetworkTtsKind k) {
       return 'stepaudio-2.5-tts';
     case NetworkTtsKind.fishAudio:
       return 's2.1-pro';
+    case NetworkTtsKind.sherpaOnnx:
+      return 'kokoro-en-v0_19';
   }
 }
 
@@ -2390,6 +2402,8 @@ String _defaultVoice(NetworkTtsKind k) {
       return 'cixingnansheng';
     case NetworkTtsKind.fishAudio:
       return '';
+    case NetworkTtsKind.sherpaOnnx:
+      return 'default';
   }
 }
 
@@ -2419,5 +2433,7 @@ String _voiceLabelFor(NetworkTtsKind k, AppLocalizations l10n) {
       return l10n.ttsServicesFieldVoiceLabel;
     case NetworkTtsKind.fishAudio:
       return l10n.ttsServicesFieldVoiceIdLabel;
+    case NetworkTtsKind.sherpaOnnx:
+      return 'Model';
   }
 }

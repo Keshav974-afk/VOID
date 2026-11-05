@@ -146,7 +146,7 @@ class AsrProvider extends ChangeNotifier {
 
   /// Starts a session. A null [options] records without recognition; such a
   /// session can only end through [finishAudio].
-  Future<void> start(AsrServiceOptions? options) async {
+  Future<void> start(AsrServiceOptions? options, {Duration? pauseFor}) async {
     _ensureNotDisposed();
     if (isActive) throw StateError('An ASR session is already active.');
     if (options != null && !options.isConfigured) {
@@ -178,6 +178,7 @@ class AsrProvider extends ChangeNotifier {
         if (!await _claimCaptureAudio(session)) return;
         final started = await _systemService.start(
           localeId: options.localeId.trim().isEmpty ? null : options.localeId,
+          pauseFor: pauseFor,
           onTranscript: (text, _) {
             if (!_isCurrent(session)) return;
             _transcript = text.trim();

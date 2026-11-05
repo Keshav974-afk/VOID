@@ -1172,6 +1172,9 @@ Future<TtsServiceOptions?> _showNetworkDialog(
                               value: networkTtsKindDisplayName(kind),
                               options: [
                                 networkTtsKindDisplayName(
+                                  NetworkTtsKind.sherpaOnnx,
+                                ),
+                                networkTtsKindDisplayName(
                                   NetworkTtsKind.openai,
                                 ),
                                 networkTtsKindDisplayName(
@@ -1199,6 +1202,12 @@ Future<TtsServiceOptions?> _showNetworkDialog(
                               onSelected: (picked) {
                                 final previousKind = kind;
                                 setState(() {
+                                  if (picked ==
+                                      networkTtsKindDisplayName(
+                                        NetworkTtsKind.sherpaOnnx,
+                                      )) {
+                                    kind = NetworkTtsKind.sherpaOnnx;
+                                  }
                                   if (picked ==
                                       networkTtsKindDisplayName(
                                         NetworkTtsKind.openai,
@@ -1921,6 +1930,17 @@ Future<TtsServiceOptions?> _showNetworkDialog(
                                       ? 'normal'
                                       : latencyCtl.text.trim(),
                                 );
+                              } else if (kind == NetworkTtsKind.sherpaOnnx) {
+                                result = SherpaOnnxTtsOptions(
+                                  id: initial?.id,
+                                  enabled: true,
+                                  name: name.isEmpty
+                                      ? 'On-Device Kokoro 82M'
+                                      : name,
+                                  modelId: model.isEmpty
+                                      ? 'kokoro-en-v0_19'
+                                      : model,
+                                );
                               }
                               Navigator.of(ctx).pop();
                             },
@@ -2007,6 +2027,8 @@ String _defaultBaseUrl(NetworkTtsKind k) {
       return 'https://api.stepfun.com/v1';
     case NetworkTtsKind.fishAudio:
       return 'https://api.fish.audio';
+    case NetworkTtsKind.sherpaOnnx:
+      return 'on-device';
   }
 }
 
@@ -2036,6 +2058,8 @@ String _defaultModel(NetworkTtsKind k) {
       return 'stepaudio-2.5-tts';
     case NetworkTtsKind.fishAudio:
       return 's2.1-pro';
+    case NetworkTtsKind.sherpaOnnx:
+      return 'kokoro-en-v0_19';
   }
 }
 
@@ -2065,6 +2089,8 @@ String _defaultVoice(NetworkTtsKind k) {
       return 'cixingnansheng';
     case NetworkTtsKind.fishAudio:
       return '';
+    case NetworkTtsKind.sherpaOnnx:
+      return 'default';
   }
 }
 
@@ -2094,6 +2120,8 @@ String _voiceLabelFor(NetworkTtsKind k, AppLocalizations l10n) {
       return l10n.ttsServicesFieldVoiceLabel;
     case NetworkTtsKind.fishAudio:
       return l10n.ttsServicesFieldVoiceIdLabel;
+    case NetworkTtsKind.sherpaOnnx:
+      return 'Model';
   }
 }
 
