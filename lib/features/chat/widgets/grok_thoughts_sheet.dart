@@ -86,10 +86,7 @@ class GrokWorkTimelineWidget extends StatelessWidget {
     } else {
       if (searchesCount > 0) {
         effectiveSteps.add(
-          GrokSearchesStepItem(
-            count: searchesCount,
-            queries: searchQueries,
-          ),
+          GrokSearchesStepItem(count: searchesCount, queries: searchQueries),
         );
       }
       for (final item in items) {
@@ -125,28 +122,28 @@ class GrokWorkTimelineWidget extends StatelessWidget {
           for (var i = 0; i < effectiveSteps.length; i++) ...[
             switch (effectiveSteps[i]) {
               GrokSearchesStepItem s => _SearchTimelineStepRow(
-                  key: ValueKey('search_$i'),
-                  count: s.count,
-                  queries: s.queries,
-                  isFirst: i == 0,
-                  isLast: i == effectiveSteps.length - 1,
-                  lineColor: lineColor,
-                ),
+                key: ValueKey('search_$i'),
+                count: s.count,
+                queries: s.queries,
+                isFirst: i == 0,
+                isLast: i == effectiveSteps.length - 1,
+                lineColor: lineColor,
+              ),
               GrokCommandStepItem c => _CommandTimelineStepRow(
-                  key: ValueKey('command_$i'),
-                  item: c,
-                  isFirst: i == 0,
-                  isLast: i == effectiveSteps.length - 1,
-                  lineColor: lineColor,
-                ),
+                key: ValueKey('command_$i'),
+                item: c,
+                isFirst: i == 0,
+                isLast: i == effectiveSteps.length - 1,
+                lineColor: lineColor,
+              ),
               GrokThoughtStepItem t => _ThoughtTimelineStepRow(
-                  key: ValueKey('thought_$i'),
-                  title: t.title,
-                  extraBullets: t.extraBullets,
-                  isFirst: i == 0,
-                  isLast: i == effectiveSteps.length - 1,
-                  lineColor: lineColor,
-                ),
+                key: ValueKey('thought_$i'),
+                title: t.title,
+                extraBullets: t.extraBullets,
+                isFirst: i == 0,
+                isLast: i == effectiveSteps.length - 1,
+                lineColor: lineColor,
+              ),
             },
           ],
         ],
@@ -181,10 +178,18 @@ class _SearchTimelineStepRowState extends State<_SearchTimelineStepRow> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final iconColor = isDark ? const Color(0xFF8E9094) : const Color(0xFF6B7280);
-    final titleColor = isDark ? const Color(0xFFD4D4D8) : const Color(0xFF1F2937);
-    final globeColor = isDark ? const Color(0xFF75777B) : const Color(0xFF9CA3AF);
-    final queryTextColor = isDark ? const Color(0xFF8E9094) : const Color(0xFF4B5563);
+    final iconColor = isDark
+        ? const Color(0xFF8E9094)
+        : const Color(0xFF6B7280);
+    final titleColor = isDark
+        ? const Color(0xFFD4D4D8)
+        : const Color(0xFF1F2937);
+    final globeColor = isDark
+        ? const Color(0xFF75777B)
+        : const Color(0xFF9CA3AF);
+    final queryTextColor = isDark
+        ? const Color(0xFF8E9094)
+        : const Color(0xFF4B5563);
 
     return Stack(
       children: [
@@ -205,11 +210,7 @@ class _SearchTimelineStepRowState extends State<_SearchTimelineStepRow> {
                 width: 24,
                 height: 24,
                 child: Center(
-                  child: Icon(
-                    Lucide.Search,
-                    size: 15,
-                    color: iconColor,
-                  ),
+                  child: Icon(Lucide.Search, size: 15, color: iconColor),
                 ),
               ),
             ),
@@ -230,14 +231,17 @@ class _SearchTimelineStepRowState extends State<_SearchTimelineStepRow> {
                     });
                   }
                 },
-                child: SizedBox(
-                  height: 24,
-                  child: Align(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 24),
+                  child: Container(
                     alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Text(
                       'Ran ${widget.count} search${widget.count > 1 ? 'es' : ''}',
+                      softWrap: true,
                       style: TextStyle(
                         fontSize: 14,
+                        height: 1.35,
                         fontWeight: AppFontWeights.medium,
                         color: titleColor,
                       ),
@@ -259,7 +263,10 @@ class _SearchTimelineStepRowState extends State<_SearchTimelineStepRow> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(top: 2.5, right: 8),
+                                padding: const EdgeInsets.only(
+                                  top: 2.5,
+                                  right: 8,
+                                ),
                                 child: Icon(
                                   Lucide.Globe,
                                   size: 13,
@@ -307,7 +314,8 @@ class _CommandTimelineStepRow extends StatefulWidget {
   final Color lineColor;
 
   @override
-  State<_CommandTimelineStepRow> createState() => _CommandTimelineStepRowState();
+  State<_CommandTimelineStepRow> createState() =>
+      _CommandTimelineStepRowState();
 }
 
 class _CommandTimelineStepRowState extends State<_CommandTimelineStepRow> {
@@ -316,15 +324,21 @@ class _CommandTimelineStepRowState extends State<_CommandTimelineStepRow> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final iconColor = isDark ? const Color(0xFF8E9094) : const Color(0xFF6B7280);
-    final prefixColor = isDark ? const Color(0xFF8E9094) : const Color(0xFF6B7280);
-    final titleBlue = isDark ? const Color(0xFF8EAEC4) : const Color(0xFF2563EB);
+    final iconColor = isDark
+        ? const Color(0xFF8E9094)
+        : const Color(0xFF6B7280);
+    final prefixColor = isDark
+        ? const Color(0xFF8E9094)
+        : const Color(0xFF6B7280);
+    final titleBlue = isDark
+        ? const Color(0xFF8EAEC4)
+        : const Color(0xFF2563EB);
 
     final titleText = widget.item.title.startsWith('Ran command ')
         ? widget.item.title.substring('Ran command '.length)
         : (widget.item.title.startsWith('Ran command')
-            ? widget.item.title.substring('Ran command'.length).trim()
-            : widget.item.title);
+              ? widget.item.title.substring('Ran command'.length).trim()
+              : widget.item.title);
 
     final hasContent =
         (widget.item.code != null && widget.item.code!.isNotEmpty) ||
@@ -378,17 +392,20 @@ class _CommandTimelineStepRowState extends State<_CommandTimelineStepRow> {
                       });
                     }
                   },
-                  child: SizedBox(
-                    height: 24,
-                    child: Align(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 24),
+                    child: Container(
                       alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(vertical: 2),
                       child: RichText(
+                        softWrap: true,
                         text: TextSpan(
                           children: [
                             TextSpan(
                               text: 'Ran command ',
                               style: TextStyle(
                                 fontSize: 14,
+                                height: 1.35,
                                 color: prefixColor,
                               ),
                             ),
@@ -396,6 +413,7 @@ class _CommandTimelineStepRowState extends State<_CommandTimelineStepRow> {
                               text: titleText,
                               style: TextStyle(
                                 fontSize: 14,
+                                height: 1.35,
                                 fontWeight: AppFontWeights.medium,
                                 color: titleBlue,
                               ),
@@ -482,9 +500,15 @@ class _ThoughtTimelineStepRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final iconColor = isDark ? const Color(0xFF8E9094) : const Color(0xFF6B7280);
-    final titleBlue = isDark ? const Color(0xFF8EAEC4) : const Color(0xFF2563EB);
-    final bulletColor = isDark ? const Color(0xFF8E9094) : const Color(0xFF4B5563);
+    final iconColor = isDark
+        ? const Color(0xFF8E9094)
+        : const Color(0xFF6B7280);
+    final titleBlue = isDark
+        ? const Color(0xFF8EAEC4)
+        : const Color(0xFF2563EB);
+    final bulletColor = isDark
+        ? const Color(0xFF8E9094)
+        : const Color(0xFF4B5563);
 
     return Stack(
       children: [
@@ -505,11 +529,7 @@ class _ThoughtTimelineStepRow extends StatelessWidget {
                 width: 24,
                 height: 24,
                 child: Center(
-                  child: Icon(
-                    Lucide.Lightbulb,
-                    size: 15,
-                    color: iconColor,
-                  ),
+                  child: Icon(Lucide.Lightbulb, size: 15, color: iconColor),
                 ),
               ),
             ),
@@ -521,14 +541,17 @@ class _ThoughtTimelineStepRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                height: 24,
-                child: Align(
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 24),
+                child: Container(
                   alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Text(
                     title,
+                    softWrap: true,
                     style: TextStyle(
                       fontSize: 14,
+                      height: 1.35,
                       fontWeight: AppFontWeights.medium,
                       color: titleBlue,
                     ),
@@ -733,11 +756,7 @@ class GrokThoughtBadge extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (showIcon) ...[
-                  Icon(
-                    Lucide.Lightbulb,
-                    size: 15,
-                    color: iconColor,
-                  ),
+                  Icon(Lucide.Lightbulb, size: 15, color: iconColor),
                   const SizedBox(width: 6),
                 ],
                 Text(

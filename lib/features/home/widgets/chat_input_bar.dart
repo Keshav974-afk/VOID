@@ -36,6 +36,7 @@ import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/services/api/reasoning/reasoning_level_options.dart';
 import '../../chat/widgets/reasoning_level_sheet.dart';
+import '../../chat/pages/image_viewer_page.dart';
 import '../../../utils/clipboard_images.dart';
 import '../../../core/providers/asr_provider.dart';
 import '../../../core/providers/settings_provider.dart';
@@ -3759,42 +3760,72 @@ class _ChatInputBarState extends State<ChatInputBar>
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: previewBorder, width: 1),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(9),
-            child: processing
-                ? ColoredBox(
-                    color: theme.colorScheme.scrim,
-                    child: const SizedBox(width: 88, height: 88),
-                  )
-                : Image(
-                    image: ResizeImage(
-                      FileImage(File(image.path)),
-                      width: (88 * MediaQuery.devicePixelRatioOf(context))
-                          .ceil(),
-                      height: (88 * MediaQuery.devicePixelRatioOf(context))
-                          .ceil(),
-                      policy: ResizeImagePolicy.fit,
+        GestureDetector(
+          onTap: processing || failed
+              ? null
+              : () {
+                  final readyPaths = _images
+                      .where(
+                        (img) =>
+                            !_processingImageIds.contains(img.id) &&
+                            !_failedImageIds.contains(img.id),
+                      )
+                      .map((img) => img.path)
+                      .toList();
+                  final readyIndex = readyPaths.indexOf(image.path);
+                  Navigator.of(context).push(
+                    PageRouteBuilder<void>(
+                      opaque: false,
+                      pageBuilder: (_, __, ___) => ImageViewerPage(
+                        images: readyPaths.isNotEmpty
+                            ? readyPaths
+                            : [image.path],
+                        initialIndex: readyIndex >= 0 ? readyIndex : 0,
+                      ),
+                      transitionDuration: const Duration(milliseconds: 300),
+                      reverseTransitionDuration: const Duration(
+                        milliseconds: 250,
+                      ),
                     ),
-                    width: 88,
-                    height: 88,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                  );
+                },
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: previewBorder, width: 1),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: processing
+                  ? ColoredBox(
+                      color: theme.colorScheme.scrim,
+                      child: const SizedBox(width: 88, height: 88),
+                    )
+                  : Image(
+                      image: ResizeImage(
+                        FileImage(File(image.path)),
+                        width: (88 * MediaQuery.devicePixelRatioOf(context))
+                            .ceil(),
+                        height: (88 * MediaQuery.devicePixelRatioOf(context))
+                            .ceil(),
+                        policy: ResizeImagePolicy.fit,
+                      ),
                       width: 88,
                       height: 88,
-                      color: previewFill,
-                      child: Icon(
-                        Icons.broken_image,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.45,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 88,
+                        height: 88,
+                        color: previewFill,
+                        child: Icon(
+                          Icons.broken_image,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.45,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+            ),
           ),
         ),
         Positioned.fill(

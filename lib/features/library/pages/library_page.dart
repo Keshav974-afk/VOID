@@ -3,10 +3,18 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../utils/app_directories.dart';
+import '../../chat/pages/image_viewer_page.dart';
+import '../../chat/pages/pdf_viewer_page.dart';
+import '../../workspace/widgets/preview/file_preview.dart';
+import '../../workspace/widgets/preview/preview_file_type.dart';
 
 enum LibraryFilterTab { all, media, apps, files }
 
@@ -94,6 +102,11 @@ class _LibraryPageState extends State<LibraryPage> {
         if (await workspacesDir.exists()) dirsToScan.add(workspacesDir);
       } catch (_) {}
 
+      try {
+        final docsDir = await getApplicationDocumentsDirectory();
+        if (await docsDir.exists()) dirsToScan.add(docsDir);
+      } catch (_) {}
+
       for (final dir in dirsToScan) {
         try {
           final entities = dir.listSync(recursive: true, followLinks: false);
@@ -107,6 +120,17 @@ class _LibraryPageState extends State<LibraryPage> {
               final ext = basename.contains('.')
                   ? basename.split('.').last.toLowerCase()
                   : '';
+              if (const {
+                'db',
+                'db-shm',
+                'db-wal',
+                'sqlite',
+                'sqlite3',
+                'hive',
+                'lock',
+              }.contains(ext)) {
+                continue;
+              }
 
               final isImg = const {
                 'png',
@@ -115,6 +139,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 'webp',
                 'gif',
                 'bmp',
+                'svg',
               }.contains(ext);
               final isMedia =
                   isImg ||
@@ -433,9 +458,46 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
+  Future<void> _openLibraryItem(LibraryItem item) async {
+    if (item.isImage) {
+      final allImages = _filteredItems
+          .where((e) => e.isImage)
+          .map((e) => e.file.path)
+          .toList();
+      final idx = allImages.indexOf(item.file.path);
+      await Navigator.of(context).push(
+        PageRouteBuilder<void>(
+          opaque: false,
+          pageBuilder: (_, __, ___) => ImageViewerPage(
+            images: allImages.isNotEmpty ? allImages : [item.file.path],
+            initialIndex: idx >= 0 ? idx : 0,
+          ),
+          transitionDuration: const Duration(milliseconds: 300),
+          reverseTransitionDuration: const Duration(milliseconds: 250),
+        ),
+      );
+      return;
+    }
+
+    final ext = p.extension(item.file.path).toLowerCase();
+    if (ext == '.pdf') {
+      await Navigator.of(
+        context,
+      ).push(PdfViewerPage.route(filePath: item.file.path, title: item.name));
+      return;
+    }
+
+    await showFilePreview(context, item.file, title: item.name);
+  }
+
   Widget _buildGridCard(LibraryItem item, ColorScheme cs) {
+    final ext = p.extension(item.file.path).toLowerCase();
+    final isPdf = ext == '.pdf';
+    final typeStyle = previewFileTypeStyle(item.file.path);
+    final extBadge = ext.replaceFirst('.', '').toUpperCase();
+
     return GestureDetector(
-      onTap: () => OpenFilex.open(item.file.path),
+      onTap: () => _openLibraryItem(item),
       onLongPress: () => _showItemActions(item),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -447,26 +509,108 @@ class _LibraryPageState extends State<LibraryPage> {
               decoration: BoxDecoration(
                 color: cs.onSurface.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: cs.onSurface.withValues(alpha: 0.08),
+                  width: 0.8,
+                ),
               ),
               clipBehavior: Clip.antiAlias,
               child: item.isImage
-                  ? Image.file(
-                      item.file,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
-                        child: Icon(
-                          Lucide.FileImage,
-                          size: 36,
-                          color: cs.onSurface.withValues(alpha: 0.35),
+                  ? Hero(
+                      tag: 'img:${item.file.path}',
+                      child: Image.file(
+                        item.file,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Center(
+                          child: Icon(
+                            Lucide.FileImage,
+                            size: 36,
+                            color: typeStyle.color,
+                          ),
                         ),
                       ),
                     )
-                  : Center(
-                      child: Icon(
-                        Lucide.File,
-                        size: 38,
-                        color: cs.onSurface.withValues(alpha: 0.35),
-                      ),
+                  : isPdf
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ColoredBox(
+                          color: Colors.white,
+                          child: AbsorbPointer(
+                            child: SfPdfViewer.file(
+                              item.file,
+                              canShowScrollHead: false,
+                              canShowScrollStatus: false,
+                              canShowPaginationDialog: false,
+                              enableDoubleTapZooming: false,
+                              pageSpacing: 0,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 8,
+                          bottom: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD14D41),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'PDF',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: typeStyle.color.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            typeStyle.icon,
+                            size: 28,
+                            color: typeStyle.color,
+                          ),
+                        ),
+                        if (extBadge.isNotEmpty)
+                          Positioned(
+                            right: 8,
+                            bottom: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: typeStyle.color.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                extBadge,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: AppFontWeights.bold,
+                                  color: typeStyle.color,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
             ),
           ),
@@ -511,8 +655,29 @@ class _LibraryPageState extends State<LibraryPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
+                leading: Icon(Lucide.Eye, color: cs.onSurface),
+                title: Text('Preview ${item.name}'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openLibraryItem(item);
+                },
+              ),
+              ListTile(
+                leading: Icon(Lucide.Share2, color: cs.onSurface),
+                title: const Text('Share'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  SharePlus.instance.share(
+                    ShareParams(
+                      files: [XFile(item.file.path)],
+                      subject: item.name,
+                    ),
+                  );
+                },
+              ),
+              ListTile(
                 leading: Icon(Lucide.ExternalLink, color: cs.onSurface),
-                title: Text('Open ${item.name}'),
+                title: const Text('Open with external app'),
                 onTap: () {
                   Navigator.pop(ctx);
                   OpenFilex.open(item.file.path);

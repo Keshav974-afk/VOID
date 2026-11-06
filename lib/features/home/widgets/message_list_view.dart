@@ -2599,7 +2599,7 @@ class _MessageListViewState extends State<MessageListView> {
     try {
       final obj = jsonDecode(content);
       if (obj is Map) {
-        return (obj['tool'] ?? '').toString() == LocalToolNames.askUser;
+        return LocalToolsService.isAskUserTool((obj['tool'] ?? '').toString());
       }
     } catch (_) {}
     return false;

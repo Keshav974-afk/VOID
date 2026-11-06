@@ -7,6 +7,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../../core/models/vps_config.dart';
@@ -15,6 +16,8 @@ import '../../../core/services/sandbox_vps/sandbox_vps_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../../utils/sandbox_path_resolver.dart';
+import '../../workspace/widgets/preview/file_preview.dart';
 import '../pages/image_viewer_page.dart';
 import '../pages/pdf_viewer_page.dart';
 
@@ -35,17 +38,22 @@ List<String> extractGeneratedFilePaths(String text) {
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
         lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
         lower.endsWith('.docx') ||
         lower.endsWith('.doc') ||
         lower.endsWith('.xlsx') ||
-        lower.endsWith('.csv')) {
+        lower.endsWith('.xls') ||
+        lower.endsWith('.pptx') ||
+        lower.endsWith('.ppt') ||
+        lower.endsWith('.csv') ||
+        lower.endsWith('.tsv')) {
       paths.add(target);
     }
   }
 
   // 2. Paths with directories like /tmp/, /root/, C:\, /..., or ./ (Unicode safe)
   final pathRegex = RegExp(
-    r'''(?:^|[\s"'`\(\[<])((?:/(?:tmp|root|var|home|storage|sdcard|data)/|[A-Za-z]:[/\\]|[/\w\.\-]+/|\./)[^\s"'`<>\[\]\(\)\*:]+?\.(?:pdf|png|jpe?g|webp|docx?|xlsx?|csv))''',
+    r'''(?:^|[\s"'`\(\[<])((?:/(?:tmp|root|var|home|storage|sdcard|data)/|[A-Za-z]:[/\\]|[/\w\.\-]+/|\./)[^\s"'`<>\[\]\(\)\*:]+?\.(?:pdf|png|jpe?g|webp|gif|docx?|xlsx?|pptx?|csv|tsv))''',
     caseSensitive: false,
   );
   final matches = pathRegex.allMatches(text);
@@ -64,7 +72,7 @@ List<String> extractGeneratedFilePaths(String text) {
 
   // 3. Standalone filenames ending in .pdf or documents (Unicode safe)
   final fileRegex = RegExp(
-    r'''(?:^|[\s"'`\(\[<])([^\s"'`<>\[\]\(\)\*:\/\\]+?\.(?:pdf|docx?|xlsx?))''',
+    r'''(?:^|[\s"'`\(\[<])([^\s"'`<>\[\]\(\)\*:\/\\]+?\.(?:pdf|docx?|xlsx?|pptx?))''',
     caseSensitive: false,
   );
   for (final m in fileRegex.allMatches(text)) {
@@ -159,9 +167,34 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
     }
   }
 
+  Future<VpsConfig> _loadVpsConfig() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('vps_config_v1');
+      if (raw != null && raw.trim().isNotEmpty) {
+        return VpsConfig.fromJsonString(raw);
+      }
+    } catch (_) {}
+    return const VpsConfig();
+  }
+
   Future<void> _resolveFile({bool forceRemote = false}) async {
+    final fixedPath = SandboxPathResolver.fix(widget.filePath);
+    if (fixedPath.startsWith('http://') ||
+        fixedPath.startsWith('https://') ||
+        fixedPath.startsWith('data:')) {
+      if (mounted) {
+        setState(() {
+          _localPath = fixedPath;
+          _isFetching = false;
+          _fetchError = null;
+        });
+      }
+      return;
+    }
+
     // 1. Direct local file check
-    final direct = File(widget.filePath);
+    final direct = File(fixedPath);
     if (!forceRemote && await direct.exists()) {
       final len = await direct.length();
       if (mounted) {
@@ -179,7 +212,7 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
     }
 
     // 2. Check cached file in application documents directory
-    final basename = p.basename(widget.filePath);
+    final basename = p.basename(fixedPath);
     final docsDir = await getApplicationDocumentsDirectory();
     final cached = File(p.join(docsDir.path, basename));
     if (!forceRemote && await cached.exists()) {
@@ -201,11 +234,12 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
     }
 
     // 3. Remote VPS path detection
-    final isRemote = widget.filePath.startsWith('/tmp/') ||
-        widget.filePath.startsWith('/root/') ||
-        widget.filePath.startsWith('/var/') ||
-        widget.filePath.startsWith('/home/') ||
-        !widget.filePath.contains(Platform.isWindows ? r'\' : '/');
+    final isRemote =
+        fixedPath.startsWith('/tmp/') ||
+        fixedPath.startsWith('/root/') ||
+        fixedPath.startsWith('/var/') ||
+        fixedPath.startsWith('/home/') ||
+        !fixedPath.contains(Platform.isWindows ? r'\' : '/');
 
     if (isRemote || !await direct.exists()) {
       if (mounted) {
@@ -219,8 +253,9 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
       _activeDownload = completer;
 
       try {
+        final vpsCfg = await _loadVpsConfig();
         final downloaded = await SandboxVpsService.instance.downloadBinaryFile(
-          config: const VpsConfig(),
+          config: vpsCfg,
           remotePath: widget.filePath,
           localPath: cached.path,
         );
@@ -297,7 +332,8 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
       }
 
       if (targetDir == null) {
-        final d = await getDownloadsDirectory() ??
+        final d =
+            await getDownloadsDirectory() ??
             await getApplicationDocumentsDirectory();
         targetDir = d.path;
       }
@@ -379,10 +415,8 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
       Navigator.of(context).push(
         PageRouteBuilder<void>(
           opaque: false,
-          pageBuilder: (_, __, ___) => ImageViewerPage(
-            images: [validPath],
-            initialIndex: 0,
-          ),
+          pageBuilder: (_, __, ___) =>
+              ImageViewerPage(images: [validPath], initialIndex: 0),
           transitionDuration: const Duration(milliseconds: 300),
           reverseTransitionDuration: const Duration(milliseconds: 250),
         ),
@@ -391,21 +425,29 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
     }
 
     try {
-      final res = await OpenFilex.open(path);
-      if (res.type != ResultType.done && context.mounted) {
-        showAppSnackBar(
-          context,
-          message: 'Could not open file: ${res.message}',
-          type: NotificationType.warning,
-        );
-      }
+      await showFilePreview(
+        context,
+        File(validPath),
+        title: widget.title ?? p.basename(widget.filePath),
+      );
     } catch (e) {
-      if (context.mounted) {
-        showAppSnackBar(
-          context,
-          message: 'Error opening file: $e',
-          type: NotificationType.error,
-        );
+      try {
+        final res = await OpenFilex.open(validPath);
+        if (res.type != ResultType.done && context.mounted) {
+          showAppSnackBar(
+            context,
+            message: 'Could not open file: ${res.message}',
+            type: NotificationType.warning,
+          );
+        }
+      } catch (_) {
+        if (context.mounted) {
+          showAppSnackBar(
+            context,
+            message: 'Error opening file: $e',
+            type: NotificationType.error,
+          );
+        }
       }
     }
   }
@@ -782,10 +824,7 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
                           children: [
                             Text(
                               'Download failed',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: cs.error,
-                              ),
+                              style: TextStyle(fontSize: 12, color: cs.error),
                             ),
                             const SizedBox(width: 6),
                             GestureDetector(

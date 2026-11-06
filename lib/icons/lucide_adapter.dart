@@ -270,4 +270,10 @@ class Lucide {
   static const IconData AtSign = lucide.LucideIcons.atSign;
   static const IconData Server = lucide.LucideIcons.server;
   static const IconData Bug = lucide.LucideIcons.bug;
+  static const IconData Cpu = lucide.LucideIcons.cpu;
+  static const IconData BatteryCharging = lucide.LucideIcons.batteryCharging;
+  static const IconData ClipboardCopy = lucide.LucideIcons.clipboardCopy;
+  static const IconData MousePointerClick =
+      lucide.LucideIcons.mousePointerClick;
+  static const IconData Rocket = lucide.LucideIcons.rocket;
 }

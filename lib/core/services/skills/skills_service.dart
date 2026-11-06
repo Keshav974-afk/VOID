@@ -85,6 +85,10 @@ class SkillsService extends ChangeNotifier {
     'phone-control': ['SKILL.md'],
     'deep-research': ['SKILL.md'],
     'code-sandbox': ['SKILL.md'],
+    'pdf-studio': ['SKILL.md'],
+    'pptx-presenter': ['SKILL.md'],
+    'excel-architect': ['SKILL.md'],
+    'docx-writer': ['SKILL.md'],
     'visualize': [
       'SKILL.md',
       'references/protocol.md',

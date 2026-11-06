@@ -76,12 +76,16 @@ class _SandboxVpsToolUiState extends State<SandboxVpsToolUi> {
                       : const Color(0xFFF85149),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  res.host.isNotEmpty ? 'vps: ${res.host}' : 'sandbox-vps',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                    fontWeight: AppFontWeights.emphasis,
+                Flexible(
+                  child: Text(
+                    res.host.isNotEmpty ? 'vps: ${res.host}' : 'sandbox-vps',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: AppFontWeights.emphasis,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -187,6 +191,7 @@ class _SandboxVpsToolUiState extends State<SandboxVpsToolUi> {
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 12,
+                  height: 1.4,
                   fontWeight: AppFontWeights.emphasis,
                   color: const Color(0xFF58A6FF),
                 ),

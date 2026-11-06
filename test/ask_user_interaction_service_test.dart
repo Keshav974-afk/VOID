@@ -130,5 +130,103 @@ void main() {
       );
       service.cancelAll();
     });
+
+    test('normalizes top-level single question and options', () {
+      final questions = AskUserInteractionService.normalizeQuestions(const {
+        'question': 'Which database do you prefer?',
+        'options': ['Drift', 'Isar', 'Hive'],
+      });
+      expect(questions.length, 1);
+      expect(questions.first.question, 'Which database do you prefer?');
+      expect(questions.first.options, const ['Drift', 'Isar', 'Hive']);
+      expect(questions.first.kind, AskUserQuestionKind.single);
+    });
+
+    test('normalizes prompt and choices with multi select', () {
+      final questions = AskUserInteractionService.normalizeQuestions(const {
+        'prompt': 'Select features to enable:',
+        'choices': ['TTS', 'MCP', 'Search'],
+        'is_multi_select': true,
+      });
+      expect(questions.length, 1);
+      expect(questions.first.question, 'Select features to enable:');
+      expect(questions.first.options, const ['TTS', 'MCP', 'Search']);
+      expect(questions.first.kind, AskUserQuestionKind.multi);
+    });
+
+    test('normalizes list of question strings', () {
+      final questions = AskUserInteractionService.normalizeQuestions(const {
+        'questions': ['What is your project name?', 'Select a license'],
+      });
+      expect(questions.length, 2);
+      expect(questions[0].question, 'What is your project name?');
+      expect(questions[0].id, 'q1');
+      expect(questions[1].question, 'Select a license');
+      expect(questions[1].id, 'q2');
+    });
+
+    test('normalizes map-based options with labels and supports up to 8', () {
+      final questions = AskUserInteractionService.normalizeQuestions(const {
+        'questions': [
+          {
+            'question': 'Pick a number',
+            'options': [
+              {'label': 'One', 'value': 1},
+              {'label': 'Two', 'value': 2},
+              {'label': 'Three', 'value': 3},
+              {'label': 'Four', 'value': 4},
+              {'label': 'Five', 'value': 5},
+              {'label': 'Six', 'value': 6},
+              {'label': 'Seven', 'value': 7},
+              {'label': 'Eight', 'value': 8},
+              {'label': 'Nine', 'value': 9},
+            ],
+          },
+        ],
+      });
+      expect(questions.single.options.length, 8);
+      expect(questions.single.options.first, 'One');
+      expect(questions.single.options.last, 'Eight');
+    });
+
+    test('requestFor and flexible answer resolution', () async {
+      final service = AskUserInteractionService();
+      final future = service.requestAnswer(
+        toolCallId: 'ask_user_input_v0_12345',
+        arguments: const {
+          'question': 'Do you want to proceed?',
+          'options': ['Yes', 'No'],
+        },
+        conversationId: 'conv_abc',
+      );
+
+      // Find by exact
+      expect(
+        service.requestFor(toolCallId: 'ask_user_input_v0_12345')?.toolCallId,
+        'ask_user_input_v0_12345',
+      );
+
+      // Find by substring
+      expect(
+        service.requestFor(toolCallId: '12345')?.toolCallId,
+        'ask_user_input_v0_12345',
+      );
+
+      // Find by conversationId
+      expect(
+        service.requestFor(conversationId: 'conv_abc')?.toolCallId,
+        'ask_user_input_v0_12345',
+      );
+
+      // Complete via substring ID or conversationId
+      service.answer('12345', {
+        'q1': const AskUserAnswerValue.single(value: 'Yes', custom: false),
+      }, conversationId: 'conv_abc');
+
+      final res = await future;
+      expect(service.pendingRequests, isEmpty);
+      final payload = jsonDecode(res.toJsonString()) as Map<String, dynamic>;
+      expect(payload['answers']['q1']['value'], 'Yes');
+    });
   });
 }

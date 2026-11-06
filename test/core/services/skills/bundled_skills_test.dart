@@ -117,7 +117,11 @@ void main() {
         'code-sandbox',
         'composio',
         'deep-research',
+        'docx-writer',
+        'excel-architect',
+        'pdf-studio',
         'phone-control',
+        'pptx-presenter',
         'visualize',
       ]);
     },
@@ -134,7 +138,11 @@ void main() {
         'code-sandbox',
         'composio',
         'deep-research',
+        'docx-writer',
+        'excel-architect',
+        'pdf-studio',
         'phone-control',
+        'pptx-presenter',
         'visualize',
       ]);
 
@@ -144,7 +152,11 @@ void main() {
         'code-sandbox',
         'composio',
         'deep-research',
+        'docx-writer',
+        'excel-architect',
+        'pdf-studio',
         'phone-control',
+        'pptx-presenter',
         'visualize',
       ]);
       expect(
@@ -155,7 +167,11 @@ void main() {
           'code-sandbox',
           'composio',
           'deep-research',
+          'docx-writer',
+          'excel-architect',
+          'pdf-studio',
           'phone-control',
+          'pptx-presenter',
           'visualize',
         ]),
       );
@@ -218,7 +234,7 @@ void main() {
       );
       final upgraded = createService();
       await upgraded.loaded;
-      expect(upgraded.skills, hasLength(7));
+      expect(upgraded.skills, hasLength(11));
       final creator = upgraded.skills.singleWhere(
         (s) => s.name == 'skill-creator',
       );
@@ -240,8 +256,12 @@ void main() {
       'code-sandbox',
       'composio',
       'deep-research',
+      'docx-writer',
+      'excel-architect',
       'my-skill',
+      'pdf-studio',
       'phone-control',
+      'pptx-presenter',
       'skill-creator',
       'visualize',
     ]);

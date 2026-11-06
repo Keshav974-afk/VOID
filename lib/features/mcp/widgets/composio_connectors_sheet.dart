@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/services/composio/composio_models.dart';
 import '../../../core/services/composio/composio_service.dart';
 import '../../../core/services/haptics.dart';
@@ -358,22 +359,37 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                   color: const Color(0xFF27272A),
                   borderRadius: BorderRadius.circular(8),
                 ),
+                padding: const EdgeInsets.all(6),
                 alignment: Alignment.center,
-                child: item.logo != null && item.logo!.isNotEmpty
-                    ? Image.network(
-                        item.logo!,
+                child:
+                    item.logoUrl.toLowerCase().endsWith('.svg') ||
+                        item.logoUrl.contains('logos.composio.dev')
+                    ? SvgPicture.network(
+                        item.logoUrl,
                         width: 24,
                         height: 24,
+                        fit: BoxFit.contain,
+                        placeholderBuilder: (_) => const Icon(
+                          Lucide.Layers,
+                          size: 18,
+                          color: Color(0xFF71717A),
+                        ),
                         errorBuilder: (_, __, ___) => const Icon(
                           Lucide.Layers,
                           size: 18,
-                          color: Color(0xFFF4F4F5),
+                          color: Color(0xFF71717A),
                         ),
                       )
-                    : const Icon(
-                        Lucide.Layers,
-                        size: 18,
-                        color: Color(0xFFF4F4F5),
+                    : Image.network(
+                        item.logoUrl,
+                        width: 24,
+                        height: 24,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Lucide.Layers,
+                          size: 18,
+                          color: Color(0xFF71717A),
+                        ),
                       ),
               ),
               const SizedBox(width: 12),

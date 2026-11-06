@@ -4,6 +4,7 @@ import 'package:Kelivo/utils/mcp_structured_image.dart';
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/assistant.dart';
@@ -22,6 +23,7 @@ import '../../../core/services/api/json_schema_utils.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/browser/browser_tools_service.dart';
+import '../../../core/services/composio/composio_service.dart';
 import '../../../core/services/mcp/mcp_tool_service.dart';
 import '../../../core/services/memory/memory_pipeline.dart';
 import '../../../core/services/memory/memory_tools.dart';
@@ -658,9 +660,46 @@ class ToolHandlerService {
             return localResult;
           }
 
-          if (name == LocalToolNames.askUser &&
-              assistant != null &&
-              assistant.localToolIds.contains(LocalToolNames.askUser)) {
+          final isManageMcp =
+              name == LocalToolNames.manageMcpServers ||
+              name == 'manage_mcp_servers' ||
+              name == 'manage_mcp' ||
+              name == 'mcp_servers' ||
+              name == 'create_mcp' ||
+              name == 'manage_mcp_server';
+          if (isManageMcp) {
+            return await _handleManageMcpServers(mcp, args);
+          }
+
+          final isManageProviders =
+              name == LocalToolNames.manageProviders ||
+              name == 'manage_providers' ||
+              name == 'manage_provider' ||
+              name == 'providers' ||
+              name == 'llm_providers' ||
+              name == 'add_provider';
+          if (isManageProviders) {
+            return await _handleManageProviders(settings, args);
+          }
+
+          final isConfigureSettings =
+              name == LocalToolNames.configureSettings ||
+              name == 'configure_settings' ||
+              name == 'settings_config' ||
+              name == 'app_settings' ||
+              name == 'manage_settings' ||
+              name == 'settings';
+          if (isConfigureSettings) {
+            return await _handleConfigureSettings(settings, mcp, args);
+          }
+
+          final isAskUser =
+              name == LocalToolNames.askUser ||
+              name == 'ask_user' ||
+              name == 'ask_user_input' ||
+              name == 'ask_user_v0' ||
+              name == 'ask_question';
+          if (isAskUser) {
             if (askUserService == null) {
               return _toolError(
                 error: 'ask_user_unavailable',
@@ -880,5 +919,482 @@ class ToolHandlerService {
     }
 
     return null;
+  }
+
+  static Future<String> _handleManageMcpServers(
+    McpProvider mcp,
+    Map<String, dynamic> args,
+  ) async {
+    final action = (args['action'] ?? 'list').toString().toLowerCase().trim();
+    switch (action) {
+      case 'list':
+        final list = mcp.servers.map((s) {
+          return {
+            'id': s.id,
+            'name': s.name,
+            'transport': s.transport.name,
+            'enabled': s.enabled,
+            'url': s.url,
+            'status': mcp.statusFor(s.id).name,
+            if (s.command != null) 'command': s.command,
+            if (s.headers.isNotEmpty) 'headers': s.headers.keys.toList(),
+          };
+        }).toList();
+        return jsonEncode({'status': 'success', 'servers': list});
+
+      case 'add':
+        final name = (args['name'] ?? '').toString().trim();
+        final rawTransport = (args['transport'] ?? 'http')
+            .toString()
+            .toLowerCase()
+            .trim();
+        final url = (args['url'] ?? '').toString().trim();
+        final command = (args['command'] ?? '').toString().trim();
+        final enabled = args['enabled'] is bool
+            ? (args['enabled'] as bool)
+            : true;
+        final rawHeaders = args['headers'];
+        final headers = <String, String>{};
+        if (rawHeaders is Map) {
+          for (final entry in rawHeaders.entries) {
+            headers[entry.key.toString()] = entry.value.toString();
+          }
+        }
+        final rawArgs = args['args'];
+        final cmdArgs = rawArgs is List
+            ? rawArgs.map((e) => e.toString()).toList()
+            : const <String>[];
+        final rawEnv = args['env'];
+        final env = <String, String>{};
+        if (rawEnv is Map) {
+          for (final entry in rawEnv.entries) {
+            env[entry.key.toString()] = entry.value.toString();
+          }
+        }
+
+        final transport = switch (rawTransport) {
+          'sse' => McpTransportType.sse,
+          'stdio' => McpTransportType.stdio,
+          _ => McpTransportType.http,
+        };
+
+        if (transport != McpTransportType.stdio && url.isEmpty) {
+          return jsonEncode({
+            'status': 'error',
+            'message': 'URL is required for HTTP or SSE transport.',
+          });
+        }
+        if (transport == McpTransportType.stdio && command.isEmpty) {
+          return jsonEncode({
+            'status': 'error',
+            'message': 'Command is required for stdio transport.',
+          });
+        }
+
+        final serverName = name.isNotEmpty
+            ? name
+            : (url.isNotEmpty
+                  ? Uri.tryParse(url)?.host ?? 'MCP Server'
+                  : command);
+        final id = await mcp.addServer(
+          enabled: enabled,
+          name: serverName,
+          transport: transport,
+          url: url,
+          headers: headers,
+          command: command.isNotEmpty ? command : null,
+          args: cmdArgs,
+          env: env,
+        );
+
+        return jsonEncode({
+          'status': 'success',
+          'message': 'MCP server "$serverName" added successfully.',
+          'id': id,
+          'enabled': enabled,
+        });
+
+      case 'update':
+        final id = (args['id'] ?? '').toString().trim();
+        final name = (args['name'] ?? '').toString().trim();
+        McpServerConfig? server;
+        if (id.isNotEmpty) {
+          server = mcp.getById(id);
+        }
+        if (server == null && name.isNotEmpty) {
+          server = mcp.servers
+              .where((s) => s.name.toLowerCase() == name.toLowerCase())
+              .firstOrNull;
+        }
+        if (server == null) {
+          return jsonEncode({
+            'status': 'error',
+            'message':
+                'MCP server not found. Provide a valid server id or name.',
+          });
+        }
+
+        final rawTransport = args['transport']?.toString().toLowerCase().trim();
+        final transport = rawTransport == null
+            ? server.transport
+            : switch (rawTransport) {
+                'sse' => McpTransportType.sse,
+                'stdio' => McpTransportType.stdio,
+                _ => McpTransportType.http,
+              };
+
+        Map<String, String>? headers;
+        if (args['headers'] is Map) {
+          headers = (args['headers'] as Map).map(
+            (k, v) => MapEntry(k.toString(), v.toString()),
+          );
+        }
+
+        final updated = server.copyWith(
+          name: name.isNotEmpty ? name : server.name,
+          url: args['url'] != null ? args['url'].toString().trim() : server.url,
+          enabled: args['enabled'] is bool
+              ? (args['enabled'] as bool)
+              : server.enabled,
+          transport: transport,
+          headers: headers ?? server.headers,
+        );
+        await mcp.updateServer(updated);
+
+        return jsonEncode({
+          'status': 'success',
+          'message': 'MCP server "${updated.name}" updated successfully.',
+          'id': updated.id,
+        });
+
+      case 'remove':
+      case 'delete':
+        final id = (args['id'] ?? '').toString().trim();
+        final name = (args['name'] ?? '').toString().trim();
+        String? targetId;
+        if (id.isNotEmpty && mcp.getById(id) != null) {
+          targetId = id;
+        } else if (name.isNotEmpty) {
+          targetId = mcp.servers
+              .where((s) => s.name.toLowerCase() == name.toLowerCase())
+              .firstOrNull
+              ?.id;
+        }
+        if (targetId == null) {
+          return jsonEncode({
+            'status': 'error',
+            'message': 'MCP server not found to remove.',
+          });
+        }
+        await mcp.removeServer(targetId);
+        return jsonEncode({
+          'status': 'success',
+          'message': 'MCP server removed successfully.',
+          'id': targetId,
+        });
+
+      case 'connect':
+        final id = (args['id'] ?? '').toString().trim();
+        final name = (args['name'] ?? '').toString().trim();
+        final target = id.isNotEmpty
+            ? mcp.getById(id)
+            : mcp.servers
+                  .where((s) => s.name.toLowerCase() == name.toLowerCase())
+                  .firstOrNull;
+        if (target == null) {
+          return jsonEncode({
+            'status': 'error',
+            'message': 'MCP server not found.',
+          });
+        }
+        if (!target.enabled) {
+          await mcp.updateServer(target.copyWith(enabled: true));
+        }
+        await mcp.connect(target.id);
+        return jsonEncode({
+          'status': 'success',
+          'message': 'Connected to MCP server "${target.name}".',
+          'id': target.id,
+        });
+
+      case 'disconnect':
+        final id = (args['id'] ?? '').toString().trim();
+        final name = (args['name'] ?? '').toString().trim();
+        final target = id.isNotEmpty
+            ? mcp.getById(id)
+            : mcp.servers
+                  .where((s) => s.name.toLowerCase() == name.toLowerCase())
+                  .firstOrNull;
+        if (target == null) {
+          return jsonEncode({
+            'status': 'error',
+            'message': 'MCP server not found.',
+          });
+        }
+        await mcp.disconnect(target.id);
+        return jsonEncode({
+          'status': 'success',
+          'message': 'Disconnected from MCP server "${target.name}".',
+          'id': target.id,
+        });
+
+      default:
+        return jsonEncode({
+          'status': 'error',
+          'message':
+              'Unsupported action: $action. Use list, add, update, remove, connect, or disconnect.',
+        });
+    }
+  }
+
+  static Future<String> _handleManageProviders(
+    SettingsProvider settings,
+    Map<String, dynamic> args,
+  ) async {
+    final action = (args['action'] ?? 'list').toString().toLowerCase().trim();
+    final providerKey = (args['provider'] ?? args['id'] ?? '')
+        .toString()
+        .toLowerCase()
+        .trim();
+
+    switch (action) {
+      case 'list':
+        final configs = settings.providerConfigs;
+        final list = configs.entries.map((e) {
+          return {
+            'provider': e.key,
+            'name': e.value.name,
+            'enabled': e.value.enabled,
+            'baseUrl': e.value.baseUrl,
+            'hasApiKey': e.value.apiKey.isNotEmpty,
+            'modelsCount': e.value.models.length,
+            'enabledModels': e.value.enabledModels.toList(),
+          };
+        }).toList();
+        return jsonEncode({'status': 'success', 'providers': list});
+
+      case 'get':
+        if (providerKey.isEmpty) {
+          return jsonEncode({
+            'status': 'error',
+            'message': 'Please provide provider name/key.',
+          });
+        }
+        final cfg = settings.getProviderConfig(providerKey);
+        return jsonEncode({
+          'status': 'success',
+          'provider': cfg.id,
+          'name': cfg.name,
+          'enabled': cfg.enabled,
+          'baseUrl': cfg.baseUrl,
+          'hasApiKey': cfg.apiKey.isNotEmpty,
+          'models': cfg.models,
+          'enabledModels': cfg.enabledModels.toList(),
+        });
+
+      case 'add':
+      case 'update':
+        if (providerKey.isEmpty) {
+          return jsonEncode({
+            'status': 'error',
+            'message':
+                'Provider identifier is required (e.g. "openai", "anthropic", "google", "deepseek", "xai", "groq", "openrouter", "ollama").',
+          });
+        }
+        final existing = settings.getProviderConfig(providerKey);
+        final apiKey = args['api_key']?.toString().trim();
+        final baseUrl = args['base_url']?.toString().trim();
+        final name = args['name']?.toString().trim();
+        final enabled = args['enabled'] is bool
+            ? (args['enabled'] as bool)
+            : true;
+        List<String>? models;
+        if (args['models'] is List) {
+          models = (args['models'] as List)
+              .map((e) => e.toString().trim())
+              .where((s) => s.isNotEmpty)
+              .toList();
+        }
+
+        final updated = existing.copyWith(
+          name: (name != null && name.isNotEmpty) ? name : existing.name,
+          apiKey: apiKey ?? existing.apiKey,
+          baseUrl: (baseUrl != null && baseUrl.isNotEmpty)
+              ? baseUrl
+              : existing.baseUrl,
+          enabled: enabled,
+          models: (models != null && models.isNotEmpty)
+              ? models
+              : existing.models,
+        );
+
+        await settings.setProviderConfig(providerKey, updated);
+
+        return jsonEncode({
+          'status': 'success',
+          'message': 'Provider "$providerKey" configured successfully.',
+          'provider': providerKey,
+          'enabled': updated.enabled,
+          'baseUrl': updated.baseUrl,
+          'hasApiKey': updated.apiKey.isNotEmpty,
+        });
+
+      case 'remove':
+      case 'disable':
+        if (providerKey.isEmpty) {
+          return jsonEncode({
+            'status': 'error',
+            'message': 'Provider key is required.',
+          });
+        }
+        final existing = settings.getProviderConfig(providerKey);
+        await settings.setProviderConfig(
+          providerKey,
+          existing.copyWith(enabled: false),
+        );
+        return jsonEncode({
+          'status': 'success',
+          'message': 'Provider "$providerKey" disabled successfully.',
+          'provider': providerKey,
+        });
+
+      default:
+        return jsonEncode({
+          'status': 'error',
+          'message':
+              'Unsupported action: $action. Use list, get, add, update, or remove.',
+        });
+    }
+  }
+
+  static Future<String> _handleConfigureSettings(
+    SettingsProvider settings,
+    McpProvider mcp,
+    Map<String, dynamic> args,
+  ) async {
+    final action = (args['action'] ?? 'get').toString().toLowerCase().trim();
+    switch (action) {
+      case 'get':
+        final composioKey = await ComposioService.instance.getStoredApiKey();
+        return jsonEncode({
+          'status': 'success',
+          'themeMode': settings.themeMode.name,
+          'searchEnabled': settings.searchEnabled,
+          'hasComposioKey': composioKey != null && composioKey.isNotEmpty,
+          'composioKeyType': composioKey == null
+              ? 'none'
+              : (composioKey.startsWith('ck_')
+                    ? 'consumer_mcp'
+                    : 'project_api'),
+          'ttsSelected': settings.ttsServiceSelected,
+          'searchSelected': settings.searchServiceSelected,
+        });
+
+      case 'update':
+        final updates = <String>[];
+        // 1. Composio API key
+        if (args['composio_api_key'] != null) {
+          final rawKey = args['composio_api_key'].toString().trim();
+          if (rawKey.isNotEmpty) {
+            await ComposioService.instance.setStoredApiKey(rawKey);
+            final val = await ComposioService.instance.validateKey(rawKey);
+            if (val.isValid && rawKey.startsWith('ck_')) {
+              // Auto-configure Composio MCP server
+              final existing = mcp.servers
+                  .where(
+                    (s) =>
+                        s.name.toLowerCase() == 'composio' ||
+                        s.id == 'composio',
+                  )
+                  .firstOrNull;
+              if (existing != null) {
+                await mcp.updateServer(
+                  existing.copyWith(
+                    enabled: true,
+                    url: 'https://connect.composio.dev/mcp',
+                    transport: McpTransportType.http,
+                    headers: {'x-consumer-api-key': rawKey},
+                  ),
+                );
+                unawaited(mcp.connect(existing.id));
+              } else {
+                final id = await mcp.addServer(
+                  enabled: true,
+                  name: 'Composio',
+                  transport: McpTransportType.http,
+                  url: 'https://connect.composio.dev/mcp',
+                  headers: {'x-consumer-api-key': rawKey},
+                );
+                unawaited(mcp.connect(id));
+              }
+              updates.add('Composio key validated & MCP server connected');
+            } else if (val.isValid) {
+              updates.add('Composio project key saved and validated');
+            } else {
+              updates.add('Composio key saved with notice: ${val.error}');
+            }
+          } else {
+            await ComposioService.instance.setStoredApiKey('');
+            updates.add('Composio key removed');
+          }
+        }
+
+        // 2. Theme mode
+        if (args['theme_mode'] != null) {
+          final modeStr = args['theme_mode'].toString().toLowerCase().trim();
+          final mode = switch (modeStr) {
+            'light' => ThemeMode.light,
+            'dark' => ThemeMode.dark,
+            _ => ThemeMode.system,
+          };
+          await settings.setThemeMode(mode);
+          updates.add('Theme mode set to $modeStr');
+        }
+
+        // 3. Search provider
+        if (args['search_provider'] != null) {
+          final providerName = args['search_provider']
+              .toString()
+              .toLowerCase()
+              .trim();
+          final idx = settings.searchServices.indexWhere(
+            (s) => s.id.toLowerCase().contains(providerName),
+          );
+          if (idx >= 0) {
+            await settings.setSearchServiceSelected(idx);
+            await settings.setSearchEnabled(true);
+            updates.add(
+              'Search provider set to ${settings.searchServices[idx].id}',
+            );
+          }
+        }
+
+        // 4. TTS Service
+        if (args['tts_service'] != null) {
+          final ttsName = args['tts_service'].toString().toLowerCase().trim();
+          final idx = settings.ttsServices.indexWhere(
+            (s) =>
+                s.name.toLowerCase().contains(ttsName) ||
+                s.id.toLowerCase().contains(ttsName),
+          );
+          if (idx >= 0) {
+            await settings.setTtsServiceSelected(idx);
+            updates.add('TTS service set to ${settings.ttsServices[idx].name}');
+          }
+        }
+
+        return jsonEncode({
+          'status': 'success',
+          'message': updates.isNotEmpty
+              ? updates.join('; ')
+              : 'No settings changed.',
+        });
+
+      default:
+        return jsonEncode({
+          'status': 'error',
+          'message': 'Unsupported action: $action. Use get or update.',
+        });
+    }
   }
 }

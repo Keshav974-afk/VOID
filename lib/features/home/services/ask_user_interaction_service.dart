@@ -133,6 +133,29 @@ class AskUserInteractionService extends ChangeNotifier {
 
   bool isPending(String toolCallId) => _pending.containsKey(toolCallId);
 
+  AskUserRequest? requestFor({String? toolCallId, String? conversationId}) {
+    if (toolCallId != null && toolCallId.trim().isNotEmpty) {
+      final id = toolCallId.trim();
+      if (_pending.containsKey(id)) return _pending[id];
+      for (final req in _pending.values) {
+        if (req.toolCallId == id ||
+            req.toolCallId.contains(id) ||
+            id.contains(req.toolCallId)) {
+          return req;
+        }
+      }
+    }
+    if (conversationId != null && conversationId.trim().isNotEmpty) {
+      for (final req in _pending.values) {
+        if (req.conversationId == conversationId) return req;
+      }
+    }
+    if (_pending.length == 1) {
+      return _pending.values.first;
+    }
+    return null;
+  }
+
   Future<AskUserResult> requestAnswer({
     required String toolCallId,
     required Map<String, dynamic> arguments,
@@ -159,8 +182,21 @@ class AskUserInteractionService extends ChangeNotifier {
     return completer.future;
   }
 
-  void answer(String toolCallId, Map<String, AskUserAnswerValue> answers) {
-    final request = _pending.remove(toolCallId);
+  void answer(
+    String toolCallId,
+    Map<String, AskUserAnswerValue> answers, {
+    String? conversationId,
+  }) {
+    var request = _pending.remove(toolCallId);
+    if (request == null) {
+      request = requestFor(
+        toolCallId: toolCallId,
+        conversationId: conversationId,
+      );
+      if (request != null) {
+        _pending.remove(request.toolCallId);
+      }
+    }
     if (request != null && !request._completer.isCompleted) {
       request._completer.complete(AskUserResult.answer(answers));
     }
@@ -212,56 +248,190 @@ class AskUserInteractionService extends ChangeNotifier {
   static List<AskUserQuestion> normalizeQuestions(
     Map<String, dynamic> arguments,
   ) {
-    final rawQuestions = arguments['questions'];
-    if (rawQuestions is! List) return const <AskUserQuestion>[];
-
-    final usedIds = <String>{};
     final questions = <AskUserQuestion>[];
-    for (final raw in rawQuestions.take(4)) {
-      if (raw is! Map) continue;
-      final map = raw.cast<String, dynamic>();
-      final question = (map['question'] ?? '').toString().trim();
-      if (question.isEmpty) continue;
+    final usedIds = <String>{};
 
-      var id = (map['id'] ?? '').toString().trim();
-      if (id.isEmpty || usedIds.contains(id)) {
-        id = 'q${questions.length + 1}';
-      }
-      while (usedIds.contains(id)) {
-        id = 'q${questions.length + 1}_${usedIds.length + 1}';
-      }
-      usedIds.add(id);
+    void addQuestion({
+      required String? id,
+      required String question,
+      AskUserQuestionKind kind = AskUserQuestionKind.single,
+      List<String> options = const <String>[],
+    }) {
+      final cleanQuestion = question.trim();
+      if (cleanQuestion.isEmpty) return;
 
-      final options = _normalizeOptions(map['options']);
-      var kind = _kindFromString((map['type'] ?? '').toString());
+      var cleanId = (id ?? '').trim();
+      if (cleanId.isEmpty || usedIds.contains(cleanId)) {
+        cleanId = 'q${questions.length + 1}';
+      }
+      while (usedIds.contains(cleanId)) {
+        cleanId = 'q${questions.length + 1}_${usedIds.length + 1}';
+      }
+      usedIds.add(cleanId);
 
       questions.add(
         AskUserQuestion(
-          id: id,
-          question: question,
+          id: cleanId,
+          question: cleanQuestion,
           kind: kind,
           options: options,
         ),
       );
     }
+
+    final rawQuestions = arguments['questions'];
+
+    // 1. If arguments['questions'] is a List
+    if (rawQuestions is List && rawQuestions.isNotEmpty) {
+      for (final raw in rawQuestions.take(6)) {
+        if (raw is Map) {
+          final map = raw.cast<String, dynamic>();
+          final qText =
+              (map['question'] ??
+                      map['prompt'] ??
+                      map['query'] ??
+                      map['text'] ??
+                      map['title'] ??
+                      map['message'] ??
+                      map['label'] ??
+                      '')
+                  .toString();
+          final qId = (map['id'] ?? map['name'] ?? map['key'])?.toString();
+          final isMulti =
+              map['is_multi_select'] == true ||
+              map['multi_select'] == true ||
+              map['multiple'] == true ||
+              _kindFromString((map['type'] ?? '').toString()) ==
+                  AskUserQuestionKind.multi;
+          final options = _normalizeOptions(
+            map['options'] ??
+                map['choices'] ??
+                map['items'] ??
+                map['suggestions'] ??
+                map['values'] ??
+                arguments['options'] ??
+                arguments['choices'],
+          );
+          addQuestion(
+            id: qId,
+            question: qText,
+            kind: isMulti
+                ? AskUserQuestionKind.multi
+                : AskUserQuestionKind.single,
+            options: options,
+          );
+        } else if (raw is String && raw.trim().isNotEmpty) {
+          final topLevelOptions = _normalizeOptions(
+            arguments['options'] ??
+                arguments['choices'] ??
+                arguments['items'] ??
+                arguments['suggestions'] ??
+                arguments['values'],
+          );
+          final isMulti =
+              arguments['is_multi_select'] == true ||
+              arguments['multi_select'] == true ||
+              arguments['multiple'] == true;
+          addQuestion(
+            id: null,
+            question: raw,
+            kind: isMulti
+                ? AskUserQuestionKind.multi
+                : AskUserQuestionKind.single,
+            options: topLevelOptions,
+          );
+        }
+      }
+    }
+
+    // 2. If no questions extracted yet, check top-level single question keys
+    if (questions.isEmpty) {
+      final singleText =
+          (arguments['question'] ??
+                  (rawQuestions is String ? rawQuestions : null) ??
+                  arguments['prompt'] ??
+                  arguments['query'] ??
+                  arguments['text'] ??
+                  arguments['message'] ??
+                  arguments['title'] ??
+                  arguments['input'] ??
+                  arguments['content'] ??
+                  '')
+              .toString()
+              .trim();
+      if (singleText.isNotEmpty) {
+        final isMulti =
+            arguments['is_multi_select'] == true ||
+            arguments['multi_select'] == true ||
+            arguments['multiple'] == true ||
+            _kindFromString((arguments['type'] ?? '').toString()) ==
+                AskUserQuestionKind.multi;
+        final options = _normalizeOptions(
+          arguments['options'] ??
+              arguments['choices'] ??
+              arguments['items'] ??
+              arguments['suggestions'] ??
+              arguments['values'],
+        );
+        addQuestion(
+          id: (arguments['id'] ?? 'q1').toString(),
+          question: singleText,
+          kind: isMulti
+              ? AskUserQuestionKind.multi
+              : AskUserQuestionKind.single,
+          options: options,
+        );
+      }
+    }
+
+    // 3. Fallback: inspect arguments for any question-like string parameter
+    if (questions.isEmpty) {
+      for (final entry in arguments.entries) {
+        if (entry.value is String) {
+          final str = (entry.value as String).trim();
+          if (str.isNotEmpty && (str.endsWith('?') || str.length > 5)) {
+            addQuestion(id: 'q1', question: str);
+            break;
+          }
+        }
+      }
+    }
+
     return questions;
   }
 
   static AskUserQuestionKind _kindFromString(String value) {
-    return switch (value.trim().toLowerCase()) {
-      'multi' => AskUserQuestionKind.multi,
-      _ => AskUserQuestionKind.single,
-    };
+    final lower = value.trim().toLowerCase();
+    if (lower == 'multi' ||
+        lower == 'multi_select' ||
+        lower == 'multiple' ||
+        lower == 'checkbox') {
+      return AskUserQuestionKind.multi;
+    }
+    return AskUserQuestionKind.single;
   }
 
   static List<String> _normalizeOptions(dynamic rawOptions) {
     if (rawOptions is! List) return const <String>[];
     final out = <String>[];
     for (final raw in rawOptions) {
-      final text = raw.toString().trim();
+      String text = '';
+      if (raw is Map) {
+        text =
+            (raw['label'] ??
+                    raw['value'] ??
+                    raw['text'] ??
+                    raw['title'] ??
+                    raw['name'] ??
+                    '')
+                .toString()
+                .trim();
+      } else {
+        text = raw.toString().trim();
+      }
       if (text.isEmpty || out.contains(text)) continue;
       out.add(text);
-      if (out.length == 4) break;
+      if (out.length >= 8) break;
     }
     return out;
   }

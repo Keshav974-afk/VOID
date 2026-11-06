@@ -205,6 +205,38 @@ class SandboxVpsService {
         durationMs: stopwatch.elapsedMilliseconds,
       );
     } catch (e) {
+      // Local desktop shell fallback on Windows, macOS, and Linux when SSH is unconfigured or unreachable
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        try {
+          final proc = Platform.isWindows
+              ? await Process.run(
+                  'powershell',
+                  ['-NoProfile', '-NonInteractive', '-Command', command],
+                  workingDirectory: (cwd != null && Directory(cwd).existsSync())
+                      ? cwd
+                      : null,
+                ).timeout(Duration(seconds: timeoutSeconds ?? 20))
+              : await Process.run(
+                  '/bin/sh',
+                  ['-c', command],
+                  workingDirectory: (cwd != null && Directory(cwd).existsSync())
+                      ? cwd
+                      : null,
+                ).timeout(Duration(seconds: timeoutSeconds ?? 20));
+          stopwatch.stop();
+          return SandboxVpsToolResult(
+            status: proc.exitCode == 0 ? 'success' : 'error',
+            action: 'exec',
+            host: 'local (${Platform.operatingSystem})',
+            command: command,
+            stdout: proc.stdout.toString(),
+            stderr: proc.stderr.toString(),
+            exitCode: proc.exitCode,
+            durationMs: stopwatch.elapsedMilliseconds,
+          );
+        } catch (_) {}
+      }
+
       // Local fallback for curl/http operations when remote SSH is unreachable
       if (_isCurlCommand(command)) {
         try {

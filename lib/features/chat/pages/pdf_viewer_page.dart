@@ -16,25 +16,16 @@ import '../../../theme/app_font_weights.dart';
 /// complete with top close button, zoom/pan navigation, and bottom
 /// Download & Share actions.
 class PdfViewerPage extends StatefulWidget {
-  const PdfViewerPage({
-    super.key,
-    required this.filePath,
-    this.title,
-  });
+  const PdfViewerPage({super.key, required this.filePath, this.title});
 
   final String filePath;
   final String? title;
 
-  static Route<void> route({
-    required String filePath,
-    String? title,
-  }) {
+  static Route<void> route({required String filePath, String? title}) {
     return PageRouteBuilder<void>(
       opaque: true,
-      pageBuilder: (_, __, ___) => PdfViewerPage(
-        filePath: filePath,
-        title: title,
-      ),
+      pageBuilder: (_, __, ___) =>
+          PdfViewerPage(filePath: filePath, title: title),
       transitionDuration: const Duration(milliseconds: 250),
       reverseTransitionDuration: const Duration(milliseconds: 200),
       transitionsBuilder: (_, animation, __, child) {
@@ -50,9 +41,10 @@ class PdfViewerPage extends StatefulWidget {
 class _PdfViewerPageState extends State<PdfViewerPage> {
   late final PdfViewerController _pdfViewerController;
   bool _isSaving = false;
+  int _pageNumber = 1;
+  int _pageCount = 0;
 
-  String get _displayTitle =>
-      widget.title ?? p.basename(widget.filePath);
+  String get _displayTitle => widget.title ?? p.basename(widget.filePath);
 
   @override
   void initState() {
@@ -94,7 +86,8 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
       }
 
       if (targetDir == null) {
-        final d = await getDownloadsDirectory() ??
+        final d =
+            await getDownloadsDirectory() ??
             await getApplicationDocumentsDirectory();
         targetDir = d.path;
       }
@@ -180,11 +173,7 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
-                      Lucide.X,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+                    icon: const Icon(Lucide.X, color: Colors.white, size: 24),
                     splashRadius: 22,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -201,6 +190,59 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
                       ),
                     ),
                   ),
+                  if (_pageCount > 0) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$_pageNumber / $_pageCount',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 12,
+                          fontWeight: AppFontWeights.semibold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  IconButton(
+                    icon: const Icon(
+                      Lucide.ZoomOut,
+                      color: Colors.white70,
+                      size: 19,
+                    ),
+                    tooltip: 'Zoom Out',
+                    splashRadius: 20,
+                    onPressed: () {
+                      _pdfViewerController.zoomLevel =
+                          (_pdfViewerController.zoomLevel - 0.25).clamp(
+                            1.0,
+                            3.0,
+                          );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Lucide.ZoomIn,
+                      color: Colors.white70,
+                      size: 19,
+                    ),
+                    tooltip: 'Zoom In',
+                    splashRadius: 20,
+                    onPressed: () {
+                      _pdfViewerController.zoomLevel =
+                          (_pdfViewerController.zoomLevel + 0.25).clamp(
+                            1.0,
+                            3.0,
+                          );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -211,9 +253,27 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
                   ? SfPdfViewer.file(
                       file,
                       controller: _pdfViewerController,
-                      canShowScrollHead: false,
+                      canShowScrollHead: true,
                       canShowScrollStatus: true,
                       pageSpacing: 8,
+                      onDocumentLoaded: (details) {
+                        if (mounted) {
+                          setState(() {
+                            _pageCount = details.document.pages.count;
+                            _pageNumber = _pdfViewerController.pageNumber.clamp(
+                              1,
+                              _pageCount,
+                            );
+                          });
+                        }
+                      },
+                      onPageChanged: (details) {
+                        if (mounted) {
+                          setState(() {
+                            _pageNumber = details.newPageNumber;
+                          });
+                        }
+                      },
                     )
                   : const Center(
                       child: Text(
@@ -223,10 +283,10 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
                     ),
             ),
 
-            // Bottom Bar with Download and Share buttons
+            // Bottom Bar with Download, Share, and Open Externally buttons
             Container(
               height: 64,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: const Color(0xFF161A22),
                 border: Border(
@@ -237,7 +297,7 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
                 ),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   // Download Button
                   _buildBottomActionButton(
@@ -251,6 +311,13 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
                     icon: Lucide.Share2,
                     label: 'Share',
                     onTap: _handleShare,
+                  ),
+
+                  // Open Externally Button
+                  _buildBottomActionButton(
+                    icon: Lucide.ExternalLink,
+                    label: 'Open App',
+                    onTap: () => OpenFilex.open(widget.filePath),
                   ),
                 ],
               ),

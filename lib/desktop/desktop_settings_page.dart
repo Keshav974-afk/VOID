@@ -103,6 +103,7 @@ import '../theme/custom_theme.dart';
 import '../features/settings/widgets/custom_theme_widgets.dart';
 import '../features/settings/pages/message_style_settings_page.dart';
 import '../features/settings/pages/connectors_page.dart';
+import '../features/settings/pages/desktop_control_settings_page.dart';
 import '../shared/widgets/tip_icon.dart';
 
 part 'setting/assistants_pane.dart';
@@ -126,6 +127,7 @@ enum _SettingsMenuItem {
   assistant,
   providers,
   connectors,
+  desktopControl,
   defaultModel,
   search,
   toolSchemas,
@@ -331,6 +333,11 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                           return const ConnectorsPage(
                             key: ValueKey('connectors'),
                           );
+                        case _SettingsMenuItem.desktopControl:
+                          return const DesktopControlSettingsPage(
+                            key: ValueKey('desktopControl'),
+                            embedded: true,
+                          );
                         case _SettingsMenuItem.defaultModel:
                           return const DesktopDefaultModelPane(
                             key: ValueKey('defaultModel'),
@@ -440,6 +447,11 @@ class _SettingsMenu extends StatelessWidget {
         _SettingsMenuItem.connectors,
         lucide.Lucide.Link2,
         l10n.settingsPageConnectors,
+      ),
+      (
+        _SettingsMenuItem.desktopControl,
+        lucide.Lucide.Monitor,
+        'Desktop Control',
       ),
       (
         _SettingsMenuItem.assistant,

@@ -21,11 +21,14 @@ import '../../../core/services/haptics.dart';
 import '../../../shared/widgets/optional_shader_mask.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
-import 'package:open_filex/open_filex.dart';
 // import 'package:easy_image_viewer/easy_image_viewer.dart';
 import 'dart:convert';
 import '../../home/widgets/file_processing_indicator.dart';
+import '../../home/services/local_tool_labels.dart';
+import '../../workspace/widgets/preview/file_preview.dart';
+import '../../workspace/widgets/preview/preview_file_type.dart';
 import '../pages/image_viewer_page.dart';
+import '../pages/pdf_viewer_page.dart';
 import '../../browser/browser_navigation.dart';
 import '../../browser/widgets/browser_page_card.dart';
 import '../../browser/widgets/browser_favicon.dart';
@@ -511,10 +514,10 @@ IconData _toolIconFor(String name, [Map<String, dynamic> args = const {}]) {
 }
 
 IconData? _localToolIconFor(String name, Map<String, dynamic> args) {
-  if (name == LocalToolNames.askUser) {
+  if (LocalToolsService.isAskUserTool(name)) {
     return Lucide.MessageCircleQuestionMark;
   }
-  return switch (name) {
+  final baseIcon = switch (name) {
     LocalToolNames.timeInfo => Lucide.clock,
     LocalToolNames.clipboard => switch ((args['action'] ?? '').toString()) {
       'read' => Lucide.ClipboardCheck,
@@ -528,6 +531,7 @@ IconData? _localToolIconFor(String name, Map<String, dynamic> args) {
     LocalToolNames.calendarCreate => Lucide.CalendarPlus,
     LocalToolNames.currentLocation => Lucide.MapPin,
     LocalToolNames.phoneControl => Lucide.Smartphone,
+    LocalToolNames.desktopControl => Lucide.Monitor,
     LocalToolNames.browser => LucideIcons.appWindow,
     LocalToolNames.weather => Lucide.CloudSun,
     LocalToolNames.healthSummary => Lucide.HeartPulse,
@@ -536,6 +540,10 @@ IconData? _localToolIconFor(String name, Map<String, dynamic> args) {
     LocalToolNames.remindersComplete => Lucide.CheckCircle,
     _ => null,
   };
+  if (baseIcon != null) return baseIcon;
+  final catalog = localToolIcon(name);
+  if (catalog != Lucide.Wrench) return catalog;
+  return null;
 }
 
 String? _localToolTitleFor(
@@ -543,10 +551,10 @@ String? _localToolTitleFor(
   String name,
   Map<String, dynamic> args,
 ) {
-  if (name == LocalToolNames.askUser) {
+  if (LocalToolsService.isAskUserTool(name)) {
     return _askUserToolTitleFor(l10n, args);
   }
-  return switch (name) {
+  final baseTitle = switch (name) {
     LocalToolNames.timeInfo => l10n.assistantEditLocalToolTimeInfoTitle,
     LocalToolNames.clipboard => switch ((args['action'] ?? '').toString()) {
       'read' => l10n.chatMessageWidgetReadClipboard,
@@ -562,6 +570,22 @@ String? _localToolTitleFor(
       l10n.assistantEditLocalToolCalendarCreateTitle,
     LocalToolNames.currentLocation => l10n.assistantEditLocalToolLocationTitle,
     LocalToolNames.phoneControl => l10n.phoneControlTitle,
+    LocalToolNames.desktopControl => switch ((args['action'] ?? '')
+        .toString()
+        .toLowerCase()) {
+      'screenshot' || 'take_screenshot' => 'Desktop · Capture Screenshot',
+      'system_info' || 'get_system_info' || 'status' => 'Desktop · System Info',
+      'list_windows' || 'read_screen' => 'Desktop · Inspect Windows',
+      'focus_window' => 'Desktop · Focus Window',
+      'close_window' => 'Desktop · Close Window',
+      'open_app' || 'launch_app' => 'Desktop · Launch App',
+      'open_url' => 'Desktop · Open URL',
+      'click' || 'double_click' || 'right_click' => 'Desktop · Mouse Click',
+      'type_text' || 'set_text' => 'Desktop · Type Text',
+      'send_keys' || 'hotkey' => 'Desktop · Keyboard Shortcut',
+      'volume' || 'media' => 'Desktop · Audio Control',
+      _ => 'Desktop Control',
+    },
     LocalToolNames.browser => browserActionLabel(
       l10n,
       args['action']?.toString() ?? '',
@@ -576,6 +600,10 @@ String? _localToolTitleFor(
       l10n.assistantEditLocalToolRemindersCompleteTitle,
     _ => null,
   };
+  if (baseTitle != null) return baseTitle;
+  final catalogTitle = localToolTitle(l10n, name);
+  if (catalogTitle != name) return catalogTitle;
+  return null;
 }
 
 String _textToSpeechToolText(Map<String, dynamic> args) {
@@ -664,7 +692,7 @@ String _toolTitleFor(
   required bool isResult,
 }) {
   final l10n = AppLocalizations.of(context)!;
-  if (name == LocalToolNames.askUser) {
+  if (LocalToolsService.isAskUserTool(name)) {
     return UnicodeSanitizer.sanitize(_askUserToolTitleFor(l10n, args));
   }
   final localToolTitle = _localToolTitleFor(l10n, name, args);
@@ -2717,23 +2745,37 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                         );
                         return;
                       }
-                      final res = await OpenFilex.open(
-                        fixed,
-                        type: d.mime ?? 'application/octet-stream',
-                      );
-                      if (res.type != ResultType.done) {
+                      final extLower = d.name.contains('.')
+                          ? '.${d.name.split('.').last.toLowerCase()}'
+                          : '';
+                      if (extLower == '.pdf') {
                         if (!context.mounted) return;
-                        final openMessage = res.message;
-                        showAppSnackBar(
-                          context,
-                          message: l10n.chatMessageWidgetCannotOpenFile(
-                            openMessage.isNotEmpty
-                                ? openMessage
-                                : res.type.toString(),
-                          ),
-                          type: NotificationType.error,
+                        await Navigator.of(context).push(
+                          PdfViewerPage.route(filePath: f.path, title: d.name),
                         );
+                        return;
                       }
+                      if (kPreviewImageExtensions.contains(extLower)) {
+                        if (!context.mounted) return;
+                        await Navigator.of(context).push(
+                          PageRouteBuilder<void>(
+                            opaque: false,
+                            pageBuilder: (_, __, ___) => ImageViewerPage(
+                              images: [f.path],
+                              initialIndex: 0,
+                            ),
+                            transitionDuration: const Duration(
+                              milliseconds: 300,
+                            ),
+                            reverseTransitionDuration: const Duration(
+                              milliseconds: 250,
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      if (!context.mounted) return;
+                      await showFilePreview(context, f, title: d.name);
                     } catch (e) {
                       if (!context.mounted) return;
                       showAppSnackBar(
@@ -2745,27 +2787,29 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                       );
                     }
                   },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.insert_drive_file,
-                  size: 16,
-                  color: cs.onSurface.withValues(alpha: 0.72),
-                ),
-                const SizedBox(width: 6),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 180),
-                  child: Text(
-                    d.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: cs.onSurface.withValues(alpha: 0.86),
+            child: Builder(
+              builder: (context) {
+                final typeStyle = previewFileTypeStyle(d.name);
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(typeStyle.icon, size: 16, color: typeStyle.color),
+                    const SizedBox(width: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      child: Text(
+                        d.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: AppFontWeights.medium,
+                          color: cs.onSurface.withValues(alpha: 0.88),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         );
@@ -6455,7 +6499,7 @@ class _ChainOfThoughtToolStep extends StatefulWidget {
 }
 
 class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
-  bool get _isAskUser => widget.part.toolName == LocalToolNames.askUser;
+  bool get _isAskUser => LocalToolsService.isAskUserTool(widget.part.toolName);
   bool? _askUserExpanded;
 
   String? _cachedContent;
@@ -6605,6 +6649,7 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 13,
+          height: 1.35,
           fontWeight: AppFontWeights.semibold,
           color: fg.strong,
         ),
@@ -6625,7 +6670,11 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
     final sportsResult = widget.part.toolName == LocalToolNames.sports
         ? SportsToolResult.tryParse(cleanText)
         : null;
-    final vpsResult = widget.part.toolName == LocalToolNames.sandboxVps
+    final vpsResult =
+        (widget.part.toolName == LocalToolNames.sandboxVps ||
+            widget.part.toolName == LocalToolNames.bash ||
+            widget.part.toolName == 'bash' ||
+            widget.part.toolName == 'shell')
         ? SandboxVpsToolResult.tryParse(cleanText)
         : null;
     final siteInspectResult = widget.part.toolName == LocalToolNames.inspectSite
@@ -6648,7 +6697,11 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
         ? _textToSpeechToolText(widget.part.arguments)
         : '';
     final Widget? summaryContent = _isAskUser
-        ? _AskUserInlineBody(part: widget.part, compact: true)
+        ? _AskUserInlineBody(
+            part: widget.part,
+            compact: true,
+            conversationId: widget.conversationId,
+          )
         : isWorkspace
         ? WorkspaceToolCardBody(
             part: workspacePart,
@@ -6894,8 +6947,11 @@ class _ToolCallItemState extends State<_ToolCallItem> {
         ? _textToSpeechToolText(widget.part.arguments)
         : '';
 
-    if (widget.part.toolName == LocalToolNames.askUser) {
-      return _AskUserToolCard(part: widget.part);
+    if (LocalToolsService.isAskUserTool(widget.part.toolName)) {
+      return _AskUserToolCard(
+        part: widget.part,
+        conversationId: widget.conversationId,
+      );
     }
 
     final workspacePart = _workspacePartFromUi(widget.part);
@@ -6996,6 +7052,7 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                           ),
                           style: TextStyle(
                             fontSize: 13,
+                            height: 1.35,
                             fontWeight: AppFontWeights.emphasis,
                             color: isPendingApproval ? fg.accent : fg.strong,
                           ),
@@ -7160,7 +7217,10 @@ class _ToolCallItemState extends State<_ToolCallItem> {
             ],
             if (!widget.part.loading &&
                 !isPendingApproval &&
-                widget.part.toolName == LocalToolNames.sandboxVps) ...[
+                (widget.part.toolName == LocalToolNames.sandboxVps ||
+                    widget.part.toolName == LocalToolNames.bash ||
+                    widget.part.toolName == 'bash' ||
+                    widget.part.toolName == 'shell')) ...[
               Builder(
                 builder: (context) {
                   final vRes = SandboxVpsToolResult.tryParse(
@@ -7340,9 +7400,10 @@ class _ToolCallItemState extends State<_ToolCallItem> {
 }
 
 class _AskUserToolCard extends StatefulWidget {
-  const _AskUserToolCard({required this.part});
+  const _AskUserToolCard({required this.part, this.conversationId});
 
   final ToolUIPart part;
+  final String? conversationId;
 
   @override
   State<_AskUserToolCard> createState() => _AskUserToolCardState();
@@ -7401,6 +7462,7 @@ class _AskUserToolCardState extends State<_AskUserToolCard> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
+                      height: 1.35,
                       fontWeight: AppFontWeights.emphasis,
                       color: fg.strong,
                     ),
@@ -7433,7 +7495,10 @@ class _AskUserToolCardState extends State<_AskUserToolCard> {
             child: expanded
                 ? Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: _AskUserInlineBody(part: widget.part),
+                    child: _AskUserInlineBody(
+                      part: widget.part,
+                      conversationId: widget.conversationId,
+                    ),
                   )
                 : const SizedBox.shrink(),
           ),
@@ -7444,10 +7509,15 @@ class _AskUserToolCardState extends State<_AskUserToolCard> {
 }
 
 class _AskUserInlineBody extends StatefulWidget {
-  const _AskUserInlineBody({required this.part, this.compact = false});
+  const _AskUserInlineBody({
+    required this.part,
+    this.compact = false,
+    this.conversationId,
+  });
 
   final ToolUIPart part;
   final bool compact;
+  final String? conversationId;
 
   @override
   State<_AskUserInlineBody> createState() => _AskUserInlineBodyState();
@@ -7571,7 +7641,11 @@ class _AskUserInlineBodyState extends State<_AskUserInlineBody> {
   ) async {
     final answers = _buildAnswers(questions);
     if (pendingRequest != null) {
-      askUserService.answer(widget.part.id, answers);
+      askUserService.answer(
+        pendingRequest.toolCallId,
+        answers,
+        conversationId: pendingRequest.conversationId,
+      );
       return;
     }
 
@@ -7600,7 +7674,13 @@ class _AskUserInlineBodyState extends State<_AskUserInlineBody> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final askUserService = context.watch<AskUserInteractionService>();
-    final pendingRequest = askUserService.pendingRequests[widget.part.id];
+    final effectiveConversationId =
+        widget.conversationId ??
+        _RecoveredAskUserAction.maybeOf(context)?.conversationId;
+    final pendingRequest = askUserService.requestFor(
+      toolCallId: widget.part.id,
+      conversationId: effectiveConversationId,
+    );
     final storedQuestions = AskUserInteractionService.normalizeQuestions(
       widget.part.arguments,
     );

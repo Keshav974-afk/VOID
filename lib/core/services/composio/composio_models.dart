@@ -17,6 +17,14 @@ class ComposioToolkit {
     this.isConnected = false,
   });
 
+  String get logoUrl {
+    final l = logo?.trim();
+    if (l != null && l.isNotEmpty && !l.contains('assets.composio.dev')) {
+      return l;
+    }
+    return 'https://logos.composio.dev/api/${slug.toLowerCase()}';
+  }
+
   ComposioToolkit copyWith({
     String? slug,
     String? name,
@@ -44,7 +52,13 @@ class ComposioToolkit {
     final slug = (json['slug'] ?? json['key'] ?? json['id'] ?? '').toString();
     final name = (json['name'] ?? json['displayName'] ?? json['title'] ?? slug)
         .toString();
-    final logo = json['logo'] as String? ?? json['icon'] as String?;
+    final rawLogo = json['logo'] as String? ?? json['icon'] as String?;
+    final logo =
+        (rawLogo != null &&
+            rawLogo.isNotEmpty &&
+            !rawLogo.contains('assets.composio.dev'))
+        ? rawLogo
+        : 'https://logos.composio.dev/api/${slug.toLowerCase()}';
     final description =
         json['description'] as String? ?? json['summary'] as String?;
     final category =

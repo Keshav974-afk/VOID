@@ -257,7 +257,7 @@ bool isTimelineToolVisible({
 }) {
   if (filterBuiltinSearch && !toolCreatesTimelineCard(toolName)) return false;
   if (showToolCards) return true;
-  if (toolName == LocalToolNames.askUser) return true;
+  if (LocalToolsService.isAskUserTool(toolName)) return true;
   return loading && pendingApproval;
 }
 
@@ -362,7 +362,7 @@ double estimateToolExtraHeight({
   })
   wrappedLineCount,
 }) {
-  if (toolName == LocalToolNames.askUser) {
+  if (LocalToolsService.isAskUserTool(toolName)) {
     return _estimateAskUserExtra(
       arguments,
       content: content,
@@ -408,7 +408,10 @@ double estimateToolExtraHeight({
       return sportsRes.games.length * 75.0 * fontScale;
     }
   }
-  if (toolName == LocalToolNames.sandboxVps) {
+  if (toolName == LocalToolNames.sandboxVps ||
+      toolName == LocalToolNames.bash ||
+      toolName == 'bash' ||
+      toolName == 'shell') {
     final vpsRes = SandboxVpsToolResult.tryParse(cleanText);
     if (vpsRes != null) {
       return 140.0 * fontScale;

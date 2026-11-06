@@ -24,6 +24,7 @@ import 'csv_file_preview.dart';
 import 'html_file_preview.dart';
 import 'image_file_preview.dart';
 import 'markdown_file_preview.dart';
+import 'office_and_pdf_file_preview.dart';
 import 'preview_actions.dart';
 import 'preview_file_type.dart';
 
@@ -32,6 +33,7 @@ export 'csv_file_preview.dart';
 export 'html_file_preview.dart';
 export 'image_file_preview.dart';
 export 'markdown_file_preview.dart';
+export 'office_and_pdf_file_preview.dart';
 export 'preview_actions.dart';
 export 'preview_file_type.dart'
     show highlightLanguageFor, languageForExtension, languageForPath;
@@ -44,11 +46,15 @@ const Set<String> _htmlExtensions = {'.html', '.htm', '.svg'};
 
 const Set<String> _csvExtensions = {'.csv', '.tsv'};
 
-enum FilePreviewKind { image, markdown, html, csv, code, binary }
+const Set<String> _officeExtensions = {'.docx', '.pptx', '.xlsx'};
+
+enum FilePreviewKind { image, pdf, office, markdown, html, csv, code, binary }
 
 Future<FilePreviewKind> classifyFilePreview(File file) async {
   final ext = p.extension(file.path).toLowerCase();
   if (kPreviewImageExtensions.contains(ext)) return FilePreviewKind.image;
+  if (ext == '.pdf') return FilePreviewKind.pdf;
+  if (_officeExtensions.contains(ext)) return FilePreviewKind.office;
   if (_markdownExtensions.contains(ext)) return FilePreviewKind.markdown;
   if (_htmlExtensions.contains(ext)) return FilePreviewKind.html;
   if (_csvExtensions.contains(ext)) return FilePreviewKind.csv;
@@ -164,6 +170,10 @@ Widget buildFilePreviewBody({
   switch (kind) {
     case FilePreviewKind.image:
       return ImageFilePreview(file: file, autoLoad: autoLoad);
+    case FilePreviewKind.pdf:
+      return PdfFilePreview(file: file);
+    case FilePreviewKind.office:
+      return OfficeFilePreview(file: file, autoLoad: autoLoad);
     case FilePreviewKind.markdown:
       return MarkdownFilePreview(file: file, autoLoad: autoLoad);
     case FilePreviewKind.html:

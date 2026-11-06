@@ -1,0 +1,174 @@
+name: Build Windows PC (.exe)
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish to GitHub Release'
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  windows:
+    name: Build Windows PC (EXE & Installer)
+    runs-on: windows-latest
+    permissions: write-all
+
+    steps:
+      - name: 📦 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Install Latest CMake
+        uses: lukka/get-cmake@latest
+
+      - name: 🐦 Setup Flutter (Master)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: master
+          cache: true
+
+      - name: 📝 Inject fallback
+        shell: bash
+        run: |
+          mkdir -p lib/secrets
+          cat > lib/secrets/fallback.dart <<'EOF'
+          const String siliconflowFallbackKey = '${{ secrets.SILICONFLOW_KEY }}';
+          EOF
+
+      - name: 🔧 Get Dependencies
+        run: flutter pub get
+
+      - name: 📝 Get Version
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path pubspec.yaml -Pattern "version:" | ForEach-Object { $_.Line.Split(":")[1].Trim() })
+          echo "VERSION=$version" >> $env:GITHUB_ENV
+          Write-Host "Version: $version"
+
+      - name: 🏗️ Build Windows Release
+        run: flutter build windows --release
+
+      - name: 📦 Package ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "Kelivo_windows_$env:VERSION.zip"
+
+      - name: 🔧 Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: 📦 Create Windows Installer
+        shell: pwsh
+        run: |
+          $zhLangCompiler = "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
+          $zhLangLocalDir = Join-Path (Get-Location) "Languages"
+          $zhLangLocal = Join-Path $zhLangLocalDir "ChineseSimplified.isl"
+          $languagesBlock = $null
+
+          if (Test-Path $zhLangCompiler) {
+            Write-Host "Found ChineseSimplified.isl in Inno Setup compiler dir"
+            $languagesBlock = @"
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+          Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+          "@
+          } else {
+            try {
+              New-Item -ItemType Directory -Force -Path $zhLangLocalDir | Out-Null
+              $uri = 'https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/ChineseSimplified.isl'
+              Invoke-WebRequest -Uri $uri -OutFile $zhLangLocal -UseBasicParsing -TimeoutSec 60
+              if (Test-Path $zhLangLocal) {
+                $languagesBlock = @"
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+          Name: "chinesesimplified"; MessagesFile: "$zhLangLocal"
+          "@
+              }
+            } catch {
+              Write-Host "Could not download ChineseSimplified.isl: $($_.Exception.Message)"
+            }
+
+            if (-not $languagesBlock) {
+              $languagesBlock = @"
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+          "@
+            }
+          }
+
+          $issContent = @"
+          #define MyAppName "Kelivo"
+          #define MyAppVersion "$env:VERSION"
+          #define MyAppPublisher "Kelivo"
+          #define MyAppExeName "kelivo.exe"
+
+          [Setup]
+          AppId={{A7B8C9D0-E1F2-4A5B-8C9D-0E1F2A3B4C5D}}
+          AppName={#MyAppName}
+          AppVersion={#MyAppVersion}
+          AppPublisher={#MyAppPublisher}
+          DefaultDirName={autopf}\{#MyAppName}
+          DefaultGroupName={#MyAppName}
+          OutputDir=.
+          OutputBaseFilename=Kelivo_windows_{#MyAppVersion}_setup
+          Compression=lzma2
+          SolidCompression=yes
+          WizardStyle=modern
+          ArchitecturesInstallIn64BitMode=x64
+          ArchitecturesAllowed=x64
+          UninstallDisplayIcon={app}\{#MyAppExeName}
+
+          $languagesBlock
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+          Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+          Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+          "@
+
+          $issContent | Out-File -FilePath "installer.iss" -Encoding utf8BOM
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+
+      - name: 🚀 Publish to Release (Optional)
+        if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: ${{ github.event.inputs.release_tag }}
+          files: |
+            Kelivo_windows_*.zip
+            Kelivo_windows_*_setup.exe
+
+      - name: 📤 Upload Windows Portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-ZIP
+          path: Kelivo_windows_*.zip
+
+      - name: 📤 Upload Windows Installer EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Installer
+          path: Kelivo_windows_*_setup.exe

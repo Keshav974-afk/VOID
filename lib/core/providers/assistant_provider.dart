@@ -93,6 +93,13 @@ class AssistantProvider extends ChangeNotifier {
           LocalToolNames.sports,
           LocalToolNames.mediaProcess,
           LocalToolNames.documentTool,
+          LocalToolNames.manageMcpServers,
+          LocalToolNames.manageProviders,
+          LocalToolNames.configureSettings,
+          LocalToolNames.askUser,
+          LocalToolNames.setReminder,
+          LocalToolNames.composioConnect,
+          LocalToolNames.desktopControl,
         ].where((t) => !_assistants[i].localToolIds.contains(t)).toList();
         if (toolsToAdd.isNotEmpty) {
           _assistants[i] = _assistants[i].copyWith(
@@ -101,14 +108,22 @@ class AssistantProvider extends ChangeNotifier {
           changed = true;
         }
         if (a.systemPrompt.contains('You are VOID') &&
-            !a.systemPrompt.contains('Local vs Remote VPS Execution Boundary')) {
+            !a.systemPrompt.contains(
+              'Local vs Remote VPS Execution Boundary',
+            )) {
           _assistants[i] = _assistants[i].copyWith(
-            systemPrompt: a.systemPrompt.replaceFirst(
-              '4. Language Consistency',
-              '4. Local vs Remote VPS Execution Boundary (STRICT):\n'
-              '   - LOCAL FIRST: Every task that can be done locally MUST be done locally on the user\'s device. Specifically, for ALL PDF creation, letters, forms, and documents, ALWAYS use manage_document (action: \'create_pdf\'). NEVER write Python scripts, pandoc commands, or use bash/sandbox_vps to generate PDFs or documents. Documents created with manage_document run natively on the device and offer instant interactive viewing, pinch/zoom, and direct downloading.\n'
-              '   - REMOTE VPS ONLY WHEN NECESSARY: Use sandbox_vps or bash ONLY for tasks that CANNOT be done locally on the user\'s device (e.g. running Linux shell commands, compiling code, testing scripts, installing packages via apt/pip, running backend services, curl, or network tools). If a task can be done locally, DO NOT use the VPS.\n5. Language Consistency',
-            ).replaceFirst('5. LaTeX & KaTeX Math', '6. LaTeX & KaTeX Math').replaceFirst('6. Intellectual Honesty', '7. Intellectual Honesty'),
+            systemPrompt: a.systemPrompt
+                .replaceFirst(
+                  '4. Language Consistency',
+                  '4. Local vs Remote VPS Execution Boundary (STRICT):\n'
+                      '   - LOCAL FIRST: Every task that can be done locally MUST be done locally on the user\'s device. Specifically, for ALL PDF creation, letters, forms, and documents, ALWAYS use manage_document (action: \'create_pdf\'). NEVER write Python scripts, pandoc commands, or use bash/sandbox_vps to generate PDFs or documents. Documents created with manage_document run natively on the device and offer instant interactive viewing, pinch/zoom, and direct downloading.\n'
+                      '   - REMOTE VPS ONLY WHEN NECESSARY: Use sandbox_vps or bash ONLY for tasks that CANNOT be done locally on the user\'s device (e.g. running Linux shell commands, compiling code, testing scripts, installing packages via apt/pip, running backend services, curl, or network tools). If a task can be done locally, DO NOT use the VPS.\n5. Language Consistency',
+                )
+                .replaceFirst('5. LaTeX & KaTeX Math', '6. LaTeX & KaTeX Math')
+                .replaceFirst(
+                  '6. Intellectual Honesty',
+                  '7. Intellectual Honesty',
+                ),
           );
           changed = true;
         }
@@ -184,6 +199,12 @@ class AssistantProvider extends ChangeNotifier {
       LocalToolNames.sandboxVps,
       LocalToolNames.bash,
       LocalToolNames.inspectSite,
+      LocalToolNames.manageMcpServers,
+      LocalToolNames.manageProviders,
+      LocalToolNames.configureSettings,
+      LocalToolNames.setReminder,
+      LocalToolNames.composioConnect,
+      LocalToolNames.desktopControl,
     ],
   );
 

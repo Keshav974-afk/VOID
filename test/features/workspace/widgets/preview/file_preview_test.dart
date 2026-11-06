@@ -253,7 +253,23 @@ void main() {
 
     final pdf = File(p.join(tempDir.path, 'doc.pdf'))
       ..writeAsBytesSync(const [0x25, 0x50, 0x44, 0x46, 0x2D, 0x00, 0x01]);
-    expect(await classifyFilePreview(pdf), FilePreviewKind.binary);
+    expect(await classifyFilePreview(pdf), FilePreviewKind.pdf);
+
+    final docx = File(p.join(tempDir.path, 'report.docx'))
+      ..writeAsBytesSync(const [0x50, 0x4B, 0x03, 0x04, 0x00, 0x01]);
+    expect(await classifyFilePreview(docx), FilePreviewKind.office);
+
+    final xlsx = File(p.join(tempDir.path, 'sheet.xlsx'))
+      ..writeAsBytesSync(const [0x50, 0x4B, 0x03, 0x04, 0x00, 0x01]);
+    expect(await classifyFilePreview(xlsx), FilePreviewKind.office);
+
+    final pptx = File(p.join(tempDir.path, 'deck.pptx'))
+      ..writeAsBytesSync(const [0x50, 0x4B, 0x03, 0x04, 0x00, 0x01]);
+    expect(await classifyFilePreview(pptx), FilePreviewKind.office);
+
+    final bin = File(p.join(tempDir.path, 'raw.bin'))
+      ..writeAsBytesSync(const [0x89, 0x00, 0x01, 0x02]);
+    expect(await classifyFilePreview(bin), FilePreviewKind.binary);
 
     final sniffed = File(p.join(tempDir.path, 'unknown.dat'))
       ..writeAsStringSync('plain text without nuls');

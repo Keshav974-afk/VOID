@@ -233,6 +233,10 @@ flutter:
     - assets/skills/phone-control/
     - assets/skills/deep-research/
     - assets/skills/code-sandbox/
+    - assets/skills/pdf-studio/
+    - assets/skills/pptx-presenter/
+    - assets/skills/excel-architect/
+    - assets/skills/docx-writer/
     - assets/skills/visualize/
     - assets/skills/visualize/references/
     - assets/model_catalog/models_dev.json

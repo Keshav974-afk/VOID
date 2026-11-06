@@ -91,6 +91,21 @@ class DocumentTextExtractor {
         return _extractDocxSync(path);
       }
 
+      if (mime ==
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+        return _extractPptxSync(path);
+      }
+
+      if (mime ==
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        return _extractXlsxSync(path);
+      }
+
+      final extLower = p.extension(path).toLowerCase();
+      if (extLower == '.docx') return _extractDocxSync(path);
+      if (extLower == '.pptx') return _extractPptxSync(path);
+      if (extLower == '.xlsx') return _extractXlsxSync(path);
+
       // Unknown types may be archives or executables. Probe a small prefix
       // before deciding whether a text read is useful.
       final probe = source.openSync();
@@ -152,6 +167,150 @@ class DocumentTextExtractor {
       return UnicodeSanitizer.sanitize(buffer.toString());
     } catch (e) {
       return '[[Failed to parse DOCX: $e]]';
+    }
+  }
+
+  /// Synchronous PPTX extraction for isolate use.
+  static String _extractPptxSync(String path) {
+    try {
+      final file = File(path);
+      if (!file.existsSync()) return '[PPTX] file not found';
+
+      final input = file.readAsBytesSync();
+      final archive = ZipDecoder().decodeBytes(input);
+      final slideFiles =
+          archive.files
+              .where(
+                (f) =>
+                    f.isFile &&
+                    f.name.startsWith('ppt/slides/slide') &&
+                    f.name.endsWith('.xml'),
+              )
+              .toList()
+            ..sort((a, b) {
+              final numA =
+                  int.tryParse(
+                    RegExp(r'(\d+)').firstMatch(a.name)?.group(1) ?? '',
+                  ) ??
+                  0;
+              final numB =
+                  int.tryParse(
+                    RegExp(r'(\d+)').firstMatch(b.name)?.group(1) ?? '',
+                  ) ??
+                  0;
+              return numA.compareTo(numB);
+            });
+
+      if (slideFiles.isEmpty) return '[PPTX] No slides found';
+
+      final buffer = StringBuffer();
+      for (int i = 0; i < slideFiles.length; i++) {
+        final sf = slideFiles[i];
+        final xml = XmlDocument.parse(utf8.decode(sf.content as List<int>));
+        buffer.writeln('## Slide ${i + 1}');
+        for (final pNode in xml.findAllElements('a:p')) {
+          final texts = pNode
+              .findAllElements('a:t')
+              .map((t) => t.innerText)
+              .join();
+          if (texts.trim().isNotEmpty) {
+            buffer.writeln('- ${texts.trim()}');
+          }
+        }
+        buffer.writeln();
+      }
+      return UnicodeSanitizer.sanitize(buffer.toString());
+    } catch (e) {
+      return '[[Failed to parse PPTX: $e]]';
+    }
+  }
+
+  /// Synchronous XLSX extraction for isolate use.
+  static String _extractXlsxSync(String path) {
+    try {
+      final file = File(path);
+      if (!file.existsSync()) return '[XLSX] file not found';
+
+      final input = file.readAsBytesSync();
+      final archive = ZipDecoder().decodeBytes(input);
+
+      final sharedStrings = <String>[];
+      final ssFile = archive.findFile('xl/sharedStrings.xml');
+      if (ssFile != null) {
+        final ssXml = XmlDocument.parse(
+          utf8.decode(ssFile.content as List<int>),
+        );
+        for (final si in ssXml.findAllElements('si')) {
+          final text = si.findAllElements('t').map((e) => e.innerText).join();
+          sharedStrings.add(text);
+        }
+      }
+
+      final sheetNames = <String>[];
+      final wbFile = archive.findFile('xl/workbook.xml');
+      if (wbFile != null) {
+        final wbXml = XmlDocument.parse(
+          utf8.decode(wbFile.content as List<int>),
+        );
+        for (final s in wbXml.findAllElements('sheet')) {
+          final name = s.getAttribute('name');
+          if (name != null) sheetNames.add(name);
+        }
+      }
+
+      final sheetFiles =
+          archive.files
+              .where(
+                (f) =>
+                    f.isFile &&
+                    f.name.startsWith('xl/worksheets/sheet') &&
+                    f.name.endsWith('.xml'),
+              )
+              .toList()
+            ..sort((a, b) => a.name.compareTo(b.name));
+
+      if (sheetFiles.isEmpty) return '[XLSX] No worksheets found';
+
+      final buffer = StringBuffer();
+      for (int sIdx = 0; sIdx < sheetFiles.length; sIdx++) {
+        final sf = sheetFiles[sIdx];
+        final title = sIdx < sheetNames.length
+            ? sheetNames[sIdx]
+            : 'Sheet ${sIdx + 1}';
+        buffer.writeln('### $title');
+        final xml = XmlDocument.parse(utf8.decode(sf.content as List<int>));
+        for (final row in xml.findAllElements('row')) {
+          final cells = <String>[];
+          for (final c in row.findAllElements('c')) {
+            final tAttr = c.getAttribute('t');
+            String val = '';
+            if (tAttr == 'inlineStr') {
+              val = c.findAllElements('t').map((e) => e.innerText).join();
+            } else {
+              final vElem = c.findElements('v').firstOrNull;
+              final rawV = vElem?.innerText ?? '';
+              if (tAttr == 's') {
+                final idx = int.tryParse(rawV);
+                if (idx != null && idx >= 0 && idx < sharedStrings.length) {
+                  val = sharedStrings[idx];
+                } else {
+                  val = rawV;
+                }
+              } else {
+                val = rawV;
+              }
+            }
+            cells.add(val.replaceAll('|', r'\|').replaceAll('\n', ' '));
+          }
+          if (cells.any((x) => x.isNotEmpty)) {
+            buffer.writeln('| ${cells.join(' | ')} |');
+          }
+        }
+        buffer.writeln();
+      }
+      return UnicodeSanitizer.sanitize(buffer.toString());
+    } catch (e) {
+      return '[[Failed to parse XLSX: $e]]';
     }
   }
 }

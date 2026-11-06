@@ -9,6 +9,7 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/health_data_type.dart';
 import '../../../core/models/vps_config.dart';
 import '../../../core/services/browser/browser_tools_service.dart';
+import '../../../core/services/desktop_control/desktop_control_service.dart';
 import '../../../core/services/document/document_tool_service.dart';
 import '../../../core/services/inspect/site_inspection_service.dart';
 import '../../../core/services/media/media_tool_service.dart';
@@ -37,6 +38,7 @@ class LocalToolNames {
   static const String calendarCreate = 'calendar_create';
   static const String currentLocation = 'get_current_location';
   static const String phoneControl = 'phone_control';
+  static const String desktopControl = 'desktop_control';
   static const String browser = BrowserToolsService.toolName;
   static const String weather = 'get_weather';
   static const String healthSummary = 'get_health_summary';
@@ -55,6 +57,9 @@ class LocalToolNames {
   static const String sandboxVps = 'sandbox_vps';
   static const String bash = 'bash';
   static const String inspectSite = 'inspect_site';
+  static const String manageMcpServers = 'manage_mcp_servers';
+  static const String manageProviders = 'manage_providers';
+  static const String configureSettings = 'configure_settings';
 
   static const List<String> all = [
     timeInfo,
@@ -67,6 +72,7 @@ class LocalToolNames {
     calendarCreate,
     currentLocation,
     phoneControl,
+    desktopControl,
     browser,
     weather,
     healthSummary,
@@ -85,6 +91,9 @@ class LocalToolNames {
     sandboxVps,
     bash,
     inspectSite,
+    manageMcpServers,
+    manageProviders,
+    configureSettings,
   ];
 
   static const List<String> requiresUserApproval = [
@@ -452,9 +461,12 @@ class LocalToolsService {
               TargetPlatform.iOS,
               TargetPlatform.macOS,
               TargetPlatform.windows,
+              TargetPlatform.linux,
             }.contains(defaultTargetPlatform);
       case LocalToolNames.phoneControl:
         return DeviceLocalTools.phoneControlSupported;
+      case LocalToolNames.desktopControl:
+        return DesktopControlService.isDesktopPlatform;
       case LocalToolNames.screenTime:
         return DeviceLocalTools.screenTimeSupported;
       case LocalToolNames.calendarQuery:
@@ -481,12 +493,26 @@ class LocalToolsService {
     for (final name in LocalToolNames.all) name: definitionFor(name),
   };
 
+  static bool isAskUserTool(String name) {
+    final clean = name.trim().toLowerCase().replaceAll('-', '_');
+    return clean == LocalToolNames.askUser ||
+        clean == 'ask_user' ||
+        clean == 'ask_user_input' ||
+        clean == 'ask_user_v0' ||
+        clean == 'ask_question';
+  }
+
   static Map<String, dynamic> definitionFor(String name) {
     switch (name) {
       case LocalToolNames.browser:
         return BrowserToolsService.getToolDefinition();
       case LocalToolNames.phoneControl:
         return _phoneControlDefinition;
+      case LocalToolNames.desktopControl:
+      case 'pc_control':
+      case 'computer_control':
+      case 'system_control':
+        return _desktopControlDefinition;
       case LocalToolNames.timeInfo:
         return _timeInfoDefinition;
       case LocalToolNames.clipboard:
@@ -494,6 +520,10 @@ class LocalToolsService {
       case LocalToolNames.textToSpeech:
         return _textToSpeechDefinition;
       case LocalToolNames.askUser:
+      case 'ask_user':
+      case 'ask_user_input':
+      case 'ask_user_v0':
+      case 'ask_question':
         return _askUserDefinition;
       case LocalToolNames.calculate:
         return _calculateDefinition;
@@ -546,9 +576,16 @@ class LocalToolsService {
       case LocalToolNames.inspectSite:
         return _inspectSiteDefinition;
       case LocalToolNames.setReminder:
+      case 'create_reminder':
         return _setReminderDefinition();
       case LocalToolNames.composioConnect:
         return _composioConnectDefinition();
+      case LocalToolNames.manageMcpServers:
+        return _manageMcpServersDefinition();
+      case LocalToolNames.manageProviders:
+        return _manageProvidersDefinition();
+      case LocalToolNames.configureSettings:
+        return _configureSettingsDefinition();
       default:
         throw ArgumentError.value(name, 'name', 'Unknown local tool');
     }
@@ -618,10 +655,17 @@ class LocalToolsService {
         name == 'composio_connect' ||
         name == 'connect_composio';
 
+    final isDesktopControlTool =
+        name == LocalToolNames.desktopControl ||
+        name == 'pc_control' ||
+        name == 'computer_control' ||
+        name == 'system_control';
+
     if (!isCommandTool &&
         !isDocumentTool &&
         !isReminderTool &&
         !isComposioTool &&
+        !isDesktopControlTool &&
         name != LocalToolNames.inspectSite &&
         name != 'inspect_site') {
       if (assistant == null || !assistant.localToolIds.contains(name)) {
@@ -656,9 +700,22 @@ class LocalToolsService {
         DeviceLocalTools.locationSupported) {
       return _invokeDeviceTool('getCurrentLocation', args);
     }
-    if (name == LocalToolNames.phoneControl &&
-        DeviceLocalTools.phoneControlSupported) {
-      return _invokeDeviceTool('phoneControl', args);
+    if (name == LocalToolNames.phoneControl) {
+      if (DeviceLocalTools.phoneControlSupported) {
+        return _invokeDeviceTool('phoneControl', args);
+      }
+      if (DesktopControlService.isDesktopPlatform) {
+        return DesktopControlService.instance.executeAction(args);
+      }
+    }
+    if (isDesktopControlTool) {
+      if (DesktopControlService.isDesktopPlatform) {
+        return DesktopControlService.instance.executeAction(args);
+      }
+      if (DeviceLocalTools.phoneControlSupported) {
+        return _invokeDeviceTool('phoneControl', args);
+      }
+      return DesktopControlService.instance.executeAction(args);
     }
     if (name == LocalToolNames.weather) {
       if (DeviceLocalTools.iosDeviceToolsSupported) {
@@ -849,26 +906,32 @@ class LocalToolsService {
       );
       return _invokeDeviceTool('getHealthSummary', {'types': types});
     }
-    if (name == LocalToolNames.setReminder) {
+    if (name == LocalToolNames.setReminder || name == 'set_reminder') {
       return _executeSetReminder(args);
     }
-    if (name == LocalToolNames.composioConnect) {
+    if (name == LocalToolNames.composioConnect ||
+        name == 'composio_connect' ||
+        name == 'connect_composio') {
       return _executeComposioConnect(args);
     }
-    if (name == LocalToolNames.remindersQuery) {
+    if (name == LocalToolNames.remindersQuery || name == 'reminders_query') {
       if (DeviceLocalTools.remindersSupported) {
         return _invokeDeviceTool('queryReminders', args);
       }
       final active = ReminderService.instance.activeReminders;
       return jsonEncode(active.map((r) => r.toJson()).toList());
     }
-    if (name == LocalToolNames.remindersCreate) {
+    if (name == LocalToolNames.remindersCreate ||
+        name == 'reminders_create' ||
+        name == 'create_reminder') {
       if (DeviceLocalTools.remindersSupported) {
         return _invokeDeviceTool('createReminder', args);
       }
       return _executeSetReminder(args);
     }
-    if (name == LocalToolNames.remindersComplete) {
+    if (name == LocalToolNames.remindersComplete ||
+        name == 'reminders_complete' ||
+        name == 'complete_reminder') {
       if (DeviceLocalTools.remindersSupported) {
         return _invokeDeviceTool('completeReminder', args);
       }
@@ -883,6 +946,119 @@ class LocalToolsService {
   }
 
   static const MethodChannel _deviceToolsChannel = DeviceLocalTools._channel;
+
+  static const Map<String, dynamic> _desktopControlDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.desktopControl,
+      'description':
+          'Control the user\'s desktop computer (Windows, macOS, or Linux). '
+          'Supports reading open windows (read_screen / list_windows), querying live '
+          'system telemetry (system_info: CPU, RAM, disk, battery, active window, screen resolution), '
+          'focusing or closing windows (focus_window, close_window), launching applications '
+          '(open_app, open_url, list_apps), taking desktop screenshots (screenshot), '
+          'mouse automation (click, double_click, right_click, mouse_move, scroll), '
+          'keyboard input (type_text, send_keys / hotkey e.g. "ctrl+c", "alt+tab", "enter"), '
+          'audio & media controls (volume: mute, volume_up, volume_down, play_pause, next_track), '
+          'and locking the screen (lock_screen).',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'action': {
+            'type': 'string',
+            'enum': [
+              'system_info',
+              'read_screen',
+              'list_windows',
+              'focus_window',
+              'close_window',
+              'open_app',
+              'open_url',
+              'list_apps',
+              'screenshot',
+              'click',
+              'double_click',
+              'right_click',
+              'mouse_move',
+              'scroll',
+              'type_text',
+              'send_keys',
+              'volume',
+              'clipboard_read',
+              'clipboard_write',
+              'lock_screen',
+            ],
+            'description': 'Desktop control action to execute.',
+          },
+          'app_name': {
+            'type': 'string',
+            'description':
+                'Application name or executable to open/focus/close (e.g. "chrome", "vscode", "notepad", "calculator", "explorer", "terminal", "spotify").',
+          },
+          'window_title': {
+            'type': 'string',
+            'description':
+                'Substring of window title to focus or close (for focus_window / close_window).',
+          },
+          'pid': {
+            'type': 'integer',
+            'description':
+                'Optional process ID for focus_window / close_window.',
+          },
+          'url': {
+            'type': 'string',
+            'description': 'URL or URI to open (for open_url or open_app).',
+          },
+          'x': {
+            'type': 'integer',
+            'description':
+                'Horizontal screen coordinate for click or mouse_move.',
+          },
+          'y': {
+            'type': 'integer',
+            'description':
+                'Vertical screen coordinate for click or mouse_move.',
+          },
+          'button': {
+            'type': 'string',
+            'enum': ['left', 'right'],
+            'description': 'Mouse button for click (default: "left").',
+          },
+          'direction': {
+            'type': 'string',
+            'enum': ['up', 'down'],
+            'description': 'Scroll direction for scroll action.',
+          },
+          'amount': {
+            'type': 'integer',
+            'description': 'Scroll wheel notches (1-20, default: 5).',
+          },
+          'text': {
+            'type': 'string',
+            'description': 'Text to type (for type_text or clipboard_write).',
+          },
+          'keys': {
+            'type': 'string',
+            'description':
+                'Keyboard shortcut or key name for send_keys (e.g. "ctrl+c", "ctrl+v", "alt+tab", "enter", "escape").',
+          },
+          'media_action': {
+            'type': 'string',
+            'enum': [
+              'mute',
+              'volume_up',
+              'volume_down',
+              'play_pause',
+              'next_track',
+              'prev_track',
+            ],
+            'description': 'Volume or media command when action is "volume".',
+          },
+        },
+        'required': ['action'],
+      },
+    },
+  };
 
   static const Map<String, dynamic> _phoneControlDefinition = {
     'type': 'function',
@@ -1546,30 +1722,77 @@ class LocalToolsService {
     'function': {
       'name': LocalToolNames.documentTool,
       'description':
-          'PRIMARY LOCAL TOOL for documents and PDFs. Creates formatted PDF documents directly on the local device, extracts text from PDF/Word/Office files, or merges PDFs. '
-          'CRITICAL: Always use this tool for creating any PDF, letter, report, or document requested by the user. Do NOT write scripts or use sandbox_vps/bash to generate PDFs. Documents created here appear instantly in the app with interactive preview, zoom, and download.',
+          'PRIMARY LOCAL TOOL for creating and reading PDFs, Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) files natively on the device. '
+          'Creates attractive styled PDFs (with modern header banners, color themes, styled tables, callouts, code blocks, and page numbers), professional Word documents (.docx), multi-sheet Excel workbooks (.xlsx), and PowerPoint slide decks (.pptx). Also extracts text from PDF/DOCX/XLSX/PPTX or merges PDFs. '
+          'CRITICAL: Always use this tool for creating any PDF, Word, Excel, or PowerPoint file requested by the user. Do NOT write scripts or use sandbox_vps/bash to generate documents. Files created here appear instantly in chat with an interactive in-app preview, zoom, download, and share.',
       'parameters': {
         'type': 'object',
         'properties': {
           'action': {
             'type': 'string',
-            'enum': ['extract_text', 'create_pdf', 'merge_pdfs'],
+            'enum': [
+              'create_pdf',
+              'create_docx',
+              'create_xlsx',
+              'create_pptx',
+              'extract_text',
+              'merge_pdfs',
+            ],
             'description':
-                'Action to perform. Use "create_pdf" to generate a standard PDF document locally.',
+                'Action to perform: "create_pdf" (attractive styled PDF), "create_docx" (Word document), "create_xlsx" (Excel spreadsheet), "create_pptx" (PowerPoint presentation), "extract_text", or "merge_pdfs".',
           },
-          'file_path': {
+          'title': {
             'type': 'string',
-            'description': 'Path to the document file (for extract_text).',
+            'description': 'Document, workbook, or presentation title.',
+          },
+          'subtitle': {
+            'type': 'string',
+            'description':
+                'Optional subtitle, author line, or executive summary tagline.',
+          },
+          'theme': {
+            'type': 'string',
+            'enum': ['executive', 'emerald', 'crimson', 'royal', 'slate'],
+            'description':
+                'Color theme palette for PDF/document styling (default: "executive").',
           },
           'content': {
             'type': 'string',
             'description':
-                'Full text content or body of the document to write (for create_pdf). Supports multi-page text.',
+                'Rich Markdown content for create_pdf, create_docx, create_xlsx (Markdown table or CSV), or create_pptx (slides separated by ## headings). Supports headings (#, ##, ###), Markdown tables (| Col1 | Col2 |), bullet lists, blockquotes (>), and code blocks.',
           },
-          'title': {
-            'type': 'string',
+          'slides': {
+            'type': 'array',
             'description':
-                'Document title or heading (for create_pdf). Displayed at the top of the first page.',
+                'Optional structured slide list for create_pptx. Each item has {"title": "...", "bullets": ["...", "..."]}.',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'title': {'type': 'string'},
+                'bullets': {
+                  'type': 'array',
+                  'items': {'type': 'string'},
+                },
+              },
+            },
+          },
+          'headers': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'Optional column headers for create_xlsx.',
+          },
+          'rows': {
+            'type': 'array',
+            'description':
+                'Optional 2D array of rows for create_xlsx, e.g. [["Alice", 95], ["Bob", 88]].',
+            'items': {
+              'type': 'array',
+              'items': {'type': 'string'},
+            },
+          },
+          'file_path': {
+            'type': 'string',
+            'description': 'Path to the document file (for extract_text).',
           },
           'file_paths': {
             'type': 'array',
@@ -1579,8 +1802,7 @@ class LocalToolsService {
           },
           'output_path': {
             'type': 'string',
-            'description':
-                'Optional output file path or filename (for create_pdf or merge_pdfs).',
+            'description': 'Optional output file path or filename.',
           },
         },
         'required': ['action'],
@@ -1849,72 +2071,81 @@ class LocalToolsService {
   };
 
   static Future<String> _executeSetReminder(Map<String, dynamic> args) async {
-    final title = (args['title'] as String?)?.trim() ?? 'Reminder';
-    final notes = (args['notes'] as String?)?.trim() ?? '';
-    final delaySeconds = args['delay_seconds'] is num
-        ? (args['delay_seconds'] as num).toInt()
-        : int.tryParse(args['delay_seconds']?.toString() ?? '');
-    final dueTimeStr = (args['due_time'] ?? args['due']) as String?;
-    final typeStr = (args['type'] as String?)?.toLowerCase().trim();
-    final type = typeStr == 'alarm'
-        ? ReminderType.alarm
-        : ReminderType.notification;
+    try {
+      final title = (args['title'] as String?)?.trim() ?? 'Reminder';
+      final notes = (args['notes'] as String?)?.trim() ?? '';
+      final delaySeconds = args['delay_seconds'] is num
+          ? (args['delay_seconds'] as num).toInt()
+          : int.tryParse(args['delay_seconds']?.toString() ?? '');
+      final dueTimeStr = (args['due_time'] ?? args['due']) as String?;
+      final typeStr = (args['type'] as String?)?.toLowerCase().trim();
+      final type = typeStr == 'alarm'
+          ? ReminderType.alarm
+          : ReminderType.notification;
 
-    DateTime dueAt;
-    if (delaySeconds != null && delaySeconds > 0) {
-      dueAt = DateTime.now().add(Duration(seconds: delaySeconds));
-    } else if (dueTimeStr != null && dueTimeStr.isNotEmpty) {
-      final parsed = DateTime.tryParse(dueTimeStr);
-      if (parsed != null) {
-        dueAt = parsed;
-      } else {
-        final parts = dueTimeStr.split(':');
-        if (parts.length >= 2) {
-          final hour = int.tryParse(parts[0].trim());
-          final min = int.tryParse(parts[1].trim());
-          if (hour != null && min != null) {
-            final now = DateTime.now();
-            var candidate = DateTime(now.year, now.month, now.day, hour, min);
-            if (candidate.isBefore(now)) {
-              candidate = candidate.add(const Duration(days: 1));
+      DateTime dueAt;
+      if (delaySeconds != null && delaySeconds > 0) {
+        dueAt = DateTime.now().add(Duration(seconds: delaySeconds));
+      } else if (dueTimeStr != null && dueTimeStr.isNotEmpty) {
+        final parsed = DateTime.tryParse(dueTimeStr);
+        if (parsed != null) {
+          dueAt = parsed;
+        } else {
+          final parts = dueTimeStr.split(':');
+          if (parts.length >= 2) {
+            final hour = int.tryParse(parts[0].trim());
+            final min = int.tryParse(parts[1].trim());
+            if (hour != null && min != null) {
+              final now = DateTime.now();
+              var candidate = DateTime(now.year, now.month, now.day, hour, min);
+              if (candidate.isBefore(now)) {
+                candidate = candidate.add(const Duration(days: 1));
+              }
+              dueAt = candidate;
+            } else {
+              dueAt = DateTime.now().add(const Duration(minutes: 5));
             }
-            dueAt = candidate;
           } else {
             dueAt = DateTime.now().add(const Duration(minutes: 5));
           }
-        } else {
-          dueAt = DateTime.now().add(const Duration(minutes: 5));
         }
+      } else {
+        dueAt = DateTime.now().add(const Duration(minutes: 5));
       }
-    } else {
-      dueAt = DateTime.now().add(const Duration(minutes: 5));
+
+      final catStr = args['category'] as String?;
+      final category = ReminderCategory.fromString(catStr ?? '$title $notes');
+
+      final reminder = await ReminderService.instance
+          .scheduleReminder(
+            title: title,
+            notes: notes,
+            dueAt: dueAt,
+            type: type,
+            category: category,
+          )
+          .timeout(const Duration(seconds: 5));
+
+      final timeFormatted =
+          '${dueAt.hour.toString().padLeft(2, '0')}:${dueAt.minute.toString().padLeft(2, '0')}';
+
+      return jsonEncode({
+        'status': 'success',
+        'id': reminder.id,
+        'title': reminder.title,
+        'due_time': timeFormatted,
+        'type': reminder.type.name,
+        'category': reminder.category.name,
+        'category_label': reminder.category.label,
+        'message':
+            'Reminder scheduled for $timeFormatted (${reminder.type == ReminderType.alarm ? 'alarm popup' : 'notification only'}).',
+      });
+    } catch (e) {
+      return jsonEncode({
+        'status': 'error',
+        'message': 'Failed to schedule reminder: $e',
+      });
     }
-
-    final catStr = args['category'] as String?;
-    final category = ReminderCategory.fromString(catStr ?? '$title $notes');
-
-    final reminder = await ReminderService.instance.scheduleReminder(
-      title: title,
-      notes: notes,
-      dueAt: dueAt,
-      type: type,
-      category: category,
-    );
-
-    final timeFormatted =
-        '${dueAt.hour.toString().padLeft(2, '0')}:${dueAt.minute.toString().padLeft(2, '0')}';
-
-    return jsonEncode({
-      'status': 'success',
-      'id': reminder.id,
-      'title': reminder.title,
-      'due_time': timeFormatted,
-      'type': reminder.type.name,
-      'category': reminder.category.name,
-      'category_label': reminder.category.label,
-      'message':
-          'Reminder scheduled for $timeFormatted (${reminder.type == ReminderType.alarm ? 'alarm popup' : 'notification only'}).',
-    });
   }
 
   static Map<String, dynamic> _composioConnectDefinition() => {
@@ -2020,10 +2251,9 @@ class LocalToolsService {
     Map<String, dynamic> args,
   ) async {
     try {
-      final result = await _deviceToolsChannel.invokeMethod<String>(
-        method,
-        jsonEncode(args),
-      );
+      final result = await _deviceToolsChannel
+          .invokeMethod<String>(method, jsonEncode(args))
+          .timeout(const Duration(seconds: 15));
       if (result == null || result.isEmpty) {
         return jsonEncode({
           'error': 'no_result',
@@ -2031,6 +2261,11 @@ class LocalToolsService {
         });
       }
       return result;
+    } on TimeoutException {
+      return jsonEncode({
+        'error': 'timeout',
+        'message': 'The device tool call timed out after 15 seconds.',
+      });
     } on MissingPluginException {
       return jsonEncode({
         'error': 'unsupported_platform',
@@ -2040,6 +2275,11 @@ class LocalToolsService {
       return jsonEncode({
         'error': e.code,
         'message': e.message ?? 'The device tool failed.',
+      });
+    } catch (e) {
+      return jsonEncode({
+        'error': 'execution_error',
+        'message': 'Device tool failed: $e',
       });
     }
   }
@@ -2147,4 +2387,165 @@ class LocalToolsService {
       });
     }
   }
+
+  static Map<String, dynamic> _manageMcpServersDefinition() => {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.manageMcpServers,
+      'description':
+          'Manage Model Context Protocol (MCP) servers in Kelivo. Allows adding, updating, removing, listing, and connecting to MCP servers (such as Composio, GitHub, Filesystem, Memory, or custom Streamable HTTP, SSE, or stdio servers).',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'action': {
+            'type': 'string',
+            'enum': [
+              'list',
+              'add',
+              'update',
+              'remove',
+              'connect',
+              'disconnect',
+            ],
+            'description': 'Action to perform on MCP servers.',
+          },
+          'id': {
+            'type': 'string',
+            'description':
+                'Unique identifier of the server (e.g. "composio", "filesystem"). Required for update, remove, connect, disconnect. For add, if omitted, one will be generated from name.',
+          },
+          'name': {
+            'type': 'string',
+            'description':
+                'Display name of the MCP server (e.g. "Composio", "Filesystem", "GitHub Tools").',
+          },
+          'transport': {
+            'type': 'string',
+            'enum': ['http', 'sse', 'stdio'],
+            'description':
+                'Transport protocol. Use "http" for modern Streamable HTTP (default for remote URLs), "sse" for legacy SSE, or "stdio" for command-line subprocesses.',
+          },
+          'url': {
+            'type': 'string',
+            'description':
+                'Server URL endpoint (e.g. "https://connect.composio.dev/mcp"). Required for http/sse.',
+          },
+          'headers': {
+            'type': 'object',
+            'description':
+                'Custom HTTP headers to send with requests, e.g. {"x-consumer-api-key": "ck_...", "Authorization": "Bearer ..."}',
+          },
+          'command': {
+            'type': 'string',
+            'description':
+                'Command to run for stdio transport (e.g. "npx", "python", "node").',
+          },
+          'args': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'Arguments for the stdio command.',
+          },
+          'env': {
+            'type': 'object',
+            'description': 'Environment variables for the stdio command.',
+          },
+          'enabled': {
+            'type': 'boolean',
+            'description':
+                'Whether the server is enabled (active). Defaults to true when adding.',
+          },
+        },
+        'required': ['action'],
+      },
+    },
+  };
+
+  static Map<String, dynamic> _manageProvidersDefinition() => {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.manageProviders,
+      'description':
+          'Manage LLM API providers in Kelivo (e.g. OpenAI, Anthropic, Google, DeepSeek, xAI, OpenRouter, Groq, Mistral, Ollama, or custom OpenAI-compatible endpoints). Allows listing, inspecting, adding, configuring API keys, setting custom base URLs, and enabling/disabling providers.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'action': {
+            'type': 'string',
+            'enum': ['list', 'get', 'add', 'update', 'remove'],
+            'description':
+                'Action to perform: "list" all providers and their status, "get" details of a provider, "add" or "update" a provider configuration, or "remove" / disable a provider.',
+          },
+          'provider': {
+            'type': 'string',
+            'description':
+                'Provider identifier (e.g. "openai", "anthropic", "google", "deepseek", "xai", "openrouter", "groq", "mistral", "ollama", or a custom provider key).',
+          },
+          'name': {
+            'type': 'string',
+            'description': 'Display name of the provider.',
+          },
+          'api_key': {
+            'type': 'string',
+            'description': 'API Key for authenticating with the provider.',
+          },
+          'base_url': {
+            'type': 'string',
+            'description':
+                'Base URL / API endpoint (e.g. "https://api.openai.com/v1", "http://localhost:11434/v1").',
+          },
+          'enabled': {
+            'type': 'boolean',
+            'description': 'Whether this provider is enabled.',
+          },
+          'models': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description':
+                'List of model IDs enabled or available for this provider.',
+          },
+        },
+        'required': ['action'],
+      },
+    },
+  };
+
+  static Map<String, dynamic> _configureSettingsDefinition() => {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.configureSettings,
+      'description':
+          'View and update global Kelivo application settings, such as Composio API key, theme mode, default web search provider, and text-to-speech service.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'action': {
+            'type': 'string',
+            'enum': ['get', 'update'],
+            'description':
+                'Action to perform: "get" to inspect current settings, "update" to modify settings.',
+          },
+          'composio_api_key': {
+            'type': 'string',
+            'description':
+                'Composio API key (supports both Consumer MCP keys "ck_..." and Project keys "ak_..."). Automatically validates and configures the Composio MCP server.',
+          },
+          'theme_mode': {
+            'type': 'string',
+            'enum': ['system', 'light', 'dark'],
+            'description': 'App theme mode.',
+          },
+          'search_provider': {
+            'type': 'string',
+            'description': 'Default search engine provider for web search.',
+          },
+          'tts_service': {
+            'type': 'string',
+            'enum': ['system', 'kokoro', 'sherpa', 'edge'],
+            'description': 'Default Text-To-Speech engine.',
+          },
+        },
+        'required': ['action'],
+      },
+    },
+  };
 }

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -297,60 +297,98 @@ class NotificationService {
 
   static Future<void> scheduleReminderAt(ReminderItem item) async {
     if (!Platform.isAndroid && !Platform.isIOS) return;
-    await ensureInitialized();
-    final notifId = notificationIdForReminder(item.id);
-    final isAlarm = item.isAlarm;
-    final scheduledDate = tz.TZDateTime.from(item.dueAt, tz.local);
-
-    if (scheduledDate.isBefore(tz.TZDateTime.now(tz.local))) {
-      await showReminderNow(item);
-      return;
-    }
-
     try {
-      await _plugin.zonedSchedule(
-        notifId,
-        item.title,
-        item.notes.isNotEmpty
-            ? item.notes
-            : (isAlarm ? 'Alarm triggered — tap to open' : item.category.label),
-        scheduledDate,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            isAlarm ? _alarmChannel.id : _reminderChannel.id,
-            isAlarm ? _alarmChannel.name : _reminderChannel.name,
-            channelDescription: isAlarm
-                ? _alarmChannel.description
-                : _reminderChannel.description,
-            importance: isAlarm ? Importance.max : Importance.high,
-            priority: isAlarm ? Priority.max : Priority.high,
-            playSound: true,
-            enableVibration: true,
-            fullScreenIntent: isAlarm,
-            category: isAlarm
-                ? AndroidNotificationCategory.alarm
-                : AndroidNotificationCategory.reminder,
-            visibility: NotificationVisibility.public,
-            ticker: item.title,
-            styleInformation: BigTextStyleInformation(
-              item.notes.isNotEmpty ? item.notes : item.title,
-            ),
-          ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentSound: true,
-            interruptionLevel: isAlarm
-                ? InterruptionLevel.timeSensitive
-                : InterruptionLevel.active,
+      await ensureInitialized().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          debugPrint('[NotificationService] ensureInitialized timed out.');
+        },
+      );
+      final notifId = notificationIdForReminder(item.id);
+      final isAlarm = item.isAlarm;
+
+      tz.TZDateTime scheduledDate;
+      try {
+        scheduledDate = tz.TZDateTime.from(item.dueAt, tz.local);
+      } catch (_) {
+        scheduledDate = tz.TZDateTime.now(
+          tz.local,
+        ).add(item.dueAt.difference(DateTime.now()));
+      }
+
+      if (scheduledDate.isBefore(tz.TZDateTime.now(tz.local))) {
+        await showReminderNow(item);
+        return;
+      }
+
+      final notifDetails = NotificationDetails(
+        android: AndroidNotificationDetails(
+          isAlarm ? _alarmChannel.id : _reminderChannel.id,
+          isAlarm ? _alarmChannel.name : _reminderChannel.name,
+          channelDescription: isAlarm
+              ? _alarmChannel.description
+              : _reminderChannel.description,
+          importance: isAlarm ? Importance.max : Importance.high,
+          priority: isAlarm ? Priority.max : Priority.high,
+          playSound: true,
+          enableVibration: true,
+          fullScreenIntent: isAlarm,
+          category: isAlarm
+              ? AndroidNotificationCategory.alarm
+              : AndroidNotificationCategory.reminder,
+          visibility: NotificationVisibility.public,
+          ticker: item.title,
+          styleInformation: BigTextStyleInformation(
+            item.notes.isNotEmpty ? item.notes : item.title,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: '${isAlarm ? 'reminder-alarm:' : 'reminder:'}${item.id}',
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          interruptionLevel: isAlarm
+              ? InterruptionLevel.timeSensitive
+              : InterruptionLevel.active,
+        ),
       );
-    } catch (_) {
-      // In case exact alarm permission isn't available on non-exact device configs
+
+      try {
+        await _plugin.zonedSchedule(
+          notifId,
+          item.title,
+          item.notes.isNotEmpty
+              ? item.notes
+              : (isAlarm
+                    ? 'Alarm triggered — tap to open'
+                    : item.category.label),
+          scheduledDate,
+          notifDetails,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: '${isAlarm ? 'reminder-alarm:' : 'reminder:'}${item.id}',
+        );
+      } catch (_) {
+        // Fall back to inexact schedule if exact alarms are not permitted
+        try {
+          await _plugin.zonedSchedule(
+            notifId,
+            item.title,
+            item.notes.isNotEmpty
+                ? item.notes
+                : (isAlarm
+                      ? 'Alarm triggered — tap to open'
+                      : item.category.label),
+            scheduledDate,
+            notifDetails,
+            androidScheduleMode: AndroidScheduleMode.inexact,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            payload: '${isAlarm ? 'reminder-alarm:' : 'reminder:'}${item.id}',
+          );
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] Failed to schedule reminder: $e');
     }
   }
 

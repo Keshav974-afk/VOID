@@ -33,6 +33,7 @@ void main() {
       LocalToolNames.calendarCreate,
       LocalToolNames.currentLocation,
       LocalToolNames.phoneControl,
+      LocalToolNames.desktopControl,
       LocalToolNames.browser,
       LocalToolNames.weather,
       LocalToolNames.healthSummary,
@@ -51,6 +52,9 @@ void main() {
       LocalToolNames.sandboxVps,
       LocalToolNames.bash,
       LocalToolNames.inspectSite,
+      LocalToolNames.manageMcpServers,
+      LocalToolNames.manageProviders,
+      LocalToolNames.configureSettings,
     ]);
   });
 }

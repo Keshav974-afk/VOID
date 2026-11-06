@@ -266,32 +266,69 @@ final class SherpaTtsModelManager {
         ),
       );
 
-      final request = http.Request('GET', model.archiveUri);
-      final response = await _httpClient.send(request);
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'Download failed with status ${response.statusCode}',
-        );
-      }
-
-      final total = response.contentLength ?? model.downloadBytes;
+      final candidates = _buildCandidateUris(model.archiveUri);
+      var downloaded = false;
       var received = 0;
-      final sink = tempArchive.openWrite();
+      int? total = model.downloadBytes;
+      Object? lastError;
 
-      await for (final chunk in response.stream) {
-        sink.add(chunk);
-        received += chunk.length;
-        final progress = SherpaTtsDownloadProgress(
-          modelId: modelId,
-          phase: SherpaTtsDownloadPhase.downloading,
-          receivedBytes: received,
-          totalBytes: total,
-        );
-        _activeProgress[modelId] = progress;
-        onProgress?.call(progress);
+      for (final candidateUri in candidates) {
+        IOSink? sink;
+        try {
+          if (await tempArchive.exists()) {
+            await tempArchive.delete();
+          }
+
+          final response = await _sendWithRedirects(candidateUri);
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            throw HttpException(
+              'HTTP ${response.statusCode} from $candidateUri',
+              uri: candidateUri,
+            );
+          }
+
+          total = response.contentLength ?? model.downloadBytes;
+          received = 0;
+          sink = tempArchive.openWrite();
+
+          await for (final chunk in response.stream) {
+            sink.add(chunk);
+            received += chunk.length;
+            final progress = SherpaTtsDownloadProgress(
+              modelId: modelId,
+              phase: SherpaTtsDownloadPhase.downloading,
+              receivedBytes: received,
+              totalBytes: total,
+            );
+            _activeProgress[modelId] = progress;
+            onProgress?.call(progress);
+          }
+          await sink.flush();
+          await sink.close();
+          sink = null;
+
+          if (received > 0) {
+            downloaded = true;
+            break;
+          }
+        } catch (e) {
+          lastError = e;
+          try {
+            await sink?.close();
+          } catch (_) {}
+          if (await tempArchive.exists()) {
+            try {
+              await tempArchive.delete();
+            } catch (_) {}
+          }
+        }
       }
-      await sink.flush();
-      await sink.close();
+
+      if (!downloaded) {
+        throw HttpException(
+          'Download failed after trying ${candidates.length} mirrors: $lastError',
+        );
+      }
 
       onProgress?.call(
         SherpaTtsDownloadProgress(
@@ -378,5 +415,52 @@ final class SherpaTtsModelManager {
     if (await dir.exists()) {
       await dir.delete(recursive: true);
     }
+  }
+
+  List<Uri> _buildCandidateUris(Uri uri) {
+    if (!uri.host.contains('github.com')) {
+      return [uri];
+    }
+    return [
+      Uri.parse('https://ghproxy.net/$uri'),
+      Uri.parse('https://mirror.ghproxy.com/$uri'),
+      Uri.parse('https://gh-proxy.com/$uri'),
+      uri,
+    ];
+  }
+
+  Future<http.StreamedResponse> _sendWithRedirects(Uri initialUri) async {
+    var currentUri = initialUri;
+    const maxRedirects = 5;
+
+    for (var i = 0; i < maxRedirects; i++) {
+      final request = http.Request('GET', currentUri)
+        ..followRedirects = false
+        ..headers.addAll({
+          'User-Agent':
+              'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+          'Accept': '*/*',
+        });
+
+      final response = await _httpClient.send(request);
+
+      if (response.statusCode == 301 ||
+          response.statusCode == 302 ||
+          response.statusCode == 303 ||
+          response.statusCode == 307 ||
+          response.statusCode == 308) {
+        final location = response.headers['location'];
+        if (location != null && location.isNotEmpty) {
+          currentUri = Uri.parse(location);
+          continue;
+        }
+      }
+
+      return response;
+    }
+
+    throw const HttpException(
+      'Too many redirects while downloading model archive',
+    );
   }
 }

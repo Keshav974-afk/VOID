@@ -135,7 +135,18 @@ class ReminderService extends ChangeNotifier {
     await _saveToStorage();
 
     // Schedule through platform notifications / alarms
-    await NotificationService.scheduleReminderAt(reminder);
+    try {
+      await NotificationService.scheduleReminderAt(reminder).timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          debugPrint(
+            '[ReminderService] Notification scheduling timed out; continuing in-memory.',
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('[ReminderService] Notification scheduling error: $e');
+    }
 
     // Schedule in-memory timer
     final diff = dueAt.difference(DateTime.now());

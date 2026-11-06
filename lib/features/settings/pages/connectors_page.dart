@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/providers/mcp_provider.dart';
 import '../../../core/services/composio/composio_models.dart';
 import '../../../core/services/composio/composio_service.dart';
 import '../../../core/services/haptics.dart';
@@ -23,8 +26,11 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
   final TextEditingController _searchCtrl = TextEditingController();
   final TextEditingController _apiKeyCtrl = TextEditingController();
   bool _editingApiKey = false;
+  bool _validating = false;
   String? _storedApiKey;
   bool _loading = true;
+  String? _authError;
+  bool _isLive = false;
   String _selectedCategory = 'All';
   List<ComposioToolkit> _toolkits = [];
 
@@ -36,6 +42,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
     'CRM',
     'Social',
     'Finance',
+    'Design',
+    'AI & Automation',
+    'Cloud & Storage',
   ];
 
   @override
@@ -52,12 +61,12 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
   }
 
   Future<void> _loadData() async {
-    final key = await ComposioService.instance.getStoredApiKey();
+    final storedKey = await ComposioService.instance.getStoredApiKey();
     if (!mounted) return;
     setState(() {
-      _storedApiKey = key;
-      if (key != null && key.isNotEmpty) {
-        _apiKeyCtrl.text = key;
+      _storedApiKey = storedKey;
+      if (storedKey != null && storedKey.isNotEmpty) {
+        _apiKeyCtrl.text = storedKey;
       }
     });
     await _loadToolkits();
@@ -76,12 +85,18 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
       if (mounted) {
         setState(() {
           _toolkits = list;
+          _authError = ComposioService.instance.lastAuthError;
+          _isLive = ComposioService.instance.isLiveCatalog;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _authError = ComposioService.instance.lastAuthError;
+          _isLive = false;
+          _loading = false;
+        });
       }
     }
   }
@@ -89,15 +104,87 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
   Future<void> _saveApiKey() async {
     Haptics.light();
     final key = _apiKeyCtrl.text.trim();
+
+    if (key.isEmpty) {
+      await ComposioService.instance.setStoredApiKey('');
+      if (!mounted) return;
+      setState(() {
+        _storedApiKey = null;
+        _editingApiKey = false;
+        _authError = null;
+        _isLive = false;
+      });
+      showAppSnackBar(
+        context,
+        message: 'Composio API key removed',
+        type: NotificationType.info,
+      );
+      _loadToolkits();
+      return;
+    }
+
+    setState(() => _validating = true);
+    final validation = await ComposioService.instance.validateKey(key);
+    if (!mounted) return;
+    setState(() => _validating = false);
+
+    if (!validation.isValid) {
+      showAppSnackBar(
+        context,
+        message: validation.error ?? 'Invalid API key',
+        type: NotificationType.error,
+      );
+      setState(() {
+        _authError = validation.error;
+      });
+      return;
+    }
+
     await ComposioService.instance.setStoredApiKey(key);
+
+    // If consumer MCP key, auto-configure or update the Composio MCP server in Kelivo
+    if (validation.isConsumer) {
+      try {
+        if (!mounted) return;
+        final mcpProvider = Provider.of<McpProvider>(context, listen: false);
+        final existing = mcpProvider.servers
+            .where((s) => s.name.toLowerCase() == 'composio')
+            .firstOrNull;
+        if (existing == null) {
+          await mcpProvider.addServer(
+            enabled: true,
+            name: 'Composio',
+            transport: McpTransportType.http,
+            url: 'https://connect.composio.dev/mcp',
+            headers: {'x-consumer-api-key': key},
+          );
+        } else {
+          await mcpProvider.updateServer(
+            existing.copyWith(
+              enabled: true,
+              url: 'https://connect.composio.dev/mcp',
+              headers: {'x-consumer-api-key': key},
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('[ConnectorsPage] MCP auto-config notice: $e');
+      }
+    }
+
     if (!mounted) return;
     setState(() {
-      _storedApiKey = key.isEmpty ? null : key;
+      _storedApiKey = key;
       _editingApiKey = false;
+      _authError = null;
+      _isLive = true;
     });
+
     showAppSnackBar(
       context,
-      message: key.isEmpty ? 'API key removed' : 'Composio API key saved',
+      message: validation.isConsumer
+          ? 'Composio Consumer key validated & MCP connected!'
+          : 'Composio Project API key validated & saved!',
       type: NotificationType.success,
     );
     _loadToolkits();
@@ -265,12 +352,39 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                 ),
               ),
               if (!_loading)
-                Text(
-                  '${_toolkits.length} apps',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF71717A),
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isLive) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF18181B),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFF3F3F46)),
+                        ),
+                        child: const Text(
+                          'Live',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      '${_toolkits.length} apps',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF71717A),
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -403,9 +517,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                 ),
                 const SizedBox(width: 8),
                 IosTextButton(
-                  label: 'Save',
-                  icon: Lucide.Check,
-                  onPressed: _saveApiKey,
+                  label: _validating ? 'Checking...' : 'Save',
+                  icon: _validating ? Lucide.Loader : Lucide.Check,
+                  onPressed: _validating ? null : _saveApiKey,
                 ),
                 if (_editingApiKey && hasKey) ...[
                   const SizedBox(width: 4),
@@ -426,58 +540,139 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
       );
     }
 
+    final hasError = _authError != null;
     final masked = _storedApiKey!.length > 10
         ? '${_storedApiKey!.substring(0, 6)}...${_storedApiKey!.substring(_storedApiKey!.length - 4)}'
         : '••••••••';
+    final isConsumerKey = _storedApiKey!.startsWith('ck_');
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF27272A)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: Color(0xFF22C55E),
-              shape: BoxShape.circle,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF18181B),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: hasError
+                  ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                  : const Color(0xFF27272A),
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Composio Connected',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: AppFontWeights.emphasis,
-                    color: const Color(0xFFF4F4F5),
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: hasError
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF22C55E),
+                  shape: BoxShape.circle,
                 ),
-                Text(
-                  'Key: $masked',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF71717A),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          hasError
+                              ? 'Key Needs Attention'
+                              : (isConsumerKey
+                                    ? 'Composio MCP Connected'
+                                    : 'Composio Connected'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: AppFontWeights.emphasis,
+                            color: const Color(0xFFF4F4F5),
+                          ),
+                        ),
+                        if (!hasError && isConsumerKey) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF22C55E,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'MCP Live',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF22C55E),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasError
+                          ? _authError!
+                          : '${isConsumerKey ? "Consumer MCP Key" : "Project Key"}: $masked',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: hasError
+                            ? const Color(0xFFF59E0B)
+                            : const Color(0xFF71717A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IosTextButton(
+                label: 'Change',
+                icon: Lucide.Pencil,
+                fontSize: 12,
+                onPressed: () => setState(() => _editingApiKey = true),
+              ),
+            ],
+          ),
+        ),
+        if (hasError) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF201608),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Lucide.BadgeInfo,
+                  size: 14,
+                  color: const Color(0xFFF59E0B),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Showing offline catalog of ${_toolkits.length} apps. Check your API key at app.composio.dev/settings.',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFFFDE68A),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          IosTextButton(
-            label: 'Change',
-            icon: Lucide.Pencil,
-            fontSize: 12,
-            onPressed: () => setState(() => _editingApiKey = true),
-          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -588,31 +783,39 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
   }
 
   Widget _buildLogo(ComposioToolkit toolkit) {
-    final logo = toolkit.logo;
-    if (logo != null && logo.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          logo,
-          width: 36,
-          height: 36,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _fallbackLogo(),
-        ),
-      );
-    }
-    return _fallbackLogo();
-  }
+    final logoUrl = toolkit.logoUrl;
+    final isSvg =
+        logoUrl.toLowerCase().endsWith('.svg') ||
+        logoUrl.contains('logos.composio.dev');
 
-  Widget _fallbackLogo() {
     return Container(
-      width: 36,
-      height: 36,
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
         color: const Color(0xFF27272A),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(9),
       ),
-      child: Icon(Lucide.Layers, size: 18, color: const Color(0xFFA1A1AA)),
+      padding: const EdgeInsets.all(7),
+      alignment: Alignment.center,
+      child: isSvg
+          ? SvgPicture.network(
+              logoUrl,
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+              placeholderBuilder: (_) =>
+                  const Icon(Lucide.Layers, size: 18, color: Color(0xFF71717A)),
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Lucide.Layers, size: 18, color: Color(0xFF71717A)),
+            )
+          : Image.network(
+              logoUrl,
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Lucide.Layers, size: 18, color: Color(0xFF71717A)),
+            ),
     );
   }
 }

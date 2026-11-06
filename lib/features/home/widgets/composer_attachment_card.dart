@@ -11,6 +11,10 @@ import '../../../shared/utils/format_bytes.dart';
 import '../../../shared/widgets/audio_clip_player.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../../utils/sandbox_path_resolver.dart';
+import '../../chat/pages/pdf_viewer_page.dart';
+import '../../workspace/widgets/preview/file_preview.dart';
+import '../../workspace/widgets/preview/preview_file_type.dart';
 
 /// Metadata only: never read an attachment's contents to draw its preview.
 class ComposerAttachmentCard extends StatefulWidget {
@@ -64,71 +68,74 @@ class _ComposerAttachmentCardState extends State<ComposerAttachmentCard> {
         .replaceFirst('.', '')
         .toUpperCase();
     final audio = file.mime.startsWith('audio/');
+    final typeStyle = previewFileTypeStyle(file.fileName);
     final icon = audio
         ? Lucide.FileAudio
         : file.mime.startsWith('video/')
         ? Lucide.FileVideo
-        : ['ZIP', 'APK', 'TAR', 'GZ', '7Z', 'RAR'].contains(extension)
-        ? Lucide.FileArchive
-        : [
-            'JSON',
-            'DART',
-            'JS',
-            'TS',
-            'PY',
-            'HTML',
-            'CSS',
-            'SH',
-          ].contains(extension)
-        ? Lucide.FileCode
-        : Lucide.FileText;
+        : typeStyle.icon;
     return Tooltip(
       message: file.fileName,
-      child: Container(
-        width: 96,
-        height: ComposerAttachmentCard.heightFor(context),
-        decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: 0.035),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.07)),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(7, 7, 7, 6),
-              child: audio
-                  ? AudioClipPlayer(
-                      path: file.path,
-                      builder: (context, button, time) => _details(
+      child: GestureDetector(
+        onTap: audio
+            ? null
+            : () async {
+                final f = File(SandboxPathResolver.fix(file.path));
+                if (!await f.exists() || !context.mounted) return;
+                if (extension == 'PDF') {
+                  await Navigator.of(context).push(
+                    PdfViewerPage.route(filePath: f.path, title: file.fileName),
+                  );
+                } else {
+                  await showFilePreview(context, f, title: file.fileName);
+                }
+              },
+        child: Container(
+          width: 96,
+          height: ComposerAttachmentCard.heightFor(context),
+          decoration: BoxDecoration(
+            color: cs.onSurface.withValues(alpha: 0.035),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: cs.onSurface.withValues(alpha: 0.07)),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(7, 7, 7, 6),
+                child: audio
+                    ? AudioClipPlayer(
+                        path: file.path,
+                        builder: (context, button, time) => _details(
+                          context,
+                          extension: extension,
+                          leading: button,
+                          footer: time,
+                        ),
+                      )
+                    : _details(
                         context,
                         extension: extension,
-                        leading: button,
-                        footer: time,
+                        leading: Icon(icon, size: 19, color: typeStyle.color),
                       ),
-                    )
-                  : _details(
-                      context,
-                      extension: extension,
-                      leading: Icon(icon, size: 19, color: cs.primary),
-                    ),
-            ),
-            Positioned(
-              top: 0,
-              right: 0,
-              child: IosIconButton(
-                key: widget.removeKey,
-                icon: Lucide.X,
-                size: 12,
-                padding: const EdgeInsets.all(7),
-                tooltip: AppLocalizations.of(
-                  context,
-                )!.chatInputBarRemoveAttachment,
-                color: cs.onSurfaceVariant,
-                onTap: widget.onRemove,
               ),
-            ),
-          ],
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IosIconButton(
+                  key: widget.removeKey,
+                  icon: Lucide.X,
+                  size: 12,
+                  padding: const EdgeInsets.all(7),
+                  tooltip: AppLocalizations.of(
+                    context,
+                  )!.chatInputBarRemoveAttachment,
+                  color: cs.onSurfaceVariant,
+                  onTap: widget.onRemove,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

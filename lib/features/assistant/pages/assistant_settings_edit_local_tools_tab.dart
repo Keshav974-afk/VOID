@@ -176,6 +176,154 @@ class _LocalToolsTab extends StatelessWidget {
                 onOpenSettings: () => PhoneControlSettingsPage.open(context),
               ),
             ],
+            if (LocalToolsService.isAvailableOnThisPlatform(
+              LocalToolNames.desktopControl,
+            )) ...[
+              _iosDivider(context),
+              _LocalToolRow(
+                icon: Lucide.Monitor,
+                title: 'Desktop Control',
+                subtitle:
+                    'Inspect windows, launch apps, take screenshots, automate mouse & keyboard, and manage audio',
+                enabled: assistant.localToolIds.contains(
+                  LocalToolNames.desktopControl,
+                ),
+                onChanged: (value) =>
+                    toggleTool(LocalToolNames.desktopControl, value),
+                onOpenSettings: () => DesktopControlSettingsPage.open(context),
+              ),
+            ],
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.AlarmClock,
+              title: 'Set Reminder & Alarm',
+              subtitle:
+                  'Schedule local notifications and interactive alarm popups across all platforms',
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.setReminder,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.setReminder, value),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.Layers,
+              title: 'Composio Connect (500+ Apps)',
+              subtitle:
+                  'Authenticate and use GitHub, Gmail, Slack, Notion, Linear, Calendar, and more',
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.composioConnect,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.composioConnect, value),
+              onOpenSettings: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ConnectorsPage())),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.Terminal,
+              title: 'Bash & Shell Execution',
+              subtitle:
+                  'Execute shell commands locally on desktop or inside a remote Linux Sandbox VPS',
+              enabled: assistant.localToolIds.contains(LocalToolNames.bash),
+              onChanged: (value) => toggleTool(LocalToolNames.bash, value),
+              onOpenSettings: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const VpsSettingsPage()),
+              ),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.FileText,
+              title: l10n.assistantEditLocalToolDocumentTitle,
+              subtitle: l10n.assistantEditLocalToolDocumentSubtitle,
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.documentTool,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.documentTool, value),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.FileVideo,
+              title: l10n.assistantEditLocalToolMediaProcessTitle,
+              subtitle: l10n.assistantEditLocalToolMediaProcessSubtitle,
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.mediaProcess,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.mediaProcess, value),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.Image,
+              title: l10n.assistantEditLocalToolImageGenerationTitle,
+              subtitle: l10n.assistantEditLocalToolImageGenerationSubtitle,
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.imageGeneration,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.imageGeneration, value),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.Video,
+              title: 'MiniMax Video AI',
+              subtitle:
+                  'Generate high-definition AI videos from text or image prompts',
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.videoGeneration,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.videoGeneration, value),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.Bug,
+              title: l10n.assistantEditLocalToolSiteInspectTitle,
+              subtitle: l10n.assistantEditLocalToolSiteInspectSubtitle,
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.inspectSite,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.inspectSite, value),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.Server,
+              title: 'Manage MCP Servers',
+              subtitle:
+                  'Allow the assistant to add, configure, and connect MCP servers on your behalf',
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.manageMcpServers,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.manageMcpServers, value),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.Boxes,
+              title: 'Manage AI Providers',
+              subtitle:
+                  'Allow the assistant to configure LLM providers, API keys, and endpoints',
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.manageProviders,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.manageProviders, value),
+            ),
+            _iosDivider(context),
+            _LocalToolRow(
+              icon: Lucide.SlidersHorizontal,
+              title: 'Configure App Settings',
+              subtitle:
+                  'Allow the assistant to update theme mode, TTS engine, search provider, and keys',
+              enabled: assistant.localToolIds.contains(
+                LocalToolNames.configureSettings,
+              ),
+              onChanged: (value) =>
+                  toggleTool(LocalToolNames.configureSettings, value),
+            ),
             if (DeviceLocalTools.iosDeviceToolsSupported)
               FutureBuilder<bool>(
                 future: DeviceLocalTools.prefetchIosCapabilities(),

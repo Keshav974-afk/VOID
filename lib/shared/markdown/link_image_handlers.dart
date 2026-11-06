@@ -16,8 +16,10 @@ import 'package:Kelivo/shared/widgets/snackbar.dart';
 import 'package:Kelivo/utils/sandbox_path_resolver.dart';
 import 'package:Kelivo/utils/svg_image_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Kelivo/core/models/vps_config.dart';
 import 'package:Kelivo/core/services/sandbox_vps/sandbox_vps_service.dart';
+import 'package:Kelivo/features/workspace/widgets/preview/file_preview.dart';
 
 /// Source is read lazily when opening the gallery, avoiding another parse on
 /// every streaming frame. Existing image widgets only rebuild for a new scope.
@@ -56,7 +58,7 @@ class KelivoLinkHandler implements LinkHandler {
     }
 
     // Direct local or remote VPS file link handling
-    String cleanPath = url;
+    String cleanPath = SandboxPathResolver.fix(url);
     if (cleanPath.startsWith('file://')) {
       try {
         cleanPath = Uri.parse(cleanPath).toFilePath();
@@ -65,13 +67,42 @@ class KelivoLinkHandler implements LinkHandler {
     if (cleanPath.startsWith('/') ||
         RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(cleanPath)) {
       final file = File(cleanPath);
-      final isPdf = cleanPath.toLowerCase().endsWith('.pdf');
-      if (await file.exists()) {
-        if (isPdf && context.mounted) {
-          Navigator.of(context).push(PdfViewerPage.route(filePath: cleanPath));
+      final lower = cleanPath.toLowerCase();
+      final isPdf = lower.endsWith('.pdf');
+      final isImg =
+          lower.endsWith('.png') ||
+          lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.webp') ||
+          lower.endsWith('.gif') ||
+          lower.endsWith('.bmp') ||
+          lower.endsWith('.svg');
+
+      Future<void> openLocalFileInApp(File targetFile) async {
+        if (!context.mounted) return;
+        if (isPdf) {
+          Navigator.of(
+            context,
+          ).push(PdfViewerPage.route(filePath: targetFile.path));
           return;
         }
-        await OpenFilex.open(cleanPath);
+        if (isImg) {
+          Navigator.of(context).push(
+            PageRouteBuilder<void>(
+              opaque: false,
+              pageBuilder: (_, __, ___) =>
+                  ImageViewerPage(images: [targetFile.path], initialIndex: 0),
+              transitionDuration: const Duration(milliseconds: 300),
+              reverseTransitionDuration: const Duration(milliseconds: 250),
+            ),
+          );
+          return;
+        }
+        await showFilePreview(context, targetFile);
+      }
+
+      if (await file.exists()) {
+        await openLocalFileInApp(file);
         return;
       }
       if (cleanPath.startsWith('/tmp/') ||
@@ -85,20 +116,17 @@ class KelivoLinkHandler implements LinkHandler {
               type: NotificationType.info,
             );
           }
-          final downloaded = await SandboxVpsService.instance
-              .downloadBinaryFile(
-                config: const VpsConfig(),
-                remotePath: cleanPath,
-              );
-          if (context.mounted) {
-            if (isPdf) {
-              Navigator.of(context).push(
-                PdfViewerPage.route(filePath: downloaded.path),
-              );
-            } else {
-              await OpenFilex.open(downloaded.path);
+          VpsConfig vpsCfg = const VpsConfig();
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final raw = prefs.getString('vps_config_v1');
+            if (raw != null && raw.trim().isNotEmpty) {
+              vpsCfg = VpsConfig.fromJsonString(raw);
             }
-          }
+          } catch (_) {}
+          final downloaded = await SandboxVpsService.instance
+              .downloadBinaryFile(config: vpsCfg, remotePath: cleanPath);
+          await openLocalFileInApp(downloaded);
           return;
         } catch (e) {
           if (context.mounted) {

@@ -34,6 +34,8 @@ IconData localToolIcon(String id) {
       return Lucide.MapPin;
     case LocalToolNames.phoneControl:
       return Lucide.Smartphone;
+    case LocalToolNames.desktopControl:
+      return Lucide.Monitor;
     case LocalToolNames.browser:
       return Lucide.AppWindow;
     case LocalToolNames.weather:
@@ -69,6 +71,12 @@ IconData localToolIcon(String id) {
       return Lucide.AlarmClock;
     case LocalToolNames.composioConnect:
       return Lucide.Layers;
+    case LocalToolNames.manageMcpServers:
+      return Lucide.Server;
+    case LocalToolNames.manageProviders:
+      return Lucide.Boxes;
+    case LocalToolNames.configureSettings:
+      return Lucide.SlidersHorizontal;
     default:
       return Lucide.Wrench;
   }
@@ -96,6 +104,8 @@ String localToolTitle(AppLocalizations l10n, String id) {
       return l10n.assistantEditLocalToolLocationTitle;
     case LocalToolNames.phoneControl:
       return l10n.phoneControlTitle;
+    case LocalToolNames.desktopControl:
+      return 'Desktop Control';
     case LocalToolNames.browser:
       return l10n.browserToolTitle;
     case LocalToolNames.weather:
@@ -132,6 +142,12 @@ String localToolTitle(AppLocalizations l10n, String id) {
       return 'Set Reminder & Alarm';
     case LocalToolNames.composioConnect:
       return 'Composio Connect';
+    case LocalToolNames.manageMcpServers:
+      return 'Manage MCP Servers';
+    case LocalToolNames.manageProviders:
+      return 'Manage AI Providers';
+    case LocalToolNames.configureSettings:
+      return 'Configure App Settings';
     default:
       return id;
   }
