@@ -5312,6 +5312,10 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
         }
       } else if (step.tool != null) {
         final t = step.tool!;
+        if (LocalToolsService.isAskUserTool(t.toolName)) {
+          // ask_user is an interactive prompt to the user, not a background command.
+          continue;
+        }
         final name = t.toolName.toLowerCase();
         final isSearch = name.contains('search') || name.contains('x_search');
         final isCmd =
@@ -5420,13 +5424,35 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
               (s.reasoning?.loading ?? false)),
     );
 
+    final askUserSteps = filteredSteps
+        .where(
+          (s) =>
+              s.tool != null &&
+              LocalToolsService.isAskUserTool(s.tool!.toolName),
+        )
+        .toList();
+
+    final pendingApprovalSteps = filteredSteps
+        .where(
+          (s) =>
+              s.tool != null &&
+              pendingApprovalIds.contains(s.tool!.id) &&
+              !LocalToolsService.isAskUserTool(s.tool!.toolName),
+        )
+        .toList();
+
     final hasToolSteps =
         searchesCount > 0 ||
         commandsCount > 0 ||
         thoughtItems.any(
           (it) => it.isCommand || it.isSearch || it.code != null,
         ) ||
-        filteredSteps.any((s) => s.tool != null || s.browserTools != null);
+        filteredSteps.any(
+          (s) =>
+              (s.tool != null &&
+                  !LocalToolsService.isAskUserTool(s.tool!.toolName)) ||
+              s.browserTools != null,
+        );
 
     final thoughtDurationSeconds = totalDurationMs > 0
         ? math.max(1, (totalDurationMs / 1000).round())
@@ -5466,7 +5492,8 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
           if (hasReasoningSteps) const SizedBox(height: 6),
           GrokWorkBadge(
             durationSeconds: workDurationSeconds,
-            isLoading: hasLoading || widget.streaming,
+            isLoading:
+                (hasLoading || widget.streaming) && askUserSteps.isEmpty,
             isExpanded: _showWorkSteps,
             onTap: () {
               setState(() {
@@ -5486,7 +5513,29 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
               ),
             ),
         ],
-        if (!hasReasoningSteps && !hasToolSteps && filteredSteps.isNotEmpty)
+        if (askUserSteps.isNotEmpty)
+          for (final step in askUserSteps)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 6),
+              child: _AskUserToolCard(
+                part: step.tool!,
+                conversationId: widget.conversationId,
+              ),
+            ),
+        if (pendingApprovalSteps.isNotEmpty)
+          for (final step in pendingApprovalSteps)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 6),
+              child: _ToolCallItem(
+                part: step.tool!,
+                conversationId: widget.conversationId,
+              ),
+            ),
+        if (!hasReasoningSteps &&
+            !hasToolSteps &&
+            askUserSteps.isEmpty &&
+            pendingApprovalSteps.isEmpty &&
+            filteredSteps.isNotEmpty)
           Align(
             alignment: Alignment.centerLeft,
             widthFactor: fillWidth ? null : 1,

@@ -498,8 +498,10 @@ class LocalToolsService {
     return clean == LocalToolNames.askUser ||
         clean == 'ask_user' ||
         clean == 'ask_user_input' ||
+        clean == 'ask_user_input_v0' ||
         clean == 'ask_user_v0' ||
-        clean == 'ask_question';
+        clean == 'ask_question' ||
+        clean.startsWith('ask_user');
   }
 
   static Map<String, dynamic> definitionFor(String name) {
@@ -953,12 +955,13 @@ class LocalToolsService {
       'name': LocalToolNames.desktopControl,
       'description':
           'Control the user\'s desktop computer (Windows, macOS, or Linux). '
-          'Supports reading open windows (read_screen / list_windows), querying live '
-          'system telemetry (system_info: CPU, RAM, disk, battery, active window, screen resolution), '
-          'focusing or closing windows (focus_window, close_window), launching applications '
+          'Supports reading the screen (read_screen captures screenshot and returns visible UI elements, buttons, text nodes, active window, and coordinates like mobile screen reading), '
+          'clicking elements by text (click_text), '
+          'querying live system telemetry (system_info: CPU, RAM, disk, battery, active window, screen resolution), '
+          'listing, focusing, or closing windows (list_windows, focus_window, close_window), launching applications '
           '(open_app, open_url, list_apps), taking desktop screenshots (screenshot), '
           'mouse automation (click, double_click, right_click, mouse_move, scroll), '
-          'keyboard input (type_text, send_keys / hotkey e.g. "ctrl+c", "alt+tab", "enter"), '
+          'keyboard input (type_text, set_text, send_keys / hotkey e.g. "ctrl+c", "alt+tab", "enter"), '
           'audio & media controls (volume: mute, volume_up, volume_down, play_pause, next_track), '
           'and locking the screen (lock_screen).',
       'parameters': {
@@ -969,6 +972,7 @@ class LocalToolsService {
             'enum': [
               'system_info',
               'read_screen',
+              'click_text',
               'list_windows',
               'focus_window',
               'close_window',
@@ -982,6 +986,7 @@ class LocalToolsService {
               'mouse_move',
               'scroll',
               'type_text',
+              'set_text',
               'send_keys',
               'volume',
               'clipboard_read',
@@ -1008,6 +1013,11 @@ class LocalToolsService {
           'url': {
             'type': 'string',
             'description': 'URL or URI to open (for open_url or open_app).',
+          },
+          'query': {
+            'type': 'string',
+            'description':
+                'Text query or element label to find and click (for click_text).',
           },
           'x': {
             'type': 'integer',

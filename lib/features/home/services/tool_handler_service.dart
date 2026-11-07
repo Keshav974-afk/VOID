@@ -693,12 +693,7 @@ class ToolHandlerService {
             return await _handleConfigureSettings(settings, mcp, args);
           }
 
-          final isAskUser =
-              name == LocalToolNames.askUser ||
-              name == 'ask_user' ||
-              name == 'ask_user_input' ||
-              name == 'ask_user_v0' ||
-              name == 'ask_question';
+          final isAskUser = LocalToolsService.isAskUserTool(name);
           if (isAskUser) {
             if (askUserService == null) {
               return _toolError(

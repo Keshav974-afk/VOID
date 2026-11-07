@@ -89,6 +89,39 @@ class DesktopSystemOverview {
   };
 }
 
+class DesktopUiNode {
+  const DesktopUiNode({
+    required this.id,
+    required this.text,
+    required this.type,
+    required this.bounds,
+    required this.center,
+    this.clickable = false,
+    this.editable = false,
+    this.focused = false,
+  });
+
+  final String id;
+  final String text;
+  final String type;
+  final List<int> bounds;
+  final List<int> center;
+  final bool clickable;
+  final bool editable;
+  final bool focused;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'text': text,
+    'type': type,
+    'bounds': bounds,
+    'center': center,
+    'clickable': clickable,
+    'editable': editable,
+    if (focused) 'focused': true,
+  };
+}
+
 /// Cross-platform Desktop Control service for Windows, macOS, and Linux.
 /// Provides native window management, mouse/keyboard automation, screenshots,
 /// application launching, audio/media controls, and system telemetry.
@@ -118,6 +151,22 @@ class DesktopControlService {
           return jsonEncode({'status': 'ok', 'system': info.toJson()});
 
         case 'read_screen':
+          final result = await readScreen();
+          return jsonEncode(result);
+
+        case 'click_text':
+          final query = (args['text'] ?? args['query'] ?? args['label'] ?? '')
+              .toString()
+              .trim();
+          if (query.isEmpty) {
+            return jsonEncode({
+              'status': 'error',
+              'message': 'Missing text or query parameter for click_text.',
+            });
+          }
+          final res = await clickText(query);
+          return jsonEncode(res);
+
         case 'list_windows':
         case 'windows':
           final windows = await listOpenWindows();
@@ -247,20 +296,25 @@ class DesktopControlService {
           final isDouble =
               rawAction == 'double_click' || (args['double_click'] == true);
           if (x == null || y == null) {
-            final clickText = (args['text'] ?? args['window_title'] ?? '')
+            final targetQuery = (args['text'] ??
+                    args['query'] ??
+                    args['label'] ??
+                    args['window_title'] ??
+                    '')
                 .toString()
                 .trim();
-            if (clickText.isNotEmpty) {
-              final focused = await focusWindow(query: clickText);
-              return jsonEncode({
-                'status': focused ? 'ok' : 'error',
-                'action': 'focus_window_by_text',
-                'text': clickText,
-              });
+            if (targetQuery.isNotEmpty) {
+              final res = await clickText(
+                targetQuery,
+                doubleClick: isDouble,
+                button: button,
+              );
+              return jsonEncode(res);
             }
             return jsonEncode({
               'status': 'error',
-              'message': 'x and y coordinates are required for click.',
+              'message':
+                  'x and y coordinates or a text/query parameter are required for click.',
             });
           }
           final clicked = await mouseClick(
@@ -599,6 +653,213 @@ $res | ConvertTo-Json -Compress
       screenWidth: screenW,
       screenHeight: screenH,
     );
+  }
+
+  /// Reads the entire desktop screen, capturing a screenshot and extracting
+  /// visible interactive UI elements (buttons, edit fields, text, windows)
+  /// with their coordinates, matching mobile screen reading capabilities.
+  Future<Map<String, dynamic>> readScreen({bool captureImage = true}) async {
+    final sys = await getSystemOverview();
+    final windows = await listOpenWindows();
+    String? screenshotPath;
+    if (captureImage) {
+      screenshotPath = await captureScreenshot();
+    }
+
+    final nodes = <DesktopUiNode>[];
+    var nodeIdx = 0;
+
+    if (!kIsWeb && Platform.isWindows) {
+      try {
+        const uiaScript = r'''
+Add-Type -AssemblyName UIAutomationClient -ErrorAction SilentlyContinue
+Add-Type -AssemblyName UIAutomationTypes -ErrorAction SilentlyContinue
+$root = [System.Windows.Automation.AutomationElement]::RootElement
+$cond = [System.Windows.Automation.Condition]::TrueCondition
+$topWindows = $root.FindAll([System.Windows.Automation.TreeScope]::Children, $cond)
+$items = @()
+
+foreach ($win in $topWindows) {
+  try {
+    if ($win.Current.IsOffscreen -or [string]::IsNullOrWhiteSpace($win.Current.Name)) { continue }
+    $wrect = $win.Current.BoundingRectangle
+    if ($wrect.Width -le 0 -or $wrect.Height -le 0) { continue }
+    $items += [PSCustomObject]@{
+      text = $win.Current.Name
+      type = "Window"
+      x = [int]$wrect.X
+      y = [int]$wrect.Y
+      w = [int]$wrect.Width
+      h = [int]$wrect.Height
+      clickable = $true
+      editable = $false
+    }
+    $children = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
+    foreach ($c in $children) {
+      try {
+        if ($c.Current.IsOffscreen) { continue }
+        $txt = $c.Current.Name
+        $tp = $c.Current.ControlType.ProgrammaticName -replace '^ControlType\.', ''
+        if ([string]::IsNullOrWhiteSpace($txt) -and $tp -notmatch 'Edit|Button|Document') { continue }
+        $r = $c.Current.BoundingRectangle
+        if ($r.Width -le 0 -or $r.Height -le 0) { continue }
+        $isClick = ($tp -match 'Button|Hyperlink|MenuItem|ListItem|TabItem|CheckBox|RadioButton|ComboBox')
+        $isEdit = ($tp -match 'Edit|Document')
+        $items += [PSCustomObject]@{
+          text = if ($txt) { $txt.Trim() } else { "" }
+          type = $tp
+          x = [int]$r.X
+          y = [int]$r.Y
+          w = [int]$r.Width
+          h = [int]$r.Height
+          clickable = $isClick
+          editable = $isEdit
+        }
+        if ($items.Count -ge 80) { break }
+      } catch {}
+    }
+    if ($items.Count -ge 80) { break }
+  } catch {}
+}
+$items | ConvertTo-Json -Compress
+''';
+        final proc = await Process.run('powershell', [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          uiaScript,
+        ]).timeout(const Duration(seconds: 5));
+        if (proc.exitCode == 0) {
+          final out = proc.stdout.toString().trim();
+          if (out.isNotEmpty) {
+            final decoded = jsonDecode(out);
+            final list = decoded is List ? decoded : [decoded];
+            for (final it in list) {
+              if (it is Map) {
+                final x = (it['x'] as num?)?.toInt() ?? 0;
+                final y = (it['y'] as num?)?.toInt() ?? 0;
+                final w = (it['w'] as num?)?.toInt() ?? 0;
+                final h = (it['h'] as num?)?.toInt() ?? 0;
+                nodeIdx++;
+                nodes.add(
+                  DesktopUiNode(
+                    id: 'node_$nodeIdx',
+                    text: (it['text'] ?? '').toString(),
+                    type: (it['type'] ?? 'Control').toString(),
+                    bounds: [x, y, w, h],
+                    center: [x + (w ~/ 2), y + (h ~/ 2)],
+                    clickable: it['clickable'] == true,
+                    editable: it['editable'] == true,
+                  ),
+                );
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Ensure all open windows are listed as nodes if not already included
+    for (final win in windows) {
+      if (win.title.trim().isNotEmpty &&
+          !nodes.any((n) => n.text == win.title)) {
+        nodeIdx++;
+        final x = 100;
+        final y = 60 + (nodeIdx * 35);
+        nodes.add(
+          DesktopUiNode(
+            id: 'win_$nodeIdx',
+            text: win.title,
+            type: 'Window',
+            bounds: [x, y, 400, 30],
+            center: [x + 200, y + 15],
+            clickable: true,
+            editable: false,
+            focused: win.isActive,
+          ),
+        );
+      }
+    }
+
+    final screenTextBuilder = StringBuffer();
+    for (final n in nodes) {
+      if (n.text.isNotEmpty) {
+        screenTextBuilder.writeln('${n.type}: ${n.text}');
+      }
+    }
+
+    return {
+      'status': 'ok',
+      'action': 'read_screen',
+      'platform': sys.platform,
+      'active_window': sys.activeWindowTitle,
+      'screen_width': sys.screenWidth ?? 1920,
+      'screen_height': sys.screenHeight ?? 1080,
+      'screenshot': screenshotPath,
+      'node_count': nodes.length,
+      'nodes': nodes.map((n) => n.toJson()).toList(),
+      'screen_text': screenTextBuilder.toString().trim(),
+      'windows': windows.map((w) => w.toJson()).toList(),
+    };
+  }
+
+  /// Finds an element or window on the desktop matching [query] and clicks it.
+  Future<Map<String, dynamic>> clickText(
+    String query, {
+    bool doubleClick = false,
+    String button = 'left',
+  }) async {
+    final cleanQuery = query.trim().toLowerCase();
+    final screen = await readScreen(captureImage: false);
+    final rawNodes = screen['nodes'] as List<dynamic>? ?? const [];
+
+    Map<String, dynamic>? match;
+    for (final raw in rawNodes) {
+      if (raw is Map) {
+        final text = (raw['text'] ?? '').toString().toLowerCase();
+        if (text == cleanQuery) {
+          match = raw.cast<String, dynamic>();
+          break;
+        } else if (text.contains(cleanQuery) && match == null) {
+          match = raw.cast<String, dynamic>();
+        }
+      }
+    }
+
+    if (match != null) {
+      final center = (match['center'] as List<dynamic>?)
+          ?.map((e) => (e as num).toInt())
+          .toList();
+      if (center != null && center.length >= 2) {
+        final cx = center[0];
+        final cy = center[1];
+        final clicked = await mouseClick(
+          x: cx,
+          y: cy,
+          button: button,
+          doubleClick: doubleClick,
+        );
+        return {
+          'status': clicked ? 'ok' : 'failed',
+          'action': 'click_text',
+          'query': query,
+          'matched_text': match['text'],
+          'matched_type': match['type'],
+          'clicked_at': {'x': cx, 'y': cy},
+        };
+      }
+    }
+
+    // Fall back to bringing matching window to front
+    final focused = await focusWindow(query: query);
+    return {
+      'status': focused ? 'ok' : 'not_found',
+      'action': 'click_text',
+      'query': query,
+      'message': focused
+          ? 'Window matching "$query" brought to front.'
+          : 'Could not find interactive element or window matching "$query".',
+    };
   }
 
   /// Lists open desktop windows across Windows, macOS, and Linux.
