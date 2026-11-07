@@ -852,7 +852,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildMobileBody(BuildContext context, ColorScheme cs) {
     final bottomContentPadding = _controller.inputBarHeight + 16;
-    final topContentPadding = _chatTopOverlayInset(context) + 8;
+    final topContentPadding = _chatTopOverlayInset(context) + 44;
     final backgroundImageActive = _assistantBackgroundActive(context);
 
     return ChatInputOverlayLayout(
@@ -1035,7 +1035,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildTabletBody(BuildContext context, ColorScheme cs) {
     final bottomContentPadding = _controller.inputBarHeight + 16;
-    final topContentPadding = _chatTopOverlayInset(context) + 8;
+    final topContentPadding = _chatTopOverlayInset(context) + 44;
     final backgroundImageActive = _assistantBackgroundActive(context);
 
     return ChatInputOverlayLayout(
@@ -1339,10 +1339,12 @@ class _HomePageState extends State<HomePage>
       conversation: conversation,
       assistant: context.watch<AssistantProvider>().currentAssistant,
     );
-    final assistantMessages =
-        _controller.messages.where((m) => m.role == 'assistant');
-    final latestAi =
-        assistantMessages.isNotEmpty ? assistantMessages.last.content : null;
+    final assistantMessages = _controller.messages.where(
+      (m) => m.role == 'assistant',
+    );
+    final latestAi = assistantMessages.isNotEmpty
+        ? assistantMessages.last.content
+        : null;
     return ChatInputSection(
       inputBarKey: _inputBarKey,
       chatModelProviderKey: chatModel.providerKey,

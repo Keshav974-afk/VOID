@@ -331,6 +331,36 @@ class BrowserPageCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (running) ...[
+              const SizedBox(width: 6),
+              IosCardPress(
+                borderRadius: BorderRadius.circular(12),
+                baseColor: cs.primary.withValues(alpha: 0.14),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                onTap: () {
+                  service?.takeOver(
+                    sessionId: service?.agentSessionId,
+                    tabId: service?.agentTabId,
+                  );
+                  onTap();
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.hand, size: 13, color: cs.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      l.browserTakeOver,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: AppFontWeights.bold,
+                        color: cs.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(width: 6),
             Text(
               enable ? l.browserCardEnable : l.browserCardOpen,

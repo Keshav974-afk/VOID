@@ -1968,7 +1968,8 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     Map<String, dynamic>? metadata;
     try {
       final obj = jsonDecode(widget.message.content) as Map<String, dynamic>;
-      toolName = (obj['tool'] ?? 'tool').toString();
+      toolName = (obj['tool'] ?? obj['name'] ?? obj['toolName'] ?? 'tool')
+          .toString();
       final a = obj['arguments'];
       if (a is Map<String, dynamic>) args = a;
       result = (obj['result'] ?? '').toString();
@@ -3519,9 +3520,53 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 );
               }
 
+              final toolParts = widget.toolParts;
+              final askParts = (toolParts != null && toolParts.isNotEmpty)
+                  ? toolParts
+                        .where(
+                          (p) => LocalToolsService.isAskUserTool(p.toolName),
+                        )
+                        .toList()
+                  : const <ToolUIPart>[];
+              final renderedInBlocks = visibleBlocks.any(
+                (b) =>
+                    b.isThinking &&
+                    b.thinkingSteps.any(
+                      (s) =>
+                          s.tool != null &&
+                          LocalToolsService.isAskUserTool(s.tool!.toolName),
+                    ),
+              );
+              if (!renderedInBlocks && askParts.isNotEmpty) {
+                for (final part in askParts) {
+                  addVisible(
+                    _AskUserToolCard(
+                      part: part,
+                      conversationId: widget.message.conversationId,
+                    ),
+                  );
+                }
+              }
+
+              final hasActiveAskUser =
+                  askParts.any((p) => p.loading) ||
+                  visibleBlocks.any(
+                    (b) =>
+                        b.isThinking &&
+                        b.thinkingSteps.any(
+                          (s) =>
+                              s.tool != null &&
+                              LocalToolsService.isAskUserTool(
+                                s.tool!.toolName,
+                              ) &&
+                              s.tool!.loading,
+                        ),
+                  );
+
               // A round that only called tools leaves no visible text, but a
               // pending retry still has to say so somewhere.
               if (widget.message.isStreaming &&
+                  !hasActiveAskUser &&
                   (visualContent.isNotEmpty || widget.retryStatus != null)) {
                 widgets.add(
                   Padding(
@@ -5492,8 +5537,7 @@ class _ChainOfThoughtCardState extends State<_ChainOfThoughtCard> {
           if (hasReasoningSteps) const SizedBox(height: 6),
           GrokWorkBadge(
             durationSeconds: workDurationSeconds,
-            isLoading:
-                (hasLoading || widget.streaming) && askUserSteps.isEmpty,
+            isLoading: (hasLoading || widget.streaming) && askUserSteps.isEmpty,
             isExpanded: _showWorkSteps,
             onTap: () {
               setState(() {
@@ -7689,11 +7733,21 @@ class _AskUserInlineBodyState extends State<_AskUserInlineBody> {
     AskUserRequest? pendingRequest,
   ) async {
     final answers = _buildAnswers(questions);
-    if (pendingRequest != null) {
+    final targetReq =
+        pendingRequest ??
+        askUserService.requestFor(
+          toolCallId: widget.part.id,
+          conversationId: widget.conversationId,
+        ) ??
+        (askUserService.pendingRequests.isNotEmpty
+            ? askUserService.pendingRequests.values.last
+            : null);
+
+    if (targetReq != null) {
       askUserService.answer(
-        pendingRequest.toolCallId,
+        targetReq.toolCallId,
         answers,
-        conversationId: pendingRequest.conversationId,
+        conversationId: targetReq.conversationId,
       );
       return;
     }
@@ -7815,6 +7869,7 @@ class _AskUserInlineBodyState extends State<_AskUserInlineBody> {
                 _canSubmit(questions) &&
                     !_submittingRecovered &&
                     (pendingRequest != null ||
+                        askUserService.pendingRequests.isNotEmpty ||
                         _RecoveredAskUserAction.maybeOf(context)?.onSubmit !=
                             null)
                 ? () =>

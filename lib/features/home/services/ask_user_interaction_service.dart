@@ -150,8 +150,8 @@ class AskUserInteractionService extends ChangeNotifier {
         if (req.conversationId == conversationId) return req;
       }
     }
-    if (_pending.length == 1) {
-      return _pending.values.first;
+    if (_pending.isNotEmpty) {
+      return _pending.values.last;
     }
     return null;
   }
@@ -196,6 +196,10 @@ class AskUserInteractionService extends ChangeNotifier {
       if (request != null) {
         _pending.remove(request.toolCallId);
       }
+    }
+    if (request == null && _pending.isNotEmpty) {
+      final firstKey = _pending.keys.first;
+      request = _pending.remove(firstKey);
     }
     if (request != null && !request._completer.isCompleted) {
       request._completer.complete(AskUserResult.answer(answers));
@@ -248,6 +252,15 @@ class AskUserInteractionService extends ChangeNotifier {
   static List<AskUserQuestion> normalizeQuestions(
     Map<String, dynamic> arguments,
   ) {
+    Map<String, dynamic> args = arguments;
+    if (args.containsKey('input') && args['input'] is Map) {
+      args = (args['input'] as Map).cast<String, dynamic>();
+    } else if (args.containsKey('parameters') && args['parameters'] is Map) {
+      args = (args['parameters'] as Map).cast<String, dynamic>();
+    } else if (args.containsKey('args') && args['args'] is Map) {
+      args = (args['args'] as Map).cast<String, dynamic>();
+    }
+
     final questions = <AskUserQuestion>[];
     final usedIds = <String>{};
 
@@ -279,7 +292,19 @@ class AskUserInteractionService extends ChangeNotifier {
       );
     }
 
-    final rawQuestions = arguments['questions'];
+    var rawQuestions = args['questions'];
+    if (rawQuestions is String) {
+      final trimmed = rawQuestions.trim();
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+          (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          rawQuestions = jsonDecode(trimmed);
+        } catch (_) {}
+      }
+    }
+    if (rawQuestions is Map) {
+      rawQuestions = [rawQuestions];
+    }
 
     // 1. If arguments['questions'] is a List
     if (rawQuestions is List && rawQuestions.isNotEmpty) {
@@ -309,8 +334,8 @@ class AskUserInteractionService extends ChangeNotifier {
                 map['items'] ??
                 map['suggestions'] ??
                 map['values'] ??
-                arguments['options'] ??
-                arguments['choices'],
+                args['options'] ??
+                args['choices'],
           );
           addQuestion(
             id: qId,
@@ -321,17 +346,45 @@ class AskUserInteractionService extends ChangeNotifier {
             options: options,
           );
         } else if (raw is String && raw.trim().isNotEmpty) {
+          final trimmed = raw.trim();
+          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+            try {
+              final decoded = jsonDecode(trimmed);
+              if (decoded is Map) {
+                final map = decoded.cast<String, dynamic>();
+                final qText =
+                    (map['question'] ?? map['prompt'] ?? map['text'] ?? '')
+                        .toString();
+                final qId = (map['id'] ?? map['name'])?.toString();
+                final isMulti =
+                    map['is_multi_select'] == true ||
+                    map['multi_select'] == true;
+                final options = _normalizeOptions(
+                  map['options'] ?? map['choices'],
+                );
+                addQuestion(
+                  id: qId,
+                  question: qText,
+                  kind: isMulti
+                      ? AskUserQuestionKind.multi
+                      : AskUserQuestionKind.single,
+                  options: options,
+                );
+                continue;
+              }
+            } catch (_) {}
+          }
           final topLevelOptions = _normalizeOptions(
-            arguments['options'] ??
-                arguments['choices'] ??
-                arguments['items'] ??
-                arguments['suggestions'] ??
-                arguments['values'],
+            args['options'] ??
+                args['choices'] ??
+                args['items'] ??
+                args['suggestions'] ??
+                args['values'],
           );
           final isMulti =
-              arguments['is_multi_select'] == true ||
-              arguments['multi_select'] == true ||
-              arguments['multiple'] == true;
+              args['is_multi_select'] == true ||
+              args['multi_select'] == true ||
+              args['multiple'] == true;
           addQuestion(
             id: null,
             question: raw,
@@ -347,34 +400,34 @@ class AskUserInteractionService extends ChangeNotifier {
     // 2. If no questions extracted yet, check top-level single question keys
     if (questions.isEmpty) {
       final singleText =
-          (arguments['question'] ??
+          (args['question'] ??
                   (rawQuestions is String ? rawQuestions : null) ??
-                  arguments['prompt'] ??
-                  arguments['query'] ??
-                  arguments['text'] ??
-                  arguments['message'] ??
-                  arguments['title'] ??
-                  arguments['input'] ??
-                  arguments['content'] ??
+                  args['prompt'] ??
+                  args['query'] ??
+                  args['text'] ??
+                  args['message'] ??
+                  args['title'] ??
+                  args['input'] ??
+                  args['content'] ??
                   '')
               .toString()
               .trim();
       if (singleText.isNotEmpty) {
         final isMulti =
-            arguments['is_multi_select'] == true ||
-            arguments['multi_select'] == true ||
-            arguments['multiple'] == true ||
-            _kindFromString((arguments['type'] ?? '').toString()) ==
+            args['is_multi_select'] == true ||
+            args['multi_select'] == true ||
+            args['multiple'] == true ||
+            _kindFromString((args['type'] ?? '').toString()) ==
                 AskUserQuestionKind.multi;
         final options = _normalizeOptions(
-          arguments['options'] ??
-              arguments['choices'] ??
-              arguments['items'] ??
-              arguments['suggestions'] ??
-              arguments['values'],
+          args['options'] ??
+              args['choices'] ??
+              args['items'] ??
+              args['suggestions'] ??
+              args['values'],
         );
         addQuestion(
-          id: (arguments['id'] ?? 'q1').toString(),
+          id: (args['id'] ?? 'q1').toString(),
           question: singleText,
           kind: isMulti
               ? AskUserQuestionKind.multi
@@ -386,7 +439,7 @@ class AskUserInteractionService extends ChangeNotifier {
 
     // 3. Fallback: inspect arguments for any question-like string parameter
     if (questions.isEmpty) {
-      for (final entry in arguments.entries) {
+      for (final entry in args.entries) {
         if (entry.value is String) {
           final str = (entry.value as String).trim();
           if (str.isNotEmpty && (str.endsWith('?') || str.length > 5)) {
@@ -412,9 +465,18 @@ class AskUserInteractionService extends ChangeNotifier {
   }
 
   static List<String> _normalizeOptions(dynamic rawOptions) {
-    if (rawOptions is! List) return const <String>[];
+    var source = rawOptions;
+    if (source is String) {
+      final trimmed = source.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          source = jsonDecode(trimmed);
+        } catch (_) {}
+      }
+    }
+    if (source is! List) return const <String>[];
     final out = <String>[];
-    for (final raw in rawOptions) {
+    for (final raw in source) {
       String text = '';
       if (raw is Map) {
         text =

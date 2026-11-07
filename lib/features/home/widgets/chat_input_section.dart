@@ -189,10 +189,9 @@ class _ChatInputSectionState extends State<ChatInputSection> {
         latestAiResponse: widget.latestAiResponse,
         isLoading: widget.isLoading,
         onSend: (text, {imagePaths}) async {
-          await widget.onSend?.call(ChatInputData(
-            text: text,
-            imagePaths: imagePaths ?? const [],
-          ));
+          await widget.onSend?.call(
+            ChatInputData(text: text, imagePaths: imagePaths ?? const []),
+          );
         },
         onHangup: () {
           if (mounted) setState(() => _isLiveCall = false);
@@ -220,7 +219,8 @@ class _ChatInputSectionState extends State<ChatInputSection> {
             budgetTokens: selectedReasoning.budgetTokens,
           );
 
-    if (!widget.chatModelIsConversationOverride && a?.allowConversationMcp != true) {
+    if (!widget.chatModelIsConversationOverride &&
+        a?.allowConversationMcp != true) {
       _enforceModelCapabilities(context, settings, ap, a, pk, mid);
     }
 
@@ -249,7 +249,9 @@ class _ChatInputSectionState extends State<ChatInputSection> {
       workspaceActive: workspaceBound,
       onOpenSkills: isDesktop ? widget.onOpenSkills : null,
       skillsActive:
-          isDesktop && widget.onOpenSkills != null && _isSkillsActive(context, a),
+          isDesktop &&
+          widget.onOpenSkills != null &&
+          _isSkillsActive(context, a),
       onStop: widget.onStop,
       modelIcon: (pk != null && mid != null)
           ? CurrentModelIcon(
@@ -292,31 +294,32 @@ class _ChatInputSectionState extends State<ChatInputSection> {
       showQuickPhraseButton: _hasQuickPhrases(context, a),
       onQuickPhrase: widget.onQuickPhrase,
       onLongPressQuickPhrase: widget.onLongPressQuickPhrase,
-      showOcrButton: widget.isTablet
-          ? (settings.ocrModelProvider != null && settings.ocrModelId != null)
-          : (isDesktop &&
-                settings.ocrModelProvider != null &&
-                settings.ocrModelId != null),
+      showOcrButton:
+          (settings.ocrModelProvider != null && settings.ocrModelId != null),
       ocrActive: settings.ocrEnabled,
       onToggleOcr: widget.onToggleOcr,
-      showMiniMapButton: widget.isTablet,
-      onOpenMiniMap: widget.isTablet ? widget.onOpenMiniMap : null,
-      onPickCamera: widget.isTablet ? (isDesktop ? null : widget.onPickCamera) : null,
-      onPickPhotos: widget.isTablet ? (isDesktop ? null : widget.onPickPhotos) : null,
-      onUploadFiles: widget.isTablet ? widget.onUploadFiles : null,
-      onOpenBrowser: widget.isTablet ? widget.onOpenBrowser : null,
-      onToggleLearningMode: widget.isTablet ? widget.onToggleLearningMode : null,
+      showMiniMapButton: true,
+      onOpenMiniMap: widget.onOpenMiniMap,
+      onPickCamera: isDesktop ? null : widget.onPickCamera,
+      onPickPhotos: isDesktop ? null : widget.onPickPhotos,
+      onUploadFiles: widget.onUploadFiles,
+      onOpenBrowser: widget.onOpenBrowser,
+      onToggleLearningMode: widget.onToggleLearningMode,
       onOpenWorldBook: hasWorldBooks ? widget.onOpenWorldBook : null,
-      onLongPressLearning: widget.isTablet ? widget.onLongPressLearning : null,
-      learningModeActive:
-          widget.isTablet &&
-          _isPromptSelectionActive(context, a, PromptSelectionKind.instruction),
-      worldBookActive:
-          widget.isTablet &&
-          _isPromptSelectionActive(context, a, PromptSelectionKind.worldBook),
-      showMoreButton: !widget.isTablet,
-      onClearContext: widget.isTablet ? widget.onClearContext : null,
-      onCompressContext: widget.isTablet ? widget.onCompressContext : null,
+      onLongPressLearning: widget.onLongPressLearning,
+      learningModeActive: _isPromptSelectionActive(
+        context,
+        a,
+        PromptSelectionKind.instruction,
+      ),
+      worldBookActive: _isPromptSelectionActive(
+        context,
+        a,
+        PromptSelectionKind.worldBook,
+      ),
+      showMoreButton: true,
+      onClearContext: widget.onClearContext,
+      onCompressContext: widget.onCompressContext,
       backgroundImageActive: widget.backgroundImageActive,
       inputBackgroundOpacityLight: settings.chatInputBackgroundOpacityLight,
       inputBackgroundOpacityDark: settings.chatInputBackgroundOpacityDark,
@@ -472,7 +475,8 @@ class _ChatInputSectionState extends State<ChatInputSection> {
     if (workspaceBound) return true;
     if ((a?.localToolIds ?? const <String>[]).isNotEmpty) return true;
     final connected = context.watch<McpProvider>().connectedServers;
-    final selected = a?.allowConversationMcp == true && widget.conversationId != null
+    final selected =
+        a?.allowConversationMcp == true && widget.conversationId != null
         ? context.select<ChatService, List<String>>(
             (chat) => ConversationMcpSettings.effectiveServerIds(
               a,

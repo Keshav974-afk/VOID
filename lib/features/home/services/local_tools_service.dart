@@ -495,7 +495,15 @@ class LocalToolsService {
 
   static bool isAskUserTool(String name) {
     final clean = name.trim().toLowerCase().replaceAll('-', '_');
-    return clean == LocalToolNames.askUser ||
+    final bare = clean.split('.').last.split(':').last.split('__').last;
+    return bare == LocalToolNames.askUser ||
+        bare == 'ask_user' ||
+        bare == 'ask_user_input' ||
+        bare == 'ask_user_input_v0' ||
+        bare == 'ask_user_v0' ||
+        bare == 'ask_question' ||
+        bare.startsWith('ask_user') ||
+        clean == LocalToolNames.askUser ||
         clean == 'ask_user' ||
         clean == 'ask_user_input' ||
         clean == 'ask_user_input_v0' ||

@@ -2379,7 +2379,7 @@ class _BrowserViewHostState extends State<_BrowserViewHost> {
             }
           });
         }
-        return Stack(
+        Widget content = Stack(
           fit: StackFit.expand,
           children: [
             _nativeView!,
@@ -2401,6 +2401,22 @@ class _BrowserViewHostState extends State<_BrowserViewHost> {
               ),
             ),
           ],
+        );
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) {
+            if (widget.service.agentActivityFor(
+                  sessionId: widget.service.agentSessionId,
+                  tabId: widget.tabId,
+                ) ==
+                BrowserAgentActivity.running) {
+              widget.service.takeOver(
+                sessionId: widget.service.agentSessionId,
+                tabId: widget.tabId,
+              );
+            }
+          },
+          child: content,
         );
       },
     );
