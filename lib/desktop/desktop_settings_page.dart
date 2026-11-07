@@ -527,11 +527,6 @@ class _SettingsMenu extends StatelessWidget {
         lucide.Lucide.Wrench,
         l10n.toolSchemaSettingsPageTitle,
       ),
-      (
-        _SettingsMenuItem.about,
-        lucide.Lucide.BadgeInfo,
-        l10n.settingsPageAbout,
-      ),
     ];
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;

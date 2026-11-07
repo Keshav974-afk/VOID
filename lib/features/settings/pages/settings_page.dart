@@ -16,11 +16,10 @@ import '../../mcp/pages/mcp_page.dart';
 import '../../workspace/pages/skills_page.dart';
 import '../../workspace/pages/workspace_settings_page.dart';
 import '../../assistant/pages/assistant_settings_page.dart';
-import 'about_page.dart';
+import '../../../core/providers/assistant_provider.dart';
 import 'memory_settings_page.dart';
 import 'tts_services_page.dart';
 import 'tool_schema_settings_page.dart';
-import 'sponsor_page.dart';
 import 'log_viewer_page.dart';
 import '../../search/pages/search_services_page.dart';
 import '../../backup/pages/backup_page.dart';
@@ -32,11 +31,12 @@ import 'network_proxy_page.dart';
 import 'vps_settings_page.dart';
 import 'phone_control_settings_page.dart';
 import 'desktop_control_settings_page.dart';
+import '../../../core/services/desktop_control/desktop_control_service.dart';
 import '../../home/services/local_tools_service.dart';
 import 'storage_space_page.dart';
 import '../../stats/pages/stats_page.dart';
+import '../../browser/browser_navigation.dart';
 import '../../../core/services/storage/storage_usage_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/haptics.dart';
 import 'package:Kelivo/theme/app_font_weights.dart';
 import 'package:Kelivo/theme/app_semantic_colors.dart';
@@ -434,6 +434,22 @@ class SettingsPage extends StatelessWidget {
                 },
               ),
               _iosDivider(context),
+              _iosNavRow(
+                context,
+                icon: Lucide.AppWindow,
+                label: l10n.browserTitle,
+                detailText: 'Web Control',
+                onTap: () {
+                  openBrowserPage(
+                    context,
+                    conversationId: null,
+                    assistantId: context
+                        .read<AssistantProvider>()
+                        .currentAssistantId,
+                  );
+                },
+              ),
+              _iosDivider(context),
               if (DeviceLocalTools.phoneControlSupported) ...[
                 _iosNavRow(
                   context,
@@ -443,14 +459,16 @@ class SettingsPage extends StatelessWidget {
                 ),
                 _iosDivider(context),
               ],
-              _iosNavRow(
-                context,
-                icon: Lucide.Monitor,
-                label: 'Desktop & System Control',
-                detailText: 'Active',
-                onTap: () => DesktopControlSettingsPage.open(context),
-              ),
-              _iosDivider(context),
+              if (DesktopControlService.isDesktopPlatform) ...[
+                _iosNavRow(
+                  context,
+                  icon: Lucide.Monitor,
+                  label: 'Desktop & System Control',
+                  detailText: 'Active',
+                  onTap: () => DesktopControlSettingsPage.open(context),
+                ),
+                _iosDivider(context),
+              ],
               _iosNavRow(
                 context,
                 icon: Lucide.Zap,
@@ -528,20 +546,9 @@ class SettingsPage extends StatelessWidget {
           ),
 
           const SizedBox(height: 12),
-          header(l10n.settingsPageAboutSection),
+          header(l10n.settingsPageStatistics),
           SectionCard(
             children: [
-              _iosNavRow(
-                context,
-                icon: Lucide.BadgeInfo,
-                label: l10n.settingsPageAbout,
-                onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (_) => const AboutPage()));
-                },
-              ),
-              _iosDivider(context),
               _iosNavRow(
                 context,
                 icon: Lucide.ChartColumnBig,
@@ -550,18 +557,6 @@ class SettingsPage extends StatelessWidget {
                   Navigator.of(
                     context,
                   ).push(MaterialPageRoute(builder: (_) => const StatsPage()));
-                },
-              ),
-              _iosDivider(context),
-              _iosNavRow(
-                context,
-                icon: Lucide.Library,
-                label: l10n.settingsPageDocs,
-                onTap: () async {
-                  final uri = Uri.parse('https://kelivo.psycheas.top/');
-                  if (!await launchUrl(uri, mode: LaunchMode.platformDefault)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
                 },
               ),
               if (settings.requestLogEnabled ||
@@ -589,17 +584,6 @@ class SettingsPage extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => const ToolSchemaSettingsPage(),
                     ),
-                  );
-                },
-              ),
-              _iosDivider(context),
-              _iosNavRow(
-                context,
-                icon: Lucide.Heart,
-                label: l10n.settingsPageSponsor,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SponsorPage()),
                   );
                 },
               ),

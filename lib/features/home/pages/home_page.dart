@@ -852,7 +852,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildMobileBody(BuildContext context, ColorScheme cs) {
     final bottomContentPadding = _controller.inputBarHeight + 16;
-    final topContentPadding = _chatTopOverlayInset(context) + 44;
+    final topContentPadding = _chatTopOverlayInset(context);
     final backgroundImageActive = _assistantBackgroundActive(context);
 
     return ChatInputOverlayLayout(
@@ -1035,7 +1035,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildTabletBody(BuildContext context, ColorScheme cs) {
     final bottomContentPadding = _controller.inputBarHeight + 16;
-    final topContentPadding = _chatTopOverlayInset(context) + 44;
+    final topContentPadding = _chatTopOverlayInset(context);
     final backgroundImageActive = _assistantBackgroundActive(context);
 
     return ChatInputOverlayLayout(

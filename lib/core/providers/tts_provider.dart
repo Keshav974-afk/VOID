@@ -212,6 +212,7 @@ class TtsProvider extends ChangeNotifier {
       _updatePositionFromCurrentChunk();
     });
     _tts.setErrorHandler((msg) {
+      if (_ignoreTtsStopCallbacks) return;
       _error = msg?.toString();
       _stopInternal(updateState: false);
       _playbackState = _playbackState.copyWith(
@@ -535,7 +536,9 @@ class TtsProvider extends ChangeNotifier {
     bool waitForCompletion = true,
     bool plainText = false,
   }) async {
-    if (!_initialized) return;
+    if (!_initialized) {
+      await _init();
+    }
     final selected = await _getSelectedNetworkService();
     if (selected != null && selected.enabled) {
       return _speakQueued(
@@ -559,7 +562,9 @@ class TtsProvider extends ChangeNotifier {
     bool flush = true,
     bool plainText = false,
   }) async {
-    if (!_initialized) return;
+    if (!_initialized) {
+      await _init();
+    }
     return _speakQueued(text, flush: flush, plainText: plainText);
   }
 
@@ -732,7 +737,9 @@ class TtsProvider extends ChangeNotifier {
   }
 
   Future<void> replay() async {
-    if (!_initialized) return;
+    if (!_initialized) {
+      await _init();
+    }
     final content = _lastReplayContent;
     if (content == null || content.isEmpty) return;
     final networkService = _lastReplayNetworkService;
@@ -1046,7 +1053,11 @@ class TtsProvider extends ChangeNotifier {
     dynamic res;
     try {
       res = await _tts.speak(text, focus: true);
-    } catch (_) {}
+    } catch (_) {
+      try {
+        res = await _tts.speak(text);
+      } catch (_) {}
+    }
     if (_speakOk(res)) return true;
     for (var i = 0; i < 3; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 150));
@@ -1054,7 +1065,11 @@ class TtsProvider extends ChangeNotifier {
         await _detectAndSetBestLanguage(text);
         await _tts.setVolume(1.0);
         res = await _tts.speak(text, focus: true);
-      } catch (_) {}
+      } catch (_) {
+        try {
+          res = await _tts.speak(text);
+        } catch (_) {}
+      }
       if (_speakOk(res)) return true;
     }
     await _recreateEngine();
@@ -1063,7 +1078,12 @@ class TtsProvider extends ChangeNotifier {
       await _tts.setVolume(1.0);
       res = await _tts.speak(text, focus: true);
       if (_speakOk(res)) return true;
-    } catch (_) {}
+    } catch (_) {
+      try {
+        res = await _tts.speak(text);
+        if (_speakOk(res)) return true;
+      } catch (_) {}
+    }
     return false;
   }
 

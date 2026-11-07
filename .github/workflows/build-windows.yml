@@ -65,7 +65,7 @@ jobs:
       - name: 📦 Package ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "Kelivo_windows_$env:VERSION.zip"
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "VOID_windows_$env:VERSION.zip"
 
       - name: 🔧 Install Inno Setup
         run: choco install innosetup -y
@@ -110,10 +110,10 @@ jobs:
           }
 
           $issContent = @"
-          #define MyAppName "Kelivo"
+          #define MyAppName "VOID"
           #define MyAppVersion "$env:VERSION"
-          #define MyAppPublisher "Kelivo"
-          #define MyAppExeName "kelivo.exe"
+          #define MyAppPublisher "VOID"
+          #define MyAppExeName "VOID.exe"
 
           [Setup]
           AppId={{A7B8C9D0-E1F2-4A5B-8C9D-0E1F2A3B4C5D}}
@@ -123,7 +123,7 @@ jobs:
           DefaultDirName={autopf}\{#MyAppName}
           DefaultGroupName={#MyAppName}
           OutputDir=.
-          OutputBaseFilename=Kelivo_windows_{#MyAppVersion}_setup
+          OutputBaseFilename=VOID_windows_{#MyAppVersion}_setup
           Compression=lzma2
           SolidCompression=yes
           WizardStyle=modern
@@ -158,17 +158,17 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_tag }}
           files: |
-            Kelivo_windows_*.zip
-            Kelivo_windows_*_setup.exe
+            VOID_windows_*.zip
+            VOID_windows_*_setup.exe
 
       - name: 📤 Upload Windows Portable ZIP
         uses: actions/upload-artifact@v4
         with:
           name: Windows-ZIP
-          path: Kelivo_windows_*.zip
+          path: VOID_windows_*.zip
 
       - name: 📤 Upload Windows Installer EXE
         uses: actions/upload-artifact@v4
         with:
           name: Windows-Installer
-          path: Kelivo_windows_*_setup.exe
+          path: VOID_windows_*_setup.exe

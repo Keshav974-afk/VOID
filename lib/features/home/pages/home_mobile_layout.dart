@@ -135,23 +135,7 @@ class HomeMobileScaffold extends StatelessWidget {
           extendBodyBehindAppBar: true,
           backgroundColor: Colors.transparent,
           appBar: appBarOverride ?? _buildAppBar(context, cs),
-          body: Stack(
-            children: [
-              Positioned.fill(child: body),
-              if (onGrokModeChanged != null)
-                Positioned(
-                  top: MediaQuery.paddingOf(context).top + kToolbarHeight + 2,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: GrokModeSelector(
-                      currentMode: grokMode,
-                      onModeChanged: onGrokModeChanged!,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          body: body,
         ),
       ),
     );

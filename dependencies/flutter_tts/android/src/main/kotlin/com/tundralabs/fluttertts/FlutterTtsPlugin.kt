@@ -124,6 +124,7 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
                     if (awaitSpeakCompletion && queueMode == TextToSpeech.QUEUE_FLUSH) {
                         speakCompletion(1)
                     }
+                    speaking = false
                     invokeMethod("speak.onComplete", true)
                 }
                 lastProgress = 0
@@ -137,9 +138,7 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
                     tag,
                     "Utterance ID has been stopped: $utteranceId. Interrupted: $interrupted"
                 )
-                if (awaitSpeakCompletion) {
-                    speaking = false
-                }
+                speaking = false
                 if (isPaused) {
                     invokeMethod("speak.onPause", true)
                 } else {
@@ -178,8 +177,9 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
                     }
                     invokeMethod("synth.onError", "Error from TextToSpeech (synth)")
                 } else {
+                    speaking = false
                     if (awaitSpeakCompletion) {
-                        speaking = false
+                        speakCompletion(0)
                     }
                     invokeMethod("speak.onError", "Error from TextToSpeech (speak)")
                 }
@@ -194,8 +194,9 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
                     }
                     invokeMethod("synth.onError", "Error from TextToSpeech (synth) - $errorCode")
                 } else {
+                    speaking = false
                     if (awaitSpeakCompletion) {
-                        speaking = false
+                        speakCompletion(0)
                     }
                     invokeMethod("speak.onError", "Error from TextToSpeech (speak) - $errorCode")
                 }
@@ -349,10 +350,11 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
                     }
                 }
                 if (speaking) {
-                    // If TTS is set to queue mode, allow the utterance to be queued up rather than discarded
                     if (queueMode == TextToSpeech.QUEUE_FLUSH) {
-                        result.success(0)
-                        return
+                        try {
+                            tts?.stop()
+                        } catch (_: Exception) {}
+                        speaking = false
                     }
                 }
                 val b = speak(text, focus)
@@ -727,16 +729,24 @@ class FlutterTtsPlugin : MethodCallHandler, FlutterPlugin {
                 tts!!.speak(text, queueMode, bundle, uuid) == 0
             }
         } else {
-            ttsStatus = null
-            tts = TextToSpeech(context, onInitListenerWithoutCallback, selectedEngine)
+            if (tts == null) {
+                ttsStatus = null
+                tts = TextToSpeech(context, onInitListenerWithoutCallback, selectedEngine)
+            }
             false
         }
     }
 
     private fun stop() {
-        if (awaitSynthCompletion) synth = false
-        if (awaitSpeakCompletion) speaking = false
-        tts!!.stop()
+        synth = false
+        speaking = false
+        if (tts != null) {
+            try {
+                tts!!.stop()
+            } catch (e: Exception) {
+                Log.e(tag, "stop: ${e.message}")
+            }
+        }
     }
 
     private val maxSpeechInputLength: Int
