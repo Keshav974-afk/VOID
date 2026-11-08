@@ -48,6 +48,7 @@ import '../../../desktop/context_usage_popover.dart';
 import '../../../desktop/tools_popover.dart';
 import '../../../desktop/workspace_dialog.dart';
 import '../../../desktop/skills_popover.dart';
+import '../../workspace/widgets/skills/conversation_skills_sheet.dart';
 import '../../../desktop/mini_map_popover.dart';
 import '../../../desktop/quick_phrase_popover.dart';
 import '../../../desktop/instruction_injection_popover.dart';
@@ -1381,16 +1382,12 @@ class _HomePageState extends State<HomePage>
       },
       onOpenWorkspace: () {
         final a = context.read<AssistantProvider>().currentAssistant;
-        if (PlatformUtils.isDesktop) {
-          showDesktopWorkspaceDialog(
-            context,
-            conversationListenable: _controller,
-            conversationId: () => _controller.currentConversation?.id,
-            assistantId: a?.id,
-          );
-        } else {
-          _toggleTools();
-        }
+        showDesktopWorkspaceDialog(
+          context,
+          conversationListenable: _controller,
+          conversationId: () => _controller.currentConversation?.id,
+          assistantId: a?.id,
+        );
       },
       onOpenSkills: () async {
         final assistant = context.read<AssistantProvider>().currentAssistant;
@@ -1400,12 +1397,20 @@ class _HomePageState extends State<HomePage>
           assistantId: assistant?.id,
         );
         if (id == null || !context.mounted) return;
-        await showDesktopSkillsPopover(
-          context,
-          anchorKey: _inputBarKey,
-          conversationId: id,
-          assistant: assistant,
-        );
+        if (PlatformUtils.isDesktop) {
+          await showDesktopSkillsPopover(
+            context,
+            anchorKey: _inputBarKey,
+            conversationId: id,
+            assistant: assistant,
+          );
+        } else {
+          await showConversationSkillsSheet(
+            context,
+            conversationId: id,
+            assistant: assistant,
+          );
+        }
       },
       onOpenTools: () {
         final a = context.read<AssistantProvider>().currentAssistant;

@@ -227,7 +227,7 @@ class _ChatInputSectionState extends State<ChatInputSection> {
     final isDesktop = _isDesktopPlatform(context);
     final hasWorldBooks =
         widget.isTablet && context.watch<WorldBookProvider>().books.isNotEmpty;
-    final showWorkspaceButton = isDesktop && widget.onOpenWorkspace != null;
+    final showWorkspaceButton = widget.onOpenWorkspace != null;
     final showEnvChip = !isDesktop && (Platform.isAndroid || Platform.isIOS);
     var workspaceBound = false;
     if (showWorkspaceButton || showEnvChip) {
@@ -247,11 +247,8 @@ class _ChatInputSectionState extends State<ChatInputSection> {
       onOpenWorkspace: widget.onOpenWorkspace,
       showWorkspaceButton: showWorkspaceButton,
       workspaceActive: workspaceBound,
-      onOpenSkills: isDesktop ? widget.onOpenSkills : null,
-      skillsActive:
-          isDesktop &&
-          widget.onOpenSkills != null &&
-          _isSkillsActive(context, a),
+      onOpenSkills: widget.onOpenSkills,
+      skillsActive: widget.onOpenSkills != null && _isSkillsActive(context, a),
       onStop: widget.onStop,
       modelIcon: (pk != null && mid != null)
           ? CurrentModelIcon(

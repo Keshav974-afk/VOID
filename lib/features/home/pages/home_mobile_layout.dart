@@ -266,10 +266,11 @@ class HomeMobileScaffold extends StatelessWidget {
             ),
             const SizedBox(width: 8),
           ],
-          if (capsule != null)
-            Flexible(child: capsule)
-          else
-            Flexible(
+          Flexible(
+            fit: FlexFit.loose,
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
               child: AnimatedTextSwap(
                 text: title,
                 style: TextStyle(
@@ -280,6 +281,18 @@ class HomeMobileScaffold extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+          ),
+          if (capsule != null) ...[
+            const SizedBox(width: 6),
+            Flexible(
+              fit: FlexFit.loose,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: capsule,
+              ),
+            ),
+          ],
         ],
       ),
     );

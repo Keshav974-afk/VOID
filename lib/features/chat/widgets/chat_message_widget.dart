@@ -96,6 +96,7 @@ import 'weather_tool_ui.dart';
 import 'x_tool_ui.dart';
 import 'sports_tool_ui.dart';
 import 'sandbox_vps_tool_ui.dart';
+import 'cloud_computer_live_card.dart';
 import 'site_inspect_tool_ui.dart';
 import '../../../core/services/x_search/x_search_service.dart';
 import '../../../core/services/sports/sports_service.dart';
@@ -3585,22 +3586,18 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 conversationId: widget.message.conversationId,
               ),
             ],
-            // Auto-render any generated files (PDF, images, etc.) mentioned in the assistant's response
+            // Auto-render Cloud Computer / Simular Box live card with "Take Control"
             Builder(
               builder: (context) {
-                final messageFiles = extractGeneratedFilePaths(
+                final liveSession = CloudComputerLiveSessionInfo.detect(
                   widget.message.content,
                 );
-                if (messageFiles.isEmpty) return const SizedBox.shrink();
+                if (liveSession == null) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final filePath in messageFiles)
-                        GeneratedFileCard(filePath: filePath),
-                    ],
+                  child: CloudComputerLiveCard(
+                    sessionInfo: liveSession,
+                    conversationId: widget.message.conversationId,
                   ),
                 );
               },
@@ -7335,6 +7332,27 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                 },
               ),
             ],
+            // Live Cloud Computer / Simular Box / Sandbox session detection for tool parts
+            if (!widget.part.loading && !isPendingApproval) ...[
+              Builder(
+                builder: (context) {
+                  final liveSession = CloudComputerLiveSessionInfo.detect(
+                    widget.part.content,
+                    toolName: widget.part.toolName,
+                    toolArgs: widget.part.arguments,
+                    toolContent: widget.part.content,
+                  );
+                  if (liveSession == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: CloudComputerLiveCard(
+                      sessionInfo: liveSession,
+                      conversationId: widget.conversationId,
+                    ),
+                  );
+                },
+              ),
+            ],
             if (!widget.part.loading &&
                 !isPendingApproval &&
                 widget.part.toolName == LocalToolNames.inspectSite) ...[
@@ -7385,25 +7403,6 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                     if (rawPath != null && rawPath.isNotEmpty) {
                       seenPaths.add(rawPath);
                       fileCards.add(GeneratedFileCard(filePath: rawPath));
-                    }
-                  }
-
-                  // Only detect files if the tool explicitly produces artifacts or files
-                  final toolName = widget.part.toolName.toLowerCase();
-                  final isFileProducer =
-                      toolName.contains('image') ||
-                      toolName.contains('export') ||
-                      toolName.contains('write_file') ||
-                      toolName.contains('artifact') ||
-                      toolName.contains('save_file') ||
-                      toolName.contains('download_file');
-                  final detectedPaths = isFileProducer
-                      ? extractGeneratedFilePaths(widget.part.content ?? '')
-                      : const <String>[];
-                  for (final path in detectedPaths) {
-                    if (!seenPaths.contains(path)) {
-                      seenPaths.add(path);
-                      fileCards.add(GeneratedFileCard(filePath: path));
                     }
                   }
 
