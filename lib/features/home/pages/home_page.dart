@@ -87,6 +87,8 @@ import '../../../shared/widgets/void_logo.dart';
 import 'home_mobile_layout.dart';
 import '../widgets/grok_mode_selector.dart';
 import 'home_desktop_layout.dart';
+import '../widgets/void_power_hub_sheet.dart';
+import '../../../core/services/vault/void_knowledge_vault_service.dart';
 import 'package:Kelivo/theme/app_semantic_colors.dart';
 
 class HomePage extends StatefulWidget {
@@ -833,6 +835,7 @@ class _HomePageState extends State<HomePage>
             messageId: msgId,
             surfaceKey: surfaceKey,
           ),
+      onOpenVoidHub: _openVoidPowerHub,
       appBarOverride: _controller.selecting
           ? ChatSelectionAppBar(
               selectedCount: _controller.selectedCount,
@@ -960,6 +963,7 @@ class _HomePageState extends State<HomePage>
       onSidebarWidthChanged: _controller.updateSidebarWidth,
       onSidebarWidthChangeEnd: _controller.saveSidebarWidth,
       buildAssistantBackground: _buildAssistantBackground,
+      onOpenVoidHub: _openVoidPowerHub,
       appBarOverride: _controller.selecting
           ? ChatSelectionAppBar(
               selectedCount: _controller.selectedCount,
@@ -1311,24 +1315,24 @@ class _HomePageState extends State<HomePage>
       },
     );
 
-    if (_controller.chatController.collapsedMessages.isEmpty) {
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Center(
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: isDark ? 0.16 : 0.08,
-                child: const VoidLogo(size: 135, grokStyle: true),
-              ),
+    final isEmptyChat = _controller.chatController.collapsedMessages.isEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: isEmptyChat
+                  ? (isDark ? 0.26 : 0.14)
+                  : (isDark ? 0.06 : 0.035),
+              child: const VoidLogo(size: 168, glow: true),
             ),
           ),
-          messageList,
-        ],
-      );
-    }
-    return messageList;
+        ),
+        messageList,
+      ],
+    );
   }
 
   Widget _buildChatInputBar(BuildContext context, {required bool isTablet}) {
@@ -1442,7 +1446,17 @@ class _HomePageState extends State<HomePage>
         await _openContextUsagePopover();
       },
       onSend: (text) async {
-        final result = await _controller.sendMessage(text);
+        var messageToSend = text;
+        try {
+          final vault = VoidKnowledgeVaultService.instance;
+          if (vault.autoInjectInChat) {
+            final ragContext = await vault.buildContextPrompt(text);
+            if (ragContext.isNotEmpty) {
+              messageToSend = '$ragContext\n\n$text';
+            }
+          }
+        } catch (_) {}
+        final result = await _controller.sendMessage(messageToSend);
         if (!mounted) return result;
         if (PlatformUtils.isMobile &&
             result == ChatInputSubmissionResult.sent) {
@@ -1677,6 +1691,33 @@ class _HomePageState extends State<HomePage>
   // ============================================================================
   // Action Handlers (UI-specific, not in controller)
   // ============================================================================
+
+  void _openVoidPowerHub() {
+    final assistantMessages = _controller.messages.where(
+      (m) => m.role == 'assistant',
+    );
+    final latestAi = assistantMessages.isNotEmpty
+        ? assistantMessages.last.content
+        : null;
+
+    final userMessages = _controller.messages
+        .where((m) => m.role == 'user')
+        .map((m) => m.content)
+        .toList();
+
+    VoidPowerHubSheet.show(
+      context,
+      latestAssistantMarkdown: latestAi,
+      recentUserPrompts: userMessages,
+      onDispatchPrompt: (prompt) async {
+        await _controller.sendMessage(prompt);
+      },
+      onInsertComposerText: (text) {
+        _inputController.text = text;
+        _inputFocus.requestFocus();
+      },
+    );
+  }
 
   /// The model this chat sends with: the conversation's own override first,
   /// then the assistant's model, then the global default.

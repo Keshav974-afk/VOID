@@ -72,12 +72,15 @@ class KelivoLink {
     // non-ASCII (Dart ignoreCase + negated class), so model-emitted
     // `kelivo://workspace/员工表.csv` never parsed. Do not use [Uri]
     // either — it would normalize `%2e%2e` / `..` away.
-    const scheme = 'kelivo://';
-    if (raw.length < scheme.length) return null;
-    if (raw.substring(0, scheme.length).toLowerCase() != scheme) {
+    String rest = '';
+    final lower = raw.toLowerCase();
+    if (lower.startsWith('void://')) {
+      rest = raw.substring('void://'.length);
+    } else if (lower.startsWith('kelivo://')) {
+      rest = raw.substring('kelivo://'.length);
+    } else {
       return null;
     }
-    final rest = raw.substring(scheme.length);
     final hash = rest.indexOf('#');
     final withoutFragment = hash < 0 ? rest : rest.substring(0, hash);
     final q = withoutFragment.indexOf('?');

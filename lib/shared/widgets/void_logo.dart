@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// Flagship VOID Logo widget.
-/// Renders a sharp, minimalist geometric singularity emblem.
+/// Renders the signature VOID "V" emblem with orbital ring and star.
 class VoidLogo extends StatelessWidget {
   const VoidLogo({
     super.key,
@@ -25,20 +25,41 @@ class VoidLogo extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final primaryColor =
         color ?? (isDark ? Colors.white : const Color(0xFF0F1419));
-    final accentColor = const Color(0xFFFF7A00); // Grok/VOID electric amber
+    final tintColor = color ?? (isDark ? null : const Color(0xFF0F1419));
 
     Widget emblem = SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(
-        painter: _VoidEmblemPainter(
-          primaryColor: primaryColor,
-          accentColor: accentColor,
-          glow: glow,
-          grokStyle: grokStyle,
+      child: Image.asset(
+        'assets/icons/void_logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        color: tintColor,
+        colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
+        errorBuilder: (_, __, ___) => CustomPaint(
+          size: Size.square(size),
+          painter: _VoidEmblemPainter(primaryColor: primaryColor, glow: glow),
         ),
       ),
     );
+
+    if (glow && !withContainer) {
+      emblem = DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: primaryColor.withValues(alpha: isDark ? 0.14 : 0.06),
+              blurRadius: size * 0.35,
+              spreadRadius: size * 0.02,
+            ),
+          ],
+        ),
+        child: emblem,
+      );
+    }
 
     if (!withContainer) return emblem;
 
@@ -74,182 +95,110 @@ class VoidLogo extends StatelessWidget {
 }
 
 class _VoidEmblemPainter extends CustomPainter {
-  const _VoidEmblemPainter({
-    required this.primaryColor,
-    required this.accentColor,
-    required this.glow,
-    this.grokStyle = false,
-  });
+  const _VoidEmblemPainter({required this.primaryColor, required this.glow});
 
   final Color primaryColor;
-  final Color accentColor;
   final bool glow;
-  final bool grokStyle;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final center = Offset(w / 2, h / 2);
+    final center = Offset(w * 0.50, h * 0.52);
 
-    if (grokStyle) {
-      // Paint the exact Grok / VOID slashed singularity ring
-      canvas.save();
-      canvas.translate(w / 2, h / 2);
-      canvas.rotate(-math.pi / 4.8); // 37.5 degree tilt
-      canvas.translate(-w / 2, -h / 2);
-
-      final ringPath = Path();
-      final rx = w * 0.36;
-      final ry = h * 0.36;
-
-      // Outer ellipse
-      ringPath.addOval(
-        Rect.fromCenter(center: center, width: rx * 2, height: ry * 2),
-      );
-      // Inner cut out
-      final innerPath = Path()
-        ..addOval(
-          Rect.fromCenter(
-            center: center,
-            width: (rx - w * 0.13) * 2,
-            height: (ry - h * 0.13) * 2,
-          ),
-        );
-
-      final slashedRing = Path.combine(
-        PathOperation.difference,
-        ringPath,
-        innerPath,
-      );
-
-      // Top right slash blade
-      final topBlade = Path()
-        ..moveTo(center.dx + rx * 0.85, center.dy - ry * 0.20)
-        ..quadraticBezierTo(
-          center.dx + rx * 1.55,
-          center.dy - ry * 1.05,
-          center.dx + rx * 1.85,
-          center.dy - ry * 1.45,
-        )
-        ..quadraticBezierTo(
-          center.dx + rx * 1.25,
-          center.dy - ry * 0.95,
-          center.dx + rx * 0.40,
-          center.dy - ry * 0.90,
-        )
-        ..close();
-
-      // Bottom left slash blade
-      final bottomBlade = Path()
-        ..moveTo(center.dx - rx * 0.85, center.dy + ry * 0.20)
-        ..quadraticBezierTo(
-          center.dx - rx * 1.55,
-          center.dy + ry * 1.05,
-          center.dx - rx * 1.85,
-          center.dy + ry * 1.45,
-        )
-        ..quadraticBezierTo(
-          center.dx - rx * 1.25,
-          center.dy + ry * 0.95,
-          center.dx - rx * 0.40,
-          center.dy + ry * 0.90,
-        )
-        ..close();
-
-      final fullSingularity = Path()
-        ..addPath(slashedRing, Offset.zero)
-        ..addPath(topBlade, Offset.zero)
-        ..addPath(bottomBlade, Offset.zero);
-
-      final fillPaint = Paint()
-        ..style = PaintingStyle.fill
-        ..color = primaryColor;
-
-      if (glow) {
-        final glowPaint = Paint()
-          ..style = PaintingStyle.fill
-          ..color = primaryColor.withValues(alpha: 0.35)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.12);
-        canvas.drawPath(fullSingularity, glowPaint);
-      }
-
-      canvas.drawPath(fullSingularity, fillPaint);
-      canvas.restore();
-      return;
-    }
-
-    final radius = w * 0.44;
-
-    // 1. Subtle Outer Singularity Orbit / Ring
-    final ringPaint = Paint()
+    // 1. Tilted elliptical orbital ring around the V
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(-math.pi / 11); // ~16 deg upward tilt to the right
+    final orbitRect = Rect.fromCenter(
+      center: Offset.zero,
+      width: w * 0.78,
+      height: h * 0.25,
+    );
+    final orbitPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.07
-      ..shader = SweepGradient(
-        colors: [
-          primaryColor.withValues(alpha: 0.15),
-          primaryColor.withValues(alpha: 0.85),
-          accentColor.withValues(alpha: 0.95),
-          primaryColor.withValues(alpha: 0.15),
-        ],
-        stops: const [0.0, 0.45, 0.7, 1.0],
-        transform: const GradientRotation(-math.pi / 4),
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
+      ..strokeWidth = w * 0.028
+      ..strokeCap = StrokeCap.round
+      ..color = primaryColor.withValues(alpha: 0.88);
+    if (glow) {
+      final orbitGlow = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.055
+        ..color = primaryColor.withValues(alpha: 0.28)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.04);
+      canvas.drawArc(orbitRect, -0.35, math.pi * 1.65, false, orbitGlow);
+    }
+    canvas.drawArc(orbitRect, -0.35, math.pi * 1.65, false, orbitPaint);
+    canvas.restore();
 
-    canvas.drawCircle(center, radius, ringPaint);
-
-    // 2. Sharp Geometric "V" Singularity
-    final vPath = Path();
-    // Top-left outer
-    vPath.moveTo(w * 0.22, h * 0.26);
-    // Left shoulder
-    vPath.lineTo(w * 0.38, h * 0.26);
-    // Center bottom vertex
-    vPath.lineTo(w * 0.50, h * 0.62);
-    // Right shoulder
-    vPath.lineTo(w * 0.62, h * 0.26);
-    // Top-right outer
-    vPath.lineTo(w * 0.78, h * 0.26);
-    // Bottom apex
-    vPath.lineTo(w * 0.54, h * 0.76);
-    vPath.lineTo(w * 0.46, h * 0.76);
-    vPath.close();
+    // 2. Stylized 3D "V" with sliced right wing
+    final vPath = Path()
+      // Left wing outer top
+      ..moveTo(w * 0.17, h * 0.24)
+      // Left wing inner top (curved shoulder)
+      ..lineTo(w * 0.34, h * 0.27)
+      // Inner valley vertex
+      ..lineTo(w * 0.50, h * 0.59)
+      // Right wing inner climb
+      ..lineTo(w * 0.62, h * 0.31)
+      // Right wing curved top-right tip
+      ..quadraticBezierTo(w * 0.68, h * 0.24, w * 0.84, h * 0.23)
+      // Right outer edge descending to bottom apex
+      ..lineTo(w * 0.52, h * 0.76)
+      ..quadraticBezierTo(w * 0.50, h * 0.78, w * 0.48, h * 0.76)
+      ..close();
 
     final vPaint = Paint()
       ..style = PaintingStyle.fill
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          primaryColor,
-          primaryColor.withValues(alpha: 0.9),
-          accentColor,
-        ],
-        stops: const [0.0, 0.65, 1.0],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
+      ..color = primaryColor;
 
     if (glow) {
       final glowPaint = Paint()
         ..style = PaintingStyle.fill
         ..color = primaryColor.withValues(alpha: 0.25)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.12);
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.08);
       canvas.drawPath(vPath, glowPaint);
     }
 
     canvas.drawPath(vPath, vPaint);
 
-    // 3. Central singularity core dot
-    final corePaint = Paint()
-      ..color = accentColor
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(w * 0.50, h * 0.40), w * 0.05, corePaint);
+    // 3. Four-point sparkle star on bottom-right under the orbital ring
+    final starCenter = Offset(w * 0.71, h * 0.58);
+    final starRadiusLong = w * 0.052;
+    final starRadiusShort = w * 0.012;
+    final starPath = Path()
+      ..moveTo(starCenter.dx, starCenter.dy - starRadiusLong)
+      ..quadraticBezierTo(
+        starCenter.dx + starRadiusShort,
+        starCenter.dy - starRadiusShort,
+        starCenter.dx + starRadiusLong,
+        starCenter.dy,
+      )
+      ..quadraticBezierTo(
+        starCenter.dx + starRadiusShort,
+        starCenter.dy + starRadiusShort,
+        starCenter.dx,
+        starCenter.dy + starRadiusLong,
+      )
+      ..quadraticBezierTo(
+        starCenter.dx - starRadiusShort,
+        starCenter.dy + starRadiusShort,
+        starCenter.dx - starRadiusLong,
+        starCenter.dy,
+      )
+      ..quadraticBezierTo(
+        starCenter.dx - starRadiusShort,
+        starCenter.dy - starRadiusShort,
+        starCenter.dx,
+        starCenter.dy - starRadiusLong,
+      )
+      ..close();
+
+    canvas.drawPath(starPath, vPaint);
   }
 
   @override
   bool shouldRepaint(covariant _VoidEmblemPainter oldDelegate) {
-    return oldDelegate.primaryColor != primaryColor ||
-        oldDelegate.accentColor != accentColor ||
-        oldDelegate.glow != glow ||
-        oldDelegate.grokStyle != grokStyle;
+    return oldDelegate.primaryColor != primaryColor || oldDelegate.glow != glow;
   }
 }

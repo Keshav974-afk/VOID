@@ -123,24 +123,33 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
       return;
     }
 
+    // Always immediately persist key to device storage so it is never lost
+    await ComposioService.instance.setStoredApiKey(key);
+    if (!mounted) return;
+    setState(() {
+      _storedApiKey = key;
+      _editingApiKey = false;
+    });
+
     setState(() => _validating = true);
     final validation = await ComposioService.instance.validateKey(key);
     if (!mounted) return;
     setState(() => _validating = false);
 
     if (!validation.isValid) {
-      showAppSnackBar(
-        context,
-        message: validation.error ?? 'Invalid API key',
-        type: NotificationType.error,
-      );
       setState(() {
         _authError = validation.error;
+        _isLive = false;
       });
+      showAppSnackBar(
+        context,
+        message:
+            'API key saved locally. Note: ${validation.error ?? "Offline"}',
+        type: NotificationType.warning,
+      );
+      _loadToolkits();
       return;
     }
-
-    await ComposioService.instance.setStoredApiKey(key);
 
     // If consumer MCP key, auto-configure or update the Composio MCP server in Kelivo
     if (validation.isConsumer) {
@@ -192,11 +201,20 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
 
   Future<void> _handleConnect(ComposioToolkit toolkit) async {
     Haptics.light();
-    if (_storedApiKey == null || _storedApiKey!.isEmpty) {
+    final pendingKey = _apiKeyCtrl.text.trim();
+    if ((_storedApiKey == null || _storedApiKey!.isEmpty) &&
+        pendingKey.isNotEmpty) {
+      await _saveApiKey();
+    }
+
+    final effectiveKey =
+        _storedApiKey ?? (pendingKey.isNotEmpty ? pendingKey : null);
+
+    if (effectiveKey == null || effectiveKey.isEmpty) {
       setState(() => _editingApiKey = true);
       showAppSnackBar(
         context,
-        message: 'Please configure your Composio API key first to connect.',
+        message: 'Please enter your Composio API key above first to connect.',
         type: NotificationType.warning,
       );
       return;
@@ -204,7 +222,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
 
     final ok = await ComposioService.instance.connectApp(
       toolkit.slug,
-      apiKey: _storedApiKey,
+      apiKey: effectiveKey,
     );
     if (!mounted) return;
     if (ok) {
@@ -237,26 +255,25 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121214),
+      backgroundColor: cs.surface,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF121214),
+        backgroundColor: cs.surface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
           'Connectors',
           style: TextStyle(
             fontSize: 18,
             fontWeight: AppFontWeights.emphasis,
-            color: const Color(0xFFF4F4F5),
+            color: cs.onSurface,
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(
-              Lucide.RefreshCw,
-              size: 18,
-              color: const Color(0xFFF4F4F5),
-            ),
+            icon: Icon(Lucide.RefreshCw, size: 18, color: cs.onSurface),
             tooltip: 'Refresh',
             onPressed: () {
               Haptics.light();
@@ -277,17 +294,13 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
             label: 'Search',
             controller: _searchCtrl,
             hintText: 'Search 500+ connectors (GitHub, Slack, Gmail)...',
-            prefix: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Icon(Lucide.Search, size: 16, color: Color(0xFF71717A)),
+            prefix: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Icon(Lucide.Search, size: 16, color: cs.onSurfaceVariant),
             ),
             suffix: _searchCtrl.text.isNotEmpty
                 ? IconButton(
-                    icon: Icon(
-                      Lucide.X,
-                      size: 14,
-                      color: const Color(0xFF71717A),
-                    ),
+                    icon: Icon(Lucide.X, size: 14, color: cs.onSurfaceVariant),
                     onPressed: () {
                       _searchCtrl.clear();
                       _loadToolkits();
@@ -309,22 +322,34 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                   child: FilterChip(
                     label: Text(cat),
                     selected: isSelected,
-                    selectedColor: const Color(0xFF27272A),
-                    backgroundColor: const Color(0xFF18181B),
-                    checkmarkColor: const Color(0xFFF4F4F5),
+                    selectedColor: isDark
+                        ? const Color(0xFF27272A)
+                        : cs.primaryContainer,
+                    backgroundColor: isDark
+                        ? const Color(0xFF18181B)
+                        : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    checkmarkColor: isDark
+                        ? const Color(0xFFF4F4F5)
+                        : cs.onPrimaryContainer,
                     labelStyle: TextStyle(
                       fontSize: 12,
                       fontWeight: isSelected
                           ? AppFontWeights.semibold
                           : AppFontWeights.regular,
                       color: isSelected
-                          ? const Color(0xFFF4F4F5)
-                          : const Color(0xFFA1A1AA),
+                          ? (isDark
+                                ? const Color(0xFFF4F4F5)
+                                : cs.onPrimaryContainer)
+                          : (isDark
+                                ? const Color(0xFFA1A1AA)
+                                : cs.onSurfaceVariant),
                     ),
                     side: BorderSide(
                       color: isSelected
-                          ? const Color(0xFF52525B)
-                          : const Color(0xFF27272A),
+                          ? (isDark ? const Color(0xFF52525B) : cs.primary)
+                          : (isDark
+                                ? const Color(0xFF27272A)
+                                : cs.outlineVariant.withValues(alpha: 0.6)),
                     ),
                     onSelected: (_) {
                       Haptics.light();
@@ -347,7 +372,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: AppFontWeights.semibold,
-                  color: const Color(0xFFA1A1AA),
+                  color: cs.onSurfaceVariant,
                   letterSpacing: -0.2,
                 ),
               ),
@@ -362,9 +387,17 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF18181B),
+                          color: isDark
+                              ? const Color(0xFF18181B)
+                              : const Color(0xFF10B981).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: const Color(0xFF3F3F46)),
+                          border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF3F3F46)
+                                : const Color(
+                                    0xFF10B981,
+                                  ).withValues(alpha: 0.3),
+                          ),
                         ),
                         child: const Text(
                           'Live',
@@ -379,9 +412,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                     ],
                     Text(
                       '${_toolkits.length} apps',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF71717A),
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -392,17 +425,15 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
 
           // Connectors list
           if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
               child: Center(
                 child: SizedBox(
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFF71717A),
-                    ),
+                    valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
                   ),
                 ),
               ),
@@ -416,19 +447,19 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                     Icon(
                       Lucide.Layers,
                       size: 32,
-                      color: const Color(0xFF52525B),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: 10),
-                    const Text(
+                    Text(
                       'No connectors found',
-                      style: TextStyle(fontSize: 14, color: Color(0xFFA1A1AA)),
+                      style: TextStyle(fontSize: 14, color: cs.onSurface),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Try adjusting your search or category filter',
                       style: TextStyle(
                         fontSize: 12,
-                        color: const Color(0xFF71717A),
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -443,7 +474,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                     Divider(
                       height: 1,
                       thickness: 0.5,
-                      color: const Color(0xFF27272A),
+                      color: isDark
+                          ? const Color(0xFF27272A)
+                          : cs.outlineVariant.withValues(alpha: 0.5),
                     ),
                   _buildConnectorRow(_toolkits[i]),
                 ],
@@ -457,28 +490,33 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
 
   Widget _buildApiKeyCard(ColorScheme cs) {
     final hasKey = _storedApiKey != null && _storedApiKey!.isNotEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (!hasKey || _editingApiKey) {
       return Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF18181B),
+          color: isDark ? const Color(0xFF18181B) : cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF27272A)),
+          border: Border.all(
+            color: isDark
+                ? const Color(0xFF27272A)
+                : cs.outlineVariant.withValues(alpha: 0.6),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Lucide.KeyRound, size: 16, color: const Color(0xFFF4F4F5)),
+                Icon(Lucide.KeyRound, size: 16, color: cs.onSurface),
                 const SizedBox(width: 8),
                 Text(
                   'Composio API Key',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: AppFontWeights.emphasis,
-                    color: const Color(0xFFF4F4F5),
+                    color: cs.onSurface,
                   ),
                 ),
                 const Spacer(),
@@ -492,7 +530,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: AppFontWeights.medium,
-                      color: const Color(0xFFA1A1AA),
+                      color: cs.primary,
                       decoration: TextDecoration.underline,
                     ),
                   ),
@@ -502,7 +540,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
             const SizedBox(height: 8),
             Text(
               'Enter your Composio API key to activate live OAuth connectors for 500+ apps.',
-              style: TextStyle(fontSize: 12, color: const Color(0xFFA1A1AA)),
+              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 10),
             Row(
@@ -511,8 +549,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                   child: IosFormTextField(
                     label: 'API Key',
                     controller: _apiKeyCtrl,
-                    hintText: 'comp_live_...',
+                    hintText: 'comp_live_... or ck_...',
                     obscureText: true,
+                    onSubmitted: (_) => _saveApiKey(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -552,12 +591,14 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF18181B),
+            color: isDark ? const Color(0xFF18181B) : cs.surfaceContainerLow,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: hasError
                   ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
-                  : const Color(0xFF27272A),
+                  : (isDark
+                        ? const Color(0xFF27272A)
+                        : cs.outlineVariant.withValues(alpha: 0.6)),
             ),
           ),
           child: Row(
@@ -588,7 +629,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: AppFontWeights.emphasis,
-                            color: const Color(0xFFF4F4F5),
+                            color: cs.onSurface,
                           ),
                         ),
                         if (!hasError && isConsumerKey) ...[
@@ -625,7 +666,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                         fontSize: 12,
                         color: hasError
                             ? const Color(0xFFF59E0B)
-                            : const Color(0xFF71717A),
+                            : cs.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -645,26 +686,28 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF201608),
+              color: isDark ? const Color(0xFF201608) : const Color(0xFFFFFBEB),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
               ),
             ),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Lucide.BadgeInfo,
                   size: 14,
-                  color: const Color(0xFFF59E0B),
+                  color: Color(0xFFF59E0B),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Showing offline catalog of ${_toolkits.length} apps. Check your API key at app.composio.dev/settings.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFFFDE68A),
+                      color: isDark
+                          ? const Color(0xFFFDE68A)
+                          : const Color(0xFF92400E),
                     ),
                   ),
                 ),
@@ -677,6 +720,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
   }
 
   Widget _buildConnectorRow(ComposioToolkit toolkit) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Column(
@@ -698,7 +744,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: AppFontWeights.emphasis,
-                              color: const Color(0xFFF4F4F5),
+                              color: cs.onSurface,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -733,9 +779,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                       toolkit.category.isNotEmpty
                           ? toolkit.category
                           : 'General',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF71717A),
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -750,7 +796,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
               toolkit.description!,
               style: TextStyle(
                 fontSize: 12,
-                color: const Color(0xFFF4F4F5).withValues(alpha: 0.65),
+                color: cs.onSurfaceVariant,
                 height: 1.3,
               ),
               maxLines: 2,
@@ -772,7 +818,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                 label: toolkit.isConnected ? 'Reconnect' : 'Connect',
                 icon: Lucide.Link2,
                 fontSize: 12,
-                color: const Color(0xFF27272A),
+                color: isDark
+                    ? const Color(0xFF27272A)
+                    : cs.surfaceContainerHighest,
                 onPressed: () => _handleConnect(toolkit),
               ),
             ],
@@ -783,6 +831,8 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
   }
 
   Widget _buildLogo(ComposioToolkit toolkit) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final logoUrl = toolkit.logoUrl;
     final isSvg =
         logoUrl.toLowerCase().endsWith('.svg') ||
@@ -792,8 +842,16 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        color: const Color(0xFF27272A),
+        color: isDark
+            ? const Color(0xFF27272A)
+            : cs.surfaceContainerHighest.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(9),
+        border: Border.all(
+          color: isDark
+              ? Colors.transparent
+              : cs.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
       ),
       padding: const EdgeInsets.all(7),
       alignment: Alignment.center,
@@ -804,9 +862,9 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
               height: 24,
               fit: BoxFit.contain,
               placeholderBuilder: (_) =>
-                  const Icon(Lucide.Layers, size: 18, color: Color(0xFF71717A)),
+                  Icon(Lucide.Layers, size: 18, color: cs.onSurfaceVariant),
               errorBuilder: (_, __, ___) =>
-                  const Icon(Lucide.Layers, size: 18, color: Color(0xFF71717A)),
+                  Icon(Lucide.Layers, size: 18, color: cs.onSurfaceVariant),
             )
           : Image.network(
               logoUrl,
@@ -814,7 +872,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
               height: 24,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) =>
-                  const Icon(Lucide.Layers, size: 18, color: Color(0xFF71717A)),
+                  Icon(Lucide.Layers, size: 18, color: cs.onSurfaceVariant),
             ),
     );
   }

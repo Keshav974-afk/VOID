@@ -52,6 +52,7 @@ class HomeMobileScaffold extends StatelessWidget {
     this.appBarOverride,
     this.grokMode = GrokMode.ask,
     this.onGrokModeChanged,
+    this.onOpenVoidHub,
     required this.body,
   });
 
@@ -86,6 +87,7 @@ class HomeMobileScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBarOverride;
   final GrokMode grokMode;
   final ValueChanged<GrokMode>? onGrokModeChanged;
+  final VoidCallback? onOpenVoidHub;
   final Widget body;
 
   @override
@@ -327,6 +329,26 @@ class HomeMobileScaffold extends StatelessWidget {
       titleSpacing: 6,
       title: _buildTitle(context, cs),
       actions: [
+        if (onOpenVoidHub != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 2),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: IosIconButton(
+                size: 19,
+                minSize: 38,
+                icon: Lucide.Sparkles,
+                color: cs.primary,
+                semanticLabel: 'VOID Intelligence Hub',
+                onTap: onOpenVoidHub,
+              ),
+            ),
+          ),
         IosIconButton(
           size: 20,
           padding: const EdgeInsets.all(8),

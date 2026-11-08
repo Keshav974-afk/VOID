@@ -26,6 +26,8 @@ import '../../backup/pages/backup_page.dart';
 import '../../quick_phrase/pages/quick_phrases_page.dart';
 import '../../instruction_injection/pages/instruction_injection_page.dart';
 import '../../world_book/pages/world_book_page.dart';
+import 'void_knowledge_vault_page.dart';
+import 'void_macros_page.dart';
 import '../../../shared/widgets/section_card.dart';
 import 'network_proxy_page.dart';
 import 'vps_settings_page.dart';
@@ -436,6 +438,32 @@ class SettingsPage extends StatelessWidget {
               _iosDivider(context),
               _iosNavRow(
                 context,
+                icon: Lucide.Sparkles,
+                label: 'VOID Agent Macros & Recipes',
+                detailText: 'Automations',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const VoidMacrosPage()),
+                  );
+                },
+              ),
+              _iosDivider(context),
+              _iosNavRow(
+                context,
+                icon: Lucide.ShieldCheck,
+                label: 'Knowledge Vault (Local RAG)',
+                detailText: 'Private Docs',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const VoidKnowledgeVaultPage(),
+                    ),
+                  );
+                },
+              ),
+              _iosDivider(context),
+              _iosNavRow(
+                context,
                 icon: Lucide.AppWindow,
                 label: l10n.browserTitle,
                 detailText: 'Web Control',
@@ -680,23 +708,24 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _editAvatar(BuildContext context) async {
     final userProvider = context.read<UserProvider>();
+    final cs = Theme.of(context).colorScheme;
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF121214),
+      backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         Widget row(IconData icon, String text, VoidCallback onTap) {
           return ListTile(
-            leading: Icon(icon, size: 20, color: const Color(0xFFF4F4F5)),
+            leading: Icon(icon, size: 20, color: cs.onSurface),
             title: Text(
               text,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: AppFontWeights.medium,
-                color: const Color(0xFFF4F4F5),
+                color: cs.onSurface,
               ),
             ),
             onTap: () {
@@ -716,7 +745,7 @@ class SettingsPage extends StatelessWidget {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: cs.onSurface.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -740,17 +769,17 @@ class SettingsPage extends StatelessWidget {
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (dCtx) => AlertDialog(
-                    backgroundColor: const Color(0xFF18181B),
-                    title: const Text(
+                    backgroundColor: cs.surface,
+                    title: Text(
                       'Avatar URL',
-                      style: TextStyle(color: Color(0xFFF4F4F5)),
+                      style: TextStyle(color: cs.onSurface),
                     ),
                     content: TextField(
                       controller: ctrl,
-                      style: const TextStyle(color: Color(0xFFF4F4F5)),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: cs.onSurface),
+                      decoration: InputDecoration(
                         hintText: 'https://example.com/avatar.png',
-                        hintStyle: TextStyle(color: Color(0xFF71717A)),
+                        hintStyle: TextStyle(color: cs.onSurfaceVariant),
                       ),
                     ),
                     actions: [
@@ -785,10 +814,10 @@ class SettingsPage extends StatelessWidget {
                 final selected = await showDialog<String>(
                   context: context,
                   builder: (dCtx) => AlertDialog(
-                    backgroundColor: const Color(0xFF18181B),
-                    title: const Text(
+                    backgroundColor: cs.surface,
+                    title: Text(
                       'Choose Emoji',
-                      style: TextStyle(color: Color(0xFFF4F4F5)),
+                      style: TextStyle(color: cs.onSurface),
                     ),
                     content: Wrap(
                       spacing: 12,

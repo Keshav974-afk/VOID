@@ -167,9 +167,18 @@ List<TimelineProjectedStep> groupBrowserTimelineSteps(
   required bool Function(TimelineToolRef tool) isPendingApproval,
 }) => groupAdjacentBrowserSteps(
   steps,
-  eligible: (step) =>
-      step.tool?.toolName == LocalToolNames.browser &&
-      !isPendingApproval(step.tool!),
+  eligible: (step) {
+    final tool = step.tool;
+    if (tool == null) return false;
+    if (isPendingApproval(tool)) return false;
+    final name = tool.toolName.toLowerCase();
+    return name == LocalToolNames.browser ||
+        name.contains('browser') ||
+        name.contains('puppeteer') ||
+        name.contains('playwright') ||
+        name.contains('stagehand') ||
+        name.contains('devtools');
+  },
   group: (steps, lite) => TimelineProjectedStep.browserGroup(steps, lite: lite),
 );
 

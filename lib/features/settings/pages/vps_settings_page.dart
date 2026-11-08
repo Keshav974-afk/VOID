@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../mcp/pages/mcp_page.dart';
 import '../../../core/models/vps_config.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/sandbox_vps/sandbox_vps_service.dart';
@@ -90,6 +91,40 @@ class _VpsSettingsPageState extends State<VpsSettingsPage> {
   void _save() {
     final sp = context.read<SettingsProvider>();
     sp.setVpsConfig(_buildConfig());
+  }
+
+  void _applyBoxedPreset() {
+    setState(() {
+      _hostCtl.text = 'ssh.boxd.sh';
+      _portCtl.text = '22';
+      _userCtl.text = 'root';
+      _cwdCtl.text = '/root';
+      _timeoutCtl.text = '30';
+    });
+    _save();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Boxed.sh microVM template applied. Enter your machine ID / token.',
+        ),
+      ),
+    );
+  }
+
+  void _applyLocalDockerPreset() {
+    setState(() {
+      _hostCtl.text = '127.0.0.1';
+      _portCtl.text = '2222';
+      _userCtl.text = 'root';
+      _cwdCtl.text = '/workspace';
+      _timeoutCtl.text = '15';
+    });
+    _save();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Local Docker container sandbox template applied.'),
+      ),
+    );
   }
 
   @override
@@ -235,6 +270,45 @@ class _VpsSettingsPageState extends State<VpsSettingsPage> {
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+          ),
+
+          // Sandbox Presets & Boxed.sh microVMs
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Lucide.Box, size: 14),
+                  label: const Text(
+                    'Boxed.sh microVM',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  onPressed: _applyBoxedPreset,
+                ),
+                ActionChip(
+                  avatar: const Icon(Lucide.Server, size: 14),
+                  label: const Text(
+                    'Local Docker',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  onPressed: _applyLocalDockerPreset,
+                ),
+                ActionChip(
+                  avatar: const Icon(Lucide.Terminal, size: 14),
+                  label: const Text(
+                    'External MCP Sandbox',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  onPressed: () {
+                    Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => const McpPage()));
+                  },
                 ),
               ],
             ),

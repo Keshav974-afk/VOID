@@ -276,4 +276,13 @@ class Lucide {
   static const IconData MousePointerClick =
       lucide.LucideIcons.mousePointerClick;
   static const IconData Rocket = lucide.LucideIcons.rocket;
+  static const IconData Users = lucide.LucideIcons.users;
+  static const IconData Workflow = lucide.LucideIcons.workflow;
+  static const IconData LayoutPanelLeft = lucide.LucideIcons.layoutPanelLeft;
+  static const IconData ScanEye = lucide.LucideIcons.scanEye;
+  static const IconData CheckCircle2 = lucide.LucideIcons.circleCheck;
+  static const IconData Circle = lucide.LucideIcons.circle;
+  static const IconData Disc = lucide.LucideIcons.disc;
+  static const IconData MessageSquarePlus =
+      lucide.LucideIcons.messageSquarePlus;
 }

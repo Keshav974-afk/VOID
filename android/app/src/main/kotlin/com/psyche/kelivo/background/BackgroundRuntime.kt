@@ -43,7 +43,7 @@ data class BackgroundTask(
         fun fromMap(map: Map<*, *>): BackgroundTask = BackgroundTask(
             map["id"] as? String ?: "",
             map["conversationId"] as? String ?: "",
-            map["title"] as? String ?: "Kelivo",
+            map["title"] as? String ?: "VOID",
             map["detail"] as? String ?: "",
             (map["startedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             (map["tokens"] as? Number)?.toInt() ?: 0,
@@ -268,7 +268,7 @@ class BackgroundRuntime(private val context: Context) {
     fun buildNotification(): Notification {
         ensureChannel()
         val task = tasks.firstOrNull()
-        val title = if (tasks.size > 1) "${tasks.size} ${label("tasks", "Tasks")}" else task?.title ?: "Kelivo"
+        val title = if (tasks.size > 1) "${tasks.size} ${label("tasks", "Tasks")}" else task?.title ?: "VOID"
         val content = task?.detail ?: label("working", "Working")
         val open = PendingIntent.getActivity(context, 7, openIntent(task?.conversationId ?: ""),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)

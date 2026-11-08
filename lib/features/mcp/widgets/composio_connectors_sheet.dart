@@ -136,13 +136,19 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
   @override
   Widget build(BuildContext context) {
     final maxH = MediaQuery.sizeOf(context).height * 0.88;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxH),
       decoration: BoxDecoration(
-        color: const Color(0xFF121214),
+        color: cs.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border.all(color: const Color(0xFF27272A)),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFF27272A)
+              : cs.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -155,7 +161,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: cs.onSurface.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -167,7 +173,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  const Icon(Lucide.Layers, size: 20, color: Color(0xFFF4F4F5)),
+                  Icon(Lucide.Layers, size: 20, color: cs.primary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -178,7 +184,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: AppFontWeights.emphasis,
-                            color: const Color(0xFFF4F4F5),
+                            color: cs.onSurface,
                             letterSpacing: -0.2,
                           ),
                         ),
@@ -186,28 +192,18 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                           'Connect 500+ SaaS apps or delegate setup to AI',
                           style: TextStyle(
                             fontSize: 12,
-                            color: const Color(
-                              0xFFF4F4F5,
-                            ).withValues(alpha: 0.6),
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Lucide.RefreshCw,
-                      size: 16,
-                      color: Color(0xFFF4F4F5),
-                    ),
+                    icon: Icon(Lucide.RefreshCw, size: 16, color: cs.onSurface),
                     onPressed: _loadToolkits,
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Lucide.X,
-                      size: 18,
-                      color: Color(0xFFF4F4F5),
-                    ),
+                    icon: Icon(Lucide.X, size: 18, color: cs.onSurface),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ],
@@ -222,20 +218,20 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                 label: 'Search',
                 controller: _searchCtrl,
                 hintText: 'Search connectors (e.g. GitHub, Slack, Gmail)...',
-                prefix: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
+                prefix: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Icon(
                     Lucide.Search,
                     size: 16,
-                    color: Color(0xFF71717A),
+                    color: cs.onSurfaceVariant,
                   ),
                 ),
                 suffix: _searchCtrl.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Lucide.X,
                           size: 14,
-                          color: Color(0xFF71717A),
+                          color: cs.onSurfaceVariant,
                         ),
                         onPressed: () {
                           _searchCtrl.clear();
@@ -268,23 +264,33 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                         _loadToolkits();
                       }
                     },
-                    selectedColor: const Color(0xFF27272A),
-                    backgroundColor: const Color(0xFF18181B),
+                    selectedColor: isDark
+                        ? const Color(0xFF27272A)
+                        : cs.primaryContainer,
+                    backgroundColor: isDark
+                        ? const Color(0xFF18181B)
+                        : cs.surfaceContainerHighest.withValues(alpha: 0.5),
                     labelStyle: TextStyle(
                       fontSize: 12,
                       fontWeight: selected
                           ? AppFontWeights.emphasis
                           : FontWeight.normal,
                       color: selected
-                          ? const Color(0xFFF4F4F5)
-                          : const Color(0xFFA1A1AA),
+                          ? (isDark
+                                ? const Color(0xFFF4F4F5)
+                                : cs.onPrimaryContainer)
+                          : (isDark
+                                ? const Color(0xFFA1A1AA)
+                                : cs.onSurfaceVariant),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: BorderSide(
                         color: selected
-                            ? const Color(0xFF52525B)
-                            : const Color(0xFF27272A),
+                            ? (isDark ? const Color(0xFF52525B) : cs.primary)
+                            : (isDark
+                                  ? const Color(0xFF27272A)
+                                  : cs.outlineVariant.withValues(alpha: 0.6)),
                       ),
                     ),
                   );
@@ -296,28 +302,26 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
             // Toolkits list
             Expanded(
               child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
+                      ),
                     )
                   : _toolkits.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Lucide.SearchX,
                             size: 36,
-                            color: Color(0xFF71717A),
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                           ),
                           const SizedBox(height: 10),
                           Text(
                             'No matching connectors found',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: const Color(
-                                0xFFF4F4F5,
-                              ).withValues(alpha: 0.6),
-                            ),
+                            style: TextStyle(fontSize: 14, color: cs.onSurface),
                           ),
                         ],
                       ),
@@ -339,12 +343,19 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
   }
 
   Widget _buildConnectorCard(BuildContext context, ComposioToolkit item) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
+        color: isDark ? const Color(0xFF18181B) : cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF27272A)),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFF27272A)
+              : cs.outlineVariant.withValues(alpha: 0.6),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,8 +367,16 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF27272A),
+                  color: isDark
+                      ? const Color(0xFF27272A)
+                      : cs.surfaceContainerHighest.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.transparent
+                        : cs.outlineVariant.withValues(alpha: 0.5),
+                    width: 0.5,
+                  ),
                 ),
                 padding: const EdgeInsets.all(6),
                 alignment: Alignment.center,
@@ -369,15 +388,15 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                         width: 24,
                         height: 24,
                         fit: BoxFit.contain,
-                        placeholderBuilder: (_) => const Icon(
+                        placeholderBuilder: (_) => Icon(
                           Lucide.Layers,
                           size: 18,
-                          color: Color(0xFF71717A),
+                          color: cs.onSurfaceVariant,
                         ),
-                        errorBuilder: (_, __, ___) => const Icon(
+                        errorBuilder: (_, __, ___) => Icon(
                           Lucide.Layers,
                           size: 18,
-                          color: Color(0xFF71717A),
+                          color: cs.onSurfaceVariant,
                         ),
                       )
                     : Image.network(
@@ -385,10 +404,10 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                         width: 24,
                         height: 24,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(
+                        errorBuilder: (_, __, ___) => Icon(
                           Lucide.Layers,
                           size: 18,
-                          color: Color(0xFF71717A),
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
               ),
@@ -405,7 +424,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: AppFontWeights.emphasis,
-                            color: const Color(0xFFF4F4F5),
+                            color: cs.onSurface,
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -438,7 +457,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                       '${item.category}${item.toolCount > 0 ? " · ${item.toolCount} tools" : ""}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: const Color(0xFFF4F4F5).withValues(alpha: 0.5),
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -452,7 +471,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
               item.description!,
               style: TextStyle(
                 fontSize: 13,
-                color: const Color(0xFFF4F4F5).withValues(alpha: 0.75),
+                color: cs.onSurfaceVariant,
                 height: 1.3,
               ),
               maxLines: 2,
@@ -468,7 +487,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                 label: 'Tell AI to Connect',
                 icon: Lucide.Bot,
                 fontSize: 12,
-                color: const Color(0xFFF4F4F5),
+                color: isDark ? const Color(0xFFF4F4F5) : cs.onSurface,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 6,
@@ -483,7 +502,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                 fontSize: 12,
                 color: item.isConnected
                     ? const Color(0xFF4ADE80)
-                    : const Color(0xFFF4F4F5),
+                    : (isDark ? const Color(0xFFF4F4F5) : cs.onSurface),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 6,

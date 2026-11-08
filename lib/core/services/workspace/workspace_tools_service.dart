@@ -453,9 +453,25 @@ class WorkspaceToolsService {
     }
     buf
       ..writeln()
+      ..writeln('Autonomous Projects & Artifacts:')
       ..writeln(
-        'Cite files as [name](kelivo://workspace/rel/path), outputs as '
-        'kelivo://chat/outputs/x.txt, images as ![alt](kelivo://workspace/plot.png). '
+        'You have full authorization and capability to create complete software projects, bots, scripts, and websites inside $workspace:',
+      )
+      ..writeln(
+        '- Project Creation: Scaffold entire projects (Python bots, full-stack websites, node services, scripts, APIs, automation workflows).',
+      )
+      ..writeln(
+        '- Full Implementation: Write complete, production-ready code with error handling using write_file and edit_file without placeholders or shortcuts.',
+      )
+      ..writeln(
+        '- Execution & Dependencies: Use shell to install dependencies (pip, npm, apt), compile code, launch scripts, test bots, or verify execution.',
+      )
+      ..writeln(
+        '- Interactive Previews: When building websites, frontend dashboards, or interactive UI components, produce HTML/CSS/JS files so the user can interactively preview them.',
+      )
+      ..writeln(
+        'Cite created files as [name](void://workspace/rel/path), outputs as '
+        'void://chat/outputs/x.txt, images as ![alt](void://workspace/plot.png). '
         'Percent-encode each path segment (spaces, non-ASCII); raw UTF-8 is also accepted.',
       )
       ..writeln()

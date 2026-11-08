@@ -4788,9 +4788,17 @@ List<_TimelineStepData> _groupBrowserSteps(
   _IdSet pendingApprovalIds,
 ) => groupAdjacentBrowserSteps(
   steps,
-  eligible: (step) =>
-      step.tool?.toolName == LocalToolNames.browser &&
-      !pendingApprovalIds.contains(step.tool!.id),
+  eligible: (step) {
+    if (step.tool == null) return false;
+    if (pendingApprovalIds.contains(step.tool!.id)) return false;
+    final name = step.tool!.toolName.toLowerCase();
+    return name == LocalToolNames.browser ||
+        name.contains('browser') ||
+        name.contains('puppeteer') ||
+        name.contains('playwright') ||
+        name.contains('stagehand') ||
+        name.contains('devtools');
+  },
   group: (steps, lite) => _TimelineStepData.browserGroup(
     tools: List.unmodifiable(steps.map((step) => step.tool!)),
     lite: lite,

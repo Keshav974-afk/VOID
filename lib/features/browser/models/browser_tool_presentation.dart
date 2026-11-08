@@ -49,13 +49,37 @@ class BrowserToolAction {
     }
   }
 
-  String get action => _string(
-    arguments['action'] ?? browserMetadata['action'] ?? result['action'],
-  );
+  String get action {
+    final raw = _string(
+      arguments['action'] ?? browserMetadata['action'] ?? result['action'],
+    );
+    if (raw.isNotEmpty) return raw;
+    if (arguments.containsKey('url') ||
+        arguments.containsKey('href') ||
+        arguments.containsKey('uri')) {
+      return 'open';
+    }
+    if (arguments.containsKey('selector') ||
+        arguments.containsKey('element') ||
+        arguments.containsKey('ref')) {
+      return 'click';
+    }
+    if (arguments.containsKey('text') || arguments.containsKey('value')) {
+      return 'type';
+    }
+    if (arguments.containsKey('scroll') || arguments.containsKey('direction')) {
+      return 'scroll';
+    }
+    if (arguments.containsKey('key')) return 'press';
+    return 'open';
+  }
+
   Map<String, dynamic> get page => _map(result['page']);
   bool get failed =>
       !loading &&
-      (result['ok'] == false || browserMetadata['status'] == 'error');
+      (result['ok'] == false ||
+          browserMetadata['status'] == 'error' ||
+          (result.containsKey('error') && result['error'] != null));
   String get error => _string(result['error_code'] ?? result['error']);
   String? get tabId {
     final id = _string(
@@ -67,10 +91,17 @@ class BrowserToolAction {
     return id.isEmpty ? null : id;
   }
 
-  String get url => _string(page['url'] ?? arguments['url']);
-  String get title => _string(page['title']);
+  String get url => _string(
+    page['url'] ?? arguments['url'] ?? arguments['href'] ?? arguments['uri'],
+  );
+  String get title => _string(
+    page['title'] ??
+        arguments['title'] ??
+        result['title'] ??
+        (url.isNotEmpty ? url : ''),
+  );
   bool get hasPage =>
-      !failed && !loading && (page['url'] is String || page['title'] is String);
+      !failed && !loading && (url.isNotEmpty || title.isNotEmpty);
   static String _string(Object? value) => value is String ? value : '';
 
   String label(AppLocalizations l) => browserActionLabel(l, action);

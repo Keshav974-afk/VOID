@@ -66,6 +66,7 @@ class HomeDesktopScaffold extends StatelessWidget {
     required this.onSidebarWidthChangeEnd,
     required this.buildAssistantBackground,
     this.appBarOverride,
+    this.onOpenVoidHub,
     required this.body,
   });
 
@@ -104,6 +105,7 @@ class HomeDesktopScaffold extends StatelessWidget {
   final VoidCallback onSidebarWidthChangeEnd;
   final Widget Function(BuildContext context) buildAssistantBackground;
   final PreferredSizeWidget? appBarOverride;
+  final VoidCallback? onOpenVoidHub;
   final Widget body;
 
   static const Duration _sidebarAnimDuration = Duration(milliseconds: 260);
@@ -541,7 +543,29 @@ class HomeDesktopScaffold extends StatelessWidget {
 
   List<Widget> _buildActions(BuildContext context, bool topicsOnRight) {
     final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
     return [
+      if (onOpenVoidHub != null) ...[
+        Tooltip(
+          message: 'VOID Intelligence Hub',
+          child: Container(
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: IosIconButton(
+              size: 20,
+              padding: const EdgeInsets.all(8),
+              minSize: 40,
+              icon: Lucide.Sparkles,
+              color: cs.primary,
+              semanticLabel: 'VOID Intelligence Hub',
+              onTap: onOpenVoidHub,
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+      ],
       if (_isDesktop)
         ListenableBuilder(
           listenable: DesktopSidePanelController.instance,

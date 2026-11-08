@@ -18,19 +18,26 @@ class ComposioService {
   String? lastAuthError;
   bool isLiveCatalog = false;
 
+  String? _cachedApiKey;
+
   @visibleForTesting
   void setClientForTesting(http.Client client) {
     _client = client;
   }
 
   Future<String?> getStoredApiKey() async {
+    if (_cachedApiKey != null && _cachedApiKey!.isNotEmpty) {
+      return _cachedApiKey;
+    }
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_prefsApiKey);
+    _cachedApiKey = prefs.getString(_prefsApiKey);
+    return _cachedApiKey;
   }
 
   Future<void> setStoredApiKey(String key) async {
     final prefs = await SharedPreferences.getInstance();
     final trimmed = key.trim();
+    _cachedApiKey = trimmed.isEmpty ? null : trimmed;
     if (trimmed.isEmpty) {
       await prefs.remove(_prefsApiKey);
     } else {
@@ -91,7 +98,7 @@ class ComposioService {
                 'params': {
                   'protocolVersion': '2024-11-05',
                   'capabilities': {},
-                  'clientInfo': {'name': 'Kelivo', 'version': '1.0.0'},
+                  'clientInfo': {'name': 'VOID', 'version': '1.0.0'},
                 },
               }),
             )
