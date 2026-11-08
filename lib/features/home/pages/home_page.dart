@@ -1450,7 +1450,7 @@ class _HomePageState extends State<HomePage>
         try {
           final vault = VoidKnowledgeVaultService.instance;
           if (vault.autoInjectInChat) {
-            final ragContext = await vault.buildContextPrompt(input.text);
+            final ragContext = vault.buildContextPrompt(input.text);
             if (ragContext.isNotEmpty) {
               inputToSend = ChatInputData(
                 text: '$ragContext\n\n${input.text}',
@@ -1717,6 +1717,7 @@ class _HomePageState extends State<HomePage>
       context,
       latestAssistantMarkdown: latestAi,
       recentUserPrompts: userMessages,
+      conversationId: _controller.currentConversation?.id,
       onDispatchPrompt: (prompt) async {
         await _controller.sendMessage(ChatInputData(text: prompt));
       },

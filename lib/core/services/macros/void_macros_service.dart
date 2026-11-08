@@ -23,7 +23,7 @@ class VoidMacroRecipe {
 
   String buildExecutionPrompt({String? customInput}) {
     final buffer = StringBuffer()
-      ..writeln('### ⚡ VOID Autonomous Agent Macro: **$title**')
+      ..writeln('### VOID Autonomous Agent Macro: **$title**')
       ..writeln(description)
       ..writeln(
         '\nExecute the following workflow steps autonomously and thoroughly:',

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../../icons/lucide_adapter.dart';
@@ -79,6 +78,78 @@ class _LibraryPageState extends State<LibraryPage> {
     super.dispose();
   }
 
+  static bool _isCodeOrInternalArtifact(String fullPath, String basename) {
+    if (basename.startsWith('.')) return true;
+    final normalized = fullPath.replaceAll(r'\', '/').toLowerCase();
+
+    // Strictly exclude repository source directories, build artifacts & dependencies
+    const blacklistedDirs = [
+      '/.git/',
+      '/.dart_tool/',
+      '/.idea/',
+      '/.vscode/',
+      '/build/',
+      '/node_modules/',
+      '/dependencies/',
+      '/android/',
+      '/ios/',
+      '/windows/',
+      '/macos/',
+      '/linux/',
+      '/web/',
+      '/lib/',
+      '/test/',
+      '/integration_test/',
+      '/bin/',
+      '/obj/',
+    ];
+    for (final dir in blacklistedDirs) {
+      if (normalized.contains(dir)) return true;
+    }
+
+    // Exclude code files and project build definitions
+    final lowerName = basename.toLowerCase();
+    if (lowerName == 'pubspec.yaml' ||
+        lowerName == 'pubspec.lock' ||
+        lowerName == 'analysis_options.yaml' ||
+        lowerName == 'cmakelists.txt' ||
+        lowerName == 'makefile' ||
+        lowerName == 'dockerfile' ||
+        lowerName.endsWith('.g.dart') ||
+        lowerName.endsWith('.freezed.dart') ||
+        lowerName.endsWith('.dart')) {
+      return true;
+    }
+
+    // Exclude internal database files, locks, and compiler logs
+    final ext = basename.contains('.')
+        ? basename.split('.').last.toLowerCase()
+        : '';
+    const internalExts = {
+      'db',
+      'db-shm',
+      'db-wal',
+      'sqlite',
+      'sqlite3',
+      'hive',
+      'lock',
+      'tmp',
+      'log',
+      'pdb',
+      'obj',
+      'o',
+      'ilk',
+      'class',
+      'dex',
+      'dylib',
+      'so',
+      'dll',
+    };
+    if (internalExts.contains(ext)) return true;
+
+    return false;
+  }
+
   Future<void> _loadRealFiles() async {
     setState(() => _isLoading = true);
     try {
@@ -87,24 +158,34 @@ class _LibraryPageState extends State<LibraryPage> {
 
       final dirsToScan = <Directory>[];
 
+      // 1. User uploaded files
       try {
         final uploadDir = await AppDirectories.getUploadDirectory();
         if (await uploadDir.exists()) dirsToScan.add(uploadDir);
       } catch (_) {}
 
+      // 2. User images / generated pictures
       try {
         final imagesDir = await AppDirectories.getImagesDirectory();
         if (await imagesDir.exists()) dirsToScan.add(imagesDir);
       } catch (_) {}
 
+      // 3. User documents library inside app data
       try {
-        final workspacesDir = await AppDirectories.getWorkspacesDirectory();
-        if (await workspacesDir.exists()) dirsToScan.add(workspacesDir);
+        final appData = await AppDirectories.getAppDataDirectory();
+        final libraryDir = Directory(p.join(appData.path, 'library'));
+        if (await libraryDir.exists()) {
+          dirsToScan.add(libraryDir);
+        } else {
+          await libraryDir.create(recursive: true);
+          dirsToScan.add(libraryDir);
+        }
       } catch (_) {}
 
+      // 4. Conversation sessions outputs (generated artifacts & reports)
       try {
-        final docsDir = await getApplicationDocumentsDirectory();
-        if (await docsDir.exists()) dirsToScan.add(docsDir);
+        final sessionsDir = await AppDirectories.getSessionsDirectory();
+        if (await sessionsDir.exists()) dirsToScan.add(sessionsDir);
       } catch (_) {}
 
       for (final dir in dirsToScan) {
@@ -114,23 +195,14 @@ class _LibraryPageState extends State<LibraryPage> {
             if (entity is File && !visitedPaths.contains(entity.path)) {
               visitedPaths.add(entity.path);
               final basename = entity.path.split(Platform.pathSeparator).last;
-              if (basename.startsWith('.')) continue;
+              if (_isCodeOrInternalArtifact(entity.path, basename)) {
+                continue;
+              }
 
               final stat = await entity.stat();
               final ext = basename.contains('.')
                   ? basename.split('.').last.toLowerCase()
                   : '';
-              if (const {
-                'db',
-                'db-shm',
-                'db-wal',
-                'sqlite',
-                'sqlite3',
-                'hive',
-                'lock',
-              }.contains(ext)) {
-                continue;
-              }
 
               final isImg = const {
                 'png',
@@ -158,11 +230,10 @@ class _LibraryPageState extends State<LibraryPage> {
                 'app',
                 'deb',
                 'exe',
-                'sh',
-                'py',
-                'js',
-                'ts',
                 'html',
+                'pdf',
+                'docx',
+                'xlsx',
               }.contains(ext);
 
               loaded.add(

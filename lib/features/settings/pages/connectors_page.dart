@@ -10,6 +10,7 @@ import '../../../core/services/composio/composio_service.dart';
 import '../../../core/services/haptics.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
+import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/ios_text_button.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -211,6 +212,7 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
         _storedApiKey ?? (pendingKey.isNotEmpty ? pendingKey : null);
 
     if (effectiveKey == null || effectiveKey.isEmpty) {
+      if (!mounted) return;
       setState(() => _editingApiKey = true);
       showAppSnackBar(
         context,
@@ -263,6 +265,13 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
         backgroundColor: cs.surface,
         elevation: 0,
         scrolledUnderElevation: 0,
+        leading: IosIconButton(
+          icon: Lucide.ArrowLeft,
+          color: cs.onSurface,
+          size: 22,
+          minSize: 44,
+          onTap: () => Navigator.of(context).maybePop(),
+        ),
         title: Text(
           'Connectors',
           style: TextStyle(
@@ -543,27 +552,22 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
               style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 10),
+            IosFormTextField(
+              label: 'API Key',
+              controller: _apiKeyCtrl,
+              hintText: 'comp_live_... or ck_...',
+              obscureText: true,
+              onSubmitted: (_) => _saveApiKey(),
+            ),
+            const SizedBox(height: 10),
             Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Expanded(
-                  child: IosFormTextField(
-                    label: 'API Key',
-                    controller: _apiKeyCtrl,
-                    hintText: 'comp_live_... or ck_...',
-                    obscureText: true,
-                    onSubmitted: (_) => _saveApiKey(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IosTextButton(
-                  label: _validating ? 'Checking...' : 'Save',
-                  icon: _validating ? Lucide.Loader : Lucide.Check,
-                  onPressed: _validating ? null : _saveApiKey,
-                ),
                 if (_editingApiKey && hasKey) ...[
-                  const SizedBox(width: 4),
                   IosTextButton(
                     label: 'Cancel',
+                    fontSize: 13,
+                    color: cs.onSurfaceVariant,
                     onPressed: () {
                       setState(() {
                         _editingApiKey = false;
@@ -571,7 +575,15 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                       });
                     },
                   ),
+                  const SizedBox(width: 8),
                 ],
+                IosTextButton(
+                  label: _validating ? 'Checking...' : 'Save Key',
+                  icon: _validating ? Lucide.Loader : Lucide.Check,
+                  fontSize: 13,
+                  color: cs.primary,
+                  onPressed: _validating ? null : _saveApiKey,
+                ),
               ],
             ),
           ],
@@ -721,7 +733,6 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
 
   Widget _buildConnectorRow(ComposioToolkit toolkit) {
     final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -811,16 +822,17 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
                 label: 'Tell AI',
                 icon: Lucide.Bot,
                 fontSize: 12,
+                color: cs.onSurfaceVariant,
                 onPressed: () => _handleTellAi(toolkit),
               ),
               const SizedBox(width: 8),
               IosTextButton(
                 label: toolkit.isConnected ? 'Reconnect' : 'Connect',
-                icon: Lucide.Link2,
+                icon: toolkit.isConnected ? Lucide.Check : Lucide.Link2,
                 fontSize: 12,
-                color: isDark
-                    ? const Color(0xFF27272A)
-                    : cs.surfaceContainerHighest,
+                color: toolkit.isConnected
+                    ? const Color(0xFF22C55E)
+                    : cs.primary,
                 onPressed: () => _handleConnect(toolkit),
               ),
             ],
@@ -843,13 +855,11 @@ class _ConnectorsPageState extends State<ConnectorsPage> {
       height: 38,
       decoration: BoxDecoration(
         color: isDark
-            ? const Color(0xFF27272A)
+            ? cs.surfaceContainerHighest.withValues(alpha: 0.5)
             : cs.surfaceContainerHighest.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(
-          color: isDark
-              ? Colors.transparent
-              : cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.4),
           width: 0.5,
         ),
       ),

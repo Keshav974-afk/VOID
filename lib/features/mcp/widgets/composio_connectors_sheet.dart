@@ -435,10 +435,14 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF052E16),
+                              color: isDark
+                                  ? const Color(0xFF052E16)
+                                  : const Color(0xFFDCFCE7),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: const Color(0xFF166534),
+                                color: isDark
+                                    ? const Color(0xFF166534)
+                                    : const Color(0xFF86EFAC),
                               ),
                             ),
                             child: Text(
@@ -446,7 +450,9 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: AppFontWeights.emphasis,
-                                color: const Color(0xFF4ADE80),
+                                color: isDark
+                                    ? const Color(0xFF4ADE80)
+                                    : const Color(0xFF15803D),
                               ),
                             ),
                           ),
@@ -487,7 +493,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                 label: 'Tell AI to Connect',
                 icon: Lucide.Bot,
                 fontSize: 12,
-                color: isDark ? const Color(0xFFF4F4F5) : cs.onSurface,
+                color: cs.onSurfaceVariant,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 6,
@@ -500,9 +506,7 @@ class _ComposioConnectorsSheetState extends State<ComposioConnectorsSheet> {
                 label: item.isConnected ? 'Connected' : 'Connect',
                 icon: item.isConnected ? Lucide.Check : Lucide.ExternalLink,
                 fontSize: 12,
-                color: item.isConnected
-                    ? const Color(0xFF4ADE80)
-                    : (isDark ? const Color(0xFFF4F4F5) : cs.onSurface),
+                color: item.isConnected ? const Color(0xFF22C55E) : cs.primary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 6,

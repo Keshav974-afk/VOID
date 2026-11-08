@@ -5,6 +5,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
 import '../../../shared/widgets/void_logo.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../../theme/app_semantic_colors.dart';
 
 class VoidCouncilSheet extends StatefulWidget {
   const VoidCouncilSheet({
@@ -120,7 +121,7 @@ class _VoidCouncilSheetState extends State<VoidCouncilSheet> {
 
     final prompt =
         '''
-### 🏛️ VOID Multi-Agent Council Session ($_selectedMode)
+### VOID Multi-Agent Council Session ($_selectedMode)
 
 **Objective / Problem**:
 $topic
@@ -143,17 +144,17 @@ $seatsList
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDesktop = MediaQuery.sizeOf(context).width >= 720;
+    final bg = context.overlaySurface;
 
     return Container(
       decoration: BoxDecoration(
-        color: cs.surface,
+        color: bg,
         borderRadius: isDesktop
-            ? BorderRadius.circular(24)
-            : const BorderRadius.vertical(top: Radius.circular(24)),
+            ? BorderRadius.circular(20)
+            : const BorderRadius.vertical(top: Radius.circular(20)),
         border: Border.all(
-          color: isDark
-              ? const Color(0xFF27272A)
-              : cs.outlineVariant.withValues(alpha: 0.6),
+          color: cs.outlineVariant.withValues(alpha: 0.4),
+          width: 0.6,
         ),
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
