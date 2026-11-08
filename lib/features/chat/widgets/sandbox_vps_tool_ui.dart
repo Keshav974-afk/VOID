@@ -19,6 +19,7 @@ class SandboxVpsToolUi extends StatefulWidget {
 class _SandboxVpsToolUiState extends State<SandboxVpsToolUi> {
   bool _expanded = true;
   bool _copied = false;
+  final Set<String> _expandedBlocks = {};
 
   void _copyOutput() {
     final text = widget.result.stdout.isNotEmpty
@@ -254,18 +255,72 @@ class _SandboxVpsToolUiState extends State<SandboxVpsToolUi> {
     required Color color,
     required Color codeBg,
   }) {
+    final trimmedContent = content.trimRight();
+    final lines = trimmedContent.split('\n');
+    final isLong = lines.length > 12 || trimmedContent.length > 800;
+    final isExpanded = _expandedBlocks.contains(title);
+
+    final displayContent = (isLong && !isExpanded)
+        ? lines.take(10).join('\n')
+        : trimmedContent;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       color: codeBg,
-      child: SelectableText(
-        content.trimRight(),
-        style: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 11.5,
-          height: 1.4,
-          color: color,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SelectableText(
+            displayContent,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11.5,
+              height: 1.4,
+              color: color,
+            ),
+          ),
+          if (isLong) ...[
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedBlocks.remove(title);
+                  } else {
+                    _expandedBlocks.add(title);
+                  }
+                });
+              },
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isExpanded
+                          ? 'Show less'
+                          : '... [trimmed ${lines.length - 10} lines · Show full output]',
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        color: Color(0xFF58A6FF),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      isExpanded ? Lucide.ChevronUp : Lucide.ChevronDown,
+                      size: 13,
+                      color: const Color(0xFF58A6FF),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

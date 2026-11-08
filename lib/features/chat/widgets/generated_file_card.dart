@@ -21,19 +21,22 @@ import '../../workspace/widgets/preview/file_preview.dart';
 import '../pages/image_viewer_page.dart';
 import '../pages/pdf_viewer_page.dart';
 
-/// Extracts file paths (like /tmp/...pdf, /root/...png, etc.) from arbitrary text,
-/// tool output, or markdown messages with full Unicode (Nepali, Hindi, Chinese, etc.) support.
+/// Extracts explicitly presented file deliverables (PDF, images, documents, artifacts)
+/// from markdown or tool text. Only files that the AI explicitly wanted to present are extracted.
 List<String> extractGeneratedFilePaths(String text) {
   if (text.isEmpty) return const [];
   final paths = <String>{};
 
-  // 1. Markdown link format: [title](path_or_url)
+  // 1. Explicit Markdown file link format: [Download ...](path) or [Artifact ...](path) or [File ...](path)
   final mdLinkRegex = RegExp(r'\[([^\]]+)\]\(([^)]+)\)');
   for (final m in mdLinkRegex.allMatches(text)) {
+    final label = (m.group(1) ?? '').toLowerCase().trim();
     var target = (m.group(2) ?? '').trim();
     target = target.replaceAll(RegExp(r'''[',`"\):;\.]+$'''), '');
     final lower = target.toLowerCase();
-    if (lower.endsWith('.pdf') ||
+
+    final hasDocExt =
+        lower.endsWith('.pdf') ||
         lower.endsWith('.png') ||
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
@@ -44,42 +47,41 @@ List<String> extractGeneratedFilePaths(String text) {
         lower.endsWith('.xlsx') ||
         lower.endsWith('.xls') ||
         lower.endsWith('.pptx') ||
-        lower.endsWith('.ppt') ||
         lower.endsWith('.csv') ||
-        lower.endsWith('.tsv')) {
-      paths.add(target);
+        lower.endsWith('.tsv') ||
+        lower.endsWith('.apk') ||
+        lower.endsWith('.exe') ||
+        lower.endsWith('.zip');
+
+    if (hasDocExt) {
+      final isIntentional =
+          label.contains('download') ||
+          label.contains('file') ||
+          label.contains('deliverable') ||
+          label.contains('artifact') ||
+          label.contains('open') ||
+          label.contains('export') ||
+          label.contains('report') ||
+          target.startsWith('file://') ||
+          target.startsWith('void://') ||
+          target.startsWith('kelivo://');
+      if (isIntentional) {
+        paths.add(target);
+      }
     }
   }
 
-  // 2. Paths with directories like /tmp/, /root/, C:\, /..., or ./ (Unicode safe)
-  final pathRegex = RegExp(
-    r'''(?:^|[\s"'`\(\[<])((?:/(?:tmp|root|var|home|storage|sdcard|data)/|[A-Za-z]:[/\\]|[/\w\.\-]+/|\./)[^\s"'`<>\[\]\(\)\*:]+?\.(?:pdf|png|jpe?g|webp|gif|docx?|xlsx?|pptx?|csv|tsv))''',
+  // 2. Explicit deliverable declaration lines:
+  // e.g. "Download: /path/report.pdf", "Artifact: output.png", "Saved to: doc.docx"
+  final deliverableLineRegex = RegExp(
+    r'''(?:^|\n)\s*(?:Download|Deliverable|Generated(?:\s+file)?|File(?:\s+saved)?|Saved to|Artifact|Output)\s*:\s*([^\s\n"'`<>\[\]\(\)\*]+?\.(?:pdf|png|jpe?g|webp|gif|docx?|xlsx?|pptx?|csv|tsv|apk|exe|zip))''',
     caseSensitive: false,
   );
-  final matches = pathRegex.allMatches(text);
-  for (final m in matches) {
-    var pStr = m.group(1) ?? '';
-    pStr = pStr.trim().replaceAll(RegExp(r'''[',`"\):;\.]+$'''), '');
-    if (pStr.isNotEmpty &&
-        !pStr.startsWith('http://') &&
-        !pStr.startsWith('https://') &&
-        !pStr.endsWith('.dart') &&
-        !pStr.endsWith('.py') &&
-        !pStr.endsWith('.sh')) {
+  for (final m in deliverableLineRegex.allMatches(text)) {
+    var pStr = (m.group(1) ?? '').trim();
+    pStr = pStr.replaceAll(RegExp(r'''[',`"\):;\.]+$'''), '');
+    if (pStr.isNotEmpty) {
       paths.add(pStr);
-    }
-  }
-
-  // 3. Standalone filenames ending in .pdf or documents (Unicode safe)
-  final fileRegex = RegExp(
-    r'''(?:^|[\s"'`\(\[<])([^\s"'`<>\[\]\(\)\*:\/\\]+?\.(?:pdf|docx?|xlsx?|pptx?))''',
-    caseSensitive: false,
-  );
-  for (final m in fileRegex.allMatches(text)) {
-    var f = (m.group(1) ?? '').trim();
-    f = f.replaceAll(RegExp(r'''[',`"\):;\.]+$'''), '');
-    if (f.isNotEmpty && !paths.any((p) => p.endsWith(f))) {
-      paths.add(f);
     }
   }
 
@@ -516,6 +518,9 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
     final cs = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final exists = _localPath != null && File(_localPath!).existsSync();
+    if (!exists && !_isFetching && _fetchError != null) {
+      return const SizedBox.shrink();
+    }
     final basename = widget.title ?? p.basename(widget.filePath);
 
     final cardBg = isDark ? const Color(0xFF161A22) : const Color(0xFFF1F5F9);

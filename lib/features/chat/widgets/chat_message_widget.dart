@@ -7388,13 +7388,18 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                     }
                   }
 
-                  // Also detect file paths from sandbox_vps / bash / any tool outputs or arguments
-                  final detectedPaths = {
-                    ...extractGeneratedFilePaths(widget.part.content ?? ''),
-                    ...extractGeneratedFilePaths(
-                      widget.part.arguments.toString(),
-                    ),
-                  };
+                  // Only detect files if the tool explicitly produces artifacts or files
+                  final toolName = widget.part.toolName.toLowerCase();
+                  final isFileProducer =
+                      toolName.contains('image') ||
+                      toolName.contains('export') ||
+                      toolName.contains('write_file') ||
+                      toolName.contains('artifact') ||
+                      toolName.contains('save_file') ||
+                      toolName.contains('download_file');
+                  final detectedPaths = isFileProducer
+                      ? extractGeneratedFilePaths(widget.part.content ?? '')
+                      : const <String>[];
                   for (final path in detectedPaths) {
                     if (!seenPaths.contains(path)) {
                       seenPaths.add(path);
