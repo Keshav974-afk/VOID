@@ -1445,18 +1445,26 @@ class _HomePageState extends State<HomePage>
       onOpenContextUsage: () async {
         await _openContextUsagePopover();
       },
-      onSend: (text) async {
-        var messageToSend = text;
+      onSend: (input) async {
+        var inputToSend = input;
         try {
           final vault = VoidKnowledgeVaultService.instance;
           if (vault.autoInjectInChat) {
-            final ragContext = await vault.buildContextPrompt(text);
+            final ragContext = await vault.buildContextPrompt(input.text);
             if (ragContext.isNotEmpty) {
-              messageToSend = '$ragContext\n\n$text';
+              inputToSend = ChatInputData(
+                text: '$ragContext\n\n${input.text}',
+                quotes: input.quotes,
+                imagePaths: input.imagePaths,
+                documents: input.documents,
+                allowImagesApiRouting: input.allowImagesApiRouting,
+                draftSubmission: input.draftSubmission,
+                uiContext: input.uiContext,
+              );
             }
           }
         } catch (_) {}
-        final result = await _controller.sendMessage(messageToSend);
+        final result = await _controller.sendMessage(inputToSend);
         if (!mounted) return result;
         if (PlatformUtils.isMobile &&
             result == ChatInputSubmissionResult.sent) {
@@ -1710,7 +1718,7 @@ class _HomePageState extends State<HomePage>
       latestAssistantMarkdown: latestAi,
       recentUserPrompts: userMessages,
       onDispatchPrompt: (prompt) async {
-        await _controller.sendMessage(prompt);
+        await _controller.sendMessage(ChatInputData(text: prompt));
       },
       onInsertComposerText: (text) {
         _inputController.text = text;
