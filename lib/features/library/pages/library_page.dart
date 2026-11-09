@@ -915,12 +915,12 @@ class _PdfGridThumbnailState extends State<_PdfGridThumbnail> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'PDF',
             style: TextStyle(
               fontSize: 10,
               fontWeight: AppFontWeights.bold,
-              color: Color(0xFFD14D41),
+              color: const Color(0xFFD14D41),
             ),
           ),
         ],

@@ -312,7 +312,7 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(
-                              Lucide.AlertCircle,
+                              Lucide.CircleAlert,
                               size: 44,
                               color: Color(0xFFEF4444),
                             ),
