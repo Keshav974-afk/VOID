@@ -133,7 +133,8 @@ class ChatApiService {
 
   static bool _specAcceptsMediaPath(ModelSpec spec, String path) {
     final mime = inferMediaMimeFromSource(path);
-    if (mime.isEmpty) return spec.supportsImageInput;
+    if (mime.isEmpty) return spec.supportsImageInput || spec.type == ModelType.chat;
+    if (isImageMime(mime)) return spec.supportsImageInput || spec.type == ModelType.chat;
     return _specAcceptsMime(spec, mime);
   }
 
@@ -153,7 +154,7 @@ class ChatApiService {
     List<Map<String, dynamic>> messages,
     ModelSpec spec,
   ) async {
-    final keepImage = spec.supportsImageInput;
+    final keepImage = spec.supportsImageInput || spec.type == ModelType.chat;
     final keepAudio = spec.supportsAudioInput;
     final keepVideo = spec.supportsVideoInput;
     if (keepImage && keepAudio && keepVideo) return messages;

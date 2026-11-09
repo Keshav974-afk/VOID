@@ -401,6 +401,7 @@ class BrowserService extends ChangeNotifier with WidgetsBindingObserver {
     int? windowId,
     String? openerTabId,
     String? popupGroupId,
+    bool isIncognito = false,
   }) async {
     await initialize();
     _checkAction();
@@ -425,6 +426,7 @@ class BrowserService extends ChangeNotifier with WidgetsBindingObserver {
       openerTabId: openerTabId,
       popupGroupId: popupGroupId,
       hasContent: windowId != null,
+      isIncognito: isIncognito || _settings.incognitoDefault,
     );
     _tabs.add(tab);
     if (openerTabId != null && _activeTabId != openerTabId) {
@@ -436,6 +438,15 @@ class BrowserService extends ChangeNotifier with WidgetsBindingObserver {
     }
     _changed();
     return tab;
+  }
+
+  Future<void> openDevTools({String? tabId}) async {
+    final id = tabId ?? _activeTabId;
+    if (id == null) return;
+    final engine = _engines[id];
+    if (engine != null) {
+      await engine.openDevTools();
+    }
   }
 
   Future<void> selectTab(String id) async {
@@ -1361,6 +1372,7 @@ class BrowserService extends ChangeNotifier with WidgetsBindingObserver {
     if (state.completedNavigation &&
         state.error == null &&
         _settings.saveHistory &&
+        !tab.isIncognito &&
         tab.url != 'about:blank' &&
         _isPageUrl(tab.url)) {
       _history.removeWhere((entry) => entry.url == tab.url);
@@ -1955,7 +1967,7 @@ class BrowserService extends ChangeNotifier with WidgetsBindingObserver {
     await _store.write({
       'settings': _settings.toJson(),
       'tabs': _settings.restoreTabs
-          ? _tabs.map((tab) => tab.toJson()).toList()
+          ? _tabs.where((tab) => !tab.isIncognito).map((tab) => tab.toJson()).toList()
           : [],
       'activeTabId': _settings.restoreTabs ? _activeTabId : null,
       'lastTabBySession': _settings.restoreTabs ? _lastTabBySession : {},

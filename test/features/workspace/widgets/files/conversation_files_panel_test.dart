@@ -362,21 +362,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(FileBrowser.itemKey('note.md')));
     await tester.pump();
-    expect(previews, [(p.join(root, 'note.md'), 'workspace')]);
+    expect(p.equals(previews.single.$1, p.join(root, 'note.md')), isTrue);
+    expect(previews.single.$2, 'workspace');
     expect(resolver.calls, isEmpty);
     previews.clear();
     await tester.tap(find.byKey(FileBrowser.itemKey('page.HTML')));
     await tester.pumpAndSettle();
     expect(route.isCurrent, isTrue);
-    if (Platform.isLinux) {
-      expect(previews, [(p.join(root, 'page.HTML'), 'workspace')]);
-      expect(resolver.calls, isEmpty);
-    } else {
-      expect(previews, isEmpty);
-      expect(resolver.calls.single.link.kind, KelivoLinkKind.workspaceFile);
-      expect(resolver.calls.single.link.relativePath, 'page.HTML');
-      expect(resolver.calls.single.conversationId, id);
-    }
+    expect(p.equals(previews.single.$1, p.join(root, 'page.HTML')), isTrue);
+    expect(previews.single.$2, 'workspace');
+    expect(resolver.calls, isEmpty);
     expect(tester.takeException(), isNull);
     await tester.pump(const Duration(seconds: 9));
     await tester.pumpAndSettle();

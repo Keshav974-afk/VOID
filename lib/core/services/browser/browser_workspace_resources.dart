@@ -85,10 +85,56 @@ class BrowserWorkspaceScope {
   bool _closed = false;
   Future<void> _reads = Future<void>.value();
   static const maxResourceBytes = 16 * 1024 * 1024;
+  HttpServer? _loopbackServer;
+  int? _loopbackPort;
+
+  Future<int> ensureLoopbackServer() async {
+    if (_loopbackServer != null && _loopbackPort != null) return _loopbackPort!;
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    _loopbackServer = server;
+    _loopbackPort = server.port;
+    server.listen((request) async {
+      try {
+        var rel = Uri.decodeComponent(request.uri.path).replaceFirst('/', '');
+        final requested = p.normalize(p.join(root, rel));
+        if (!p.isWithin(root, requested) && !p.equals(root, requested)) {
+          request.response.statusCode = HttpStatus.forbidden;
+          await request.response.close();
+          return;
+        }
+        var targetFile = File(requested);
+        if (await FileSystemEntity.isDirectory(requested)) {
+          targetFile = File(p.join(requested, 'index.html'));
+        }
+        if (!targetFile.existsSync()) {
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+          return;
+        }
+        final mime =
+            _mime(p.extension(targetFile.path).toLowerCase()) ??
+            'application/octet-stream';
+        request.response.headers.contentType = ContentType.parse(mime);
+        await request.response.addStream(targetFile.openRead());
+        await request.response.close();
+      } catch (_) {
+        try {
+          request.response.statusCode = HttpStatus.internalServerError;
+          await request.response.close();
+        } catch (_) {}
+      }
+    });
+    return _loopbackPort!;
+  }
 
   Uri internalUrl(String publicUrl, {required bool android}) {
     if (!BrowserWorkspaceResources.isWorkspaceUrl(publicUrl)) {
       throw const FormatException('Invalid workspace URL');
+    }
+    if (!android && _loopbackPort != null) {
+      return Uri.parse(
+        publicUrl,
+      ).replace(scheme: 'http', host: '127.0.0.1', port: _loopbackPort);
     }
     return Uri.parse(
       publicUrl,
@@ -96,16 +142,21 @@ class BrowserWorkspaceScope {
   }
 
   bool owns(Uri uri) =>
-      uri.host == host &&
-      uri.userInfo.isEmpty &&
-      !uri.hasPort &&
-      (uri.scheme == 'kelivo' || uri.scheme == 'https');
+      ((uri.host == host &&
+              (uri.scheme == 'kelivo' || uri.scheme == 'https')) ||
+          (_loopbackPort != null &&
+              uri.host == '127.0.0.1' &&
+              uri.port == _loopbackPort)) &&
+      uri.userInfo.isEmpty;
 
   String publicUrl(String value) {
     final uri = Uri.tryParse(value);
-    return uri != null && owns(uri)
-        ? uri.replace(scheme: 'kelivo', host: 'workspace').toString()
-        : value;
+    if (uri != null && owns(uri)) {
+      return uri
+          .replace(scheme: 'kelivo', host: 'workspace', port: 0)
+          .toString();
+    }
+    return value;
   }
 
   Future<File> file(Uri uri) async {
@@ -212,7 +263,11 @@ class BrowserWorkspaceScope {
     return result;
   }
 
-  void close() => _closed = true;
+  void close() {
+    _closed = true;
+    _loopbackServer?.close(force: true);
+    _loopbackServer = null;
+  }
 
   static String? _mime(String extension) => switch (extension) {
     '.html' || '.htm' => 'text/html',

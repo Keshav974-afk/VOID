@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:Kelivo/icons/lucide_adapter.dart';
 import 'package:Kelivo/l10n/app_localizations.dart';
 import 'package:Kelivo/shared/widgets/segmented_tabs.dart';
+import 'package:Kelivo/theme/app_font_weights.dart';
 
 import 'code_file_preview.dart';
+import 'preview_actions.dart';
 import 'preview_states.dart';
 
 class HtmlFilePreview extends StatefulWidget {
@@ -22,9 +25,10 @@ class HtmlFilePreview extends StatefulWidget {
 }
 
 class _HtmlFilePreviewState extends State<HtmlFilePreview> {
-  WebViewController? _controller;
+  Uri? _serverUri;
+  InAppWebViewController? _webCtrl;
   Object? _error;
-  bool _showSource = false;
+  bool _showSource = true;
   bool _loading = true;
 
   @override
@@ -37,21 +41,34 @@ class _HtmlFilePreviewState extends State<HtmlFilePreview> {
     }
   }
 
+  @override
+  void didUpdateWidget(HtmlFilePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.file.path != widget.file.path) {
+      unawaited(_init());
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(closePreviewFileBrowserServer());
+    super.dispose();
+  }
+
   Future<void> _init() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted);
-      await controller.loadFile(widget.file.absolute.path);
+      final uri = await startPreviewFileBrowserServer(widget.file);
       if (!mounted) return;
       setState(() {
-        _controller = controller;
+        _serverUri = uri;
         _loading = false;
         _error = null;
       });
+      _webCtrl?.loadUrl(urlRequest: URLRequest(url: WebUri.uri(uri)));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -64,23 +81,67 @@ class _HtmlFilePreviewState extends State<HtmlFilePreview> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: SegmentedTabs(
-            tabs: [
-              SegmentedTab(
-                label: l10n.workspacePreviewRendered,
-                icon: Lucide.Eye,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: SegmentedTabs(
+                  tabs: [
+                    SegmentedTab(
+                      label: l10n.workspacePreviewSource,
+                      icon: Lucide.FileCode,
+                    ),
+                    SegmentedTab(
+                      label: l10n.workspacePreviewRendered,
+                      icon: Lucide.Eye,
+                    ),
+                  ],
+                  index: _showSource ? 0 : 1,
+                  onChanged: (next) => setState(() => _showSource = next == 0),
+                ),
               ),
-              SegmentedTab(
-                label: l10n.workspacePreviewSource,
-                icon: Lucide.FileCode,
+              const SizedBox(width: 8),
+              Tooltip(
+                message: l10n.workspacePreviewOpenWith,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => openPreviewFileInBrowser(context, widget.file),
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Lucide.ExternalLink,
+                          size: 14,
+                          color: cs.onSurface,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Browser',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: AppFontWeights.emphasis,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
-            index: _showSource ? 1 : 0,
-            onChanged: (next) => setState(() => _showSource = next == 1),
           ),
         ),
         Expanded(child: _body()),
@@ -99,9 +160,19 @@ class _HtmlFilePreviewState extends State<HtmlFilePreview> {
     if (_error != null) {
       return PreviewError(onRetry: () => unawaited(_init()));
     }
-    if (_loading || _controller == null) {
+    if (_loading || _serverUri == null) {
       return const PreviewLoading();
     }
-    return WebViewWidget(controller: _controller!);
+    return InAppWebView(
+      initialUrlRequest: URLRequest(url: WebUri.uri(_serverUri!)),
+      initialSettings: InAppWebViewSettings(
+        isInspectable: kDebugMode,
+        javaScriptEnabled: true,
+        domStorageEnabled: true,
+        databaseEnabled: true,
+        transparentBackground: false,
+      ),
+      onWebViewCreated: (c) => _webCtrl = c,
+    );
   }
 }

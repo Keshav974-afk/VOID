@@ -335,6 +335,16 @@ class ModelSpecResolver {
           if (_modalityFromCatalog(raw) != null) _modalityFromCatalog(raw)!,
       ];
       if (mapped.isNotEmpty) {
+        if (field == ModelSpecField.input) {
+          if (guessValues.contains(Modality.image) &&
+              !mapped.contains(Modality.image)) {
+            mapped.add(Modality.image);
+          }
+          if (guessValues.contains(Modality.pdf) &&
+              !mapped.contains(Modality.pdf)) {
+            mapped.add(Modality.pdf);
+          }
+        }
         sources[field] = SpecSource.catalog;
         return mapped;
       }

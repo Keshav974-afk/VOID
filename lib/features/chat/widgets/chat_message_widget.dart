@@ -96,7 +96,6 @@ import 'weather_tool_ui.dart';
 import 'x_tool_ui.dart';
 import 'sports_tool_ui.dart';
 import 'sandbox_vps_tool_ui.dart';
-import 'cloud_computer_live_card.dart';
 import 'site_inspect_tool_ui.dart';
 import '../../../core/services/x_search/x_search_service.dart';
 import '../../../core/services/sports/sports_service.dart';
@@ -3586,18 +3585,22 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 conversationId: widget.message.conversationId,
               ),
             ],
-            // Auto-render Cloud Computer / Simular Box live card with "Take Control"
+            // Auto-render any generated files (code, PDF, documents, archives) mentioned in the assistant's response
             Builder(
               builder: (context) {
-                final liveSession = CloudComputerLiveSessionInfo.detect(
+                final messageFiles = extractGeneratedFilePaths(
                   widget.message.content,
                 );
-                if (liveSession == null) return const SizedBox.shrink();
+                if (messageFiles.isEmpty) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: CloudComputerLiveCard(
-                    sessionInfo: liveSession,
-                    conversationId: widget.message.conversationId,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final filePath in messageFiles)
+                        GeneratedFileCard(filePath: filePath),
+                    ],
                   ),
                 );
               },
@@ -7328,27 +7331,6 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: SandboxVpsToolUi(result: vRes, textColor: fg.body),
-                  );
-                },
-              ),
-            ],
-            // Live Cloud Computer / Simular Box / Sandbox session detection for tool parts
-            if (!widget.part.loading && !isPendingApproval) ...[
-              Builder(
-                builder: (context) {
-                  final liveSession = CloudComputerLiveSessionInfo.detect(
-                    widget.part.content,
-                    toolName: widget.part.toolName,
-                    toolArgs: widget.part.arguments,
-                    toolContent: widget.part.content,
-                  );
-                  if (liveSession == null) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: CloudComputerLiveCard(
-                      sessionInfo: liveSession,
-                      conversationId: widget.conversationId,
-                    ),
                   );
                 },
               ),

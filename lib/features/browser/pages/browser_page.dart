@@ -27,6 +27,7 @@ import '../widgets/browser_find_bar.dart';
 import '../widgets/browser_glass.dart';
 import '../widgets/browser_scroll_configuration.dart';
 import '../widgets/browser_library.dart';
+import '../../settings/pages/browser_settings_page.dart';
 import '../widgets/browser_settings.dart';
 import '../widgets/browser_tabs.dart';
 import '../widgets/browser_surface_controls.dart';
@@ -46,6 +47,7 @@ import 'browser_management_page.dart';
 
 enum _BrowserMenu {
   newTab,
+  newIncognitoTab,
   moveToConversation,
   reopenInConversation,
   tabs,
@@ -56,6 +58,7 @@ enum _BrowserMenu {
   find,
   copy,
   external,
+  devTools,
   agent,
   askAi,
   settings,
@@ -707,11 +710,14 @@ class BrowserPageViewState extends State<BrowserPage>
     );
   }
 
-  Future<void> _newTab() => _run(() async {
+  Future<void> _newTab({bool incognito = false}) => _run(() async {
     if (widget.sidePanel != null) {
       await widget.sidePanel!.newWebTab();
     } else {
-      await _service.createTab(ownerSessionId: widget.conversationId);
+      await _service.createTab(
+        ownerSessionId: widget.conversationId,
+        isIncognito: incognito,
+      );
     }
     if (mounted) _focusAddress();
   });
@@ -2257,6 +2263,14 @@ class BrowserPageViewState extends State<BrowserPage>
 
   void _openSettings() {
     final l = AppLocalizations.of(context)!;
+    if (!_desktop) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const BrowserSettingsPage(),
+        ),
+      );
+      return;
+    }
     unawaited(
       _showPanel(
         title: l.browserSettings,
@@ -2351,6 +2365,12 @@ class BrowserPageViewState extends State<BrowserPage>
           label: l.browserNewTab,
         ),
         BrowserMenuEntry(
+          value: _BrowserMenu.newIncognitoTab,
+          group: BrowserMenuGroup.navigation,
+          icon: LucideIcons.venetianMask,
+          label: 'New incognito tab',
+        ),
+        BrowserMenuEntry(
           value: _BrowserMenu.tabs,
           footer: true,
           group: BrowserMenuGroup.navigation,
@@ -2418,6 +2438,12 @@ class BrowserPageViewState extends State<BrowserPage>
             icon: LucideIcons.externalLink,
             label: l.browserOpenExternal,
           ),
+          BrowserMenuEntry(
+            value: _BrowserMenu.devTools,
+            secondary: true,
+            icon: LucideIcons.codeXml,
+            label: 'Chromium DevTools',
+          ),
         ],
         BrowserMenuEntry(
           value: _BrowserMenu.askAi,
@@ -2471,6 +2497,8 @@ class BrowserPageViewState extends State<BrowserPage>
     switch (action) {
       case _BrowserMenu.newTab:
         await _newTab();
+      case _BrowserMenu.newIncognitoTab:
+        await _newTab(incognito: true);
       case _BrowserMenu.moveToConversation:
         final id = _service.activeTabId;
         final sessionId = widget.conversationId;
@@ -2520,6 +2548,8 @@ class BrowserPageViewState extends State<BrowserPage>
             }
           });
         }
+      case _BrowserMenu.devTools:
+        await _service.openDevTools();
       case _BrowserMenu.agent:
         if (_service.agentPaused) {
           _service.allowAgentControl(sessionId: _visibleConversationId);

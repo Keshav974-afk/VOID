@@ -8,6 +8,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../model/pages/default_model_page.dart';
 import '../../provider/pages/providers_page.dart';
+import 'browser_settings_page.dart';
 import 'connectors_page.dart';
 import 'display_settings_page.dart';
 import 'settings_search_page.dart';
@@ -466,14 +467,12 @@ class SettingsPage extends StatelessWidget {
                 context,
                 icon: Lucide.AppWindow,
                 label: l10n.browserTitle,
-                detailText: 'Web Control',
+                detailText: 'Settings & Chromium',
                 onTap: () {
-                  openBrowserPage(
-                    context,
-                    conversationId: null,
-                    assistantId: context
-                        .read<AssistantProvider>()
-                        .currentAssistantId,
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const BrowserSettingsPage(),
+                    ),
                   );
                 },
               ),

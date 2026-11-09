@@ -123,7 +123,7 @@ class _ReasoningRule {
 /// Central guesser for model-id-derived capability and reasoning defaults.
 class ModelDefaultsGuesser {
   static final RegExp _vision = RegExp(
-    r'(gpt-4o|gpt-4\.1|gpt-5(?!-chat)|gpt-6|o\d|gemini|claude|kimi-k2([-.])(?:5|6|7)|kimi-k3(?:$|[/_:@.-])|muse-spark-1(?:$|[/_:@.-])|doubao.+(?:1([-.])(?:6|8)|seed-2|seed-evolving)|grok-(?:2|3|4|vision)|step-3|intern-s1|minimax-m3(?:$|[/_:@])|mimo-v2(?:-omni(?:$|[/_:@])|\.5(?:$|[/_:@])|\.6(?:$|[/_:@.-]))|sensenova-6\.7-flash-lite)',
+    r'(gpt-4o|gpt-4\.1|gpt-5(?!-chat)|gpt-6|o\d|gemini|claude|kimi-k2([-.])(?:5|6|7)|kimi-k3(?:$|[/_:@.-])|muse-spark-1(?:$|[/_:@.-])|doubao.+(?:1([-.])(?:6|8)|seed-2|seed-evolving)|grok-(?:2|3|4|vision)|step-3|intern-s1|minimax-m3(?:$|[/_:@])|mimo-v2(?:-omni(?:$|[/_:@])|\.5(?:$|[/_:@])|\.6(?:$|[/_:@.-]))|sensenova-6\.7-flash-lite|deepseek|janus|vl|vision)',
     caseSensitive: false,
   );
 
@@ -550,10 +550,13 @@ bool _isQwenVisionModel(String id) {
 bool _isGlmVisionModel(String id) =>
     _matches(id, r'(^|[/_:@])glm-5\.3-flash(?:$|[-.])');
 
-bool _isDeepSeekVisionModel(String id) => _matches(
-  id,
-  r'(^|[/_:@])(?:deepseek-flash|deepseek-v4-flash)(?:$|[/_:@.-])',
-);
+bool _isDeepSeekVisionModel(String id) {
+  final lower = id.toLowerCase();
+  return lower.contains('deepseek') ||
+      lower.contains('janus') ||
+      lower.contains('vl') ||
+      lower.contains('vision');
+}
 
 bool _isGemini35Flash(String id) =>
     _matches(id, r'(^|[/:_-])gemini-3\.5-flash([._:@/-]|$)');

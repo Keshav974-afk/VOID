@@ -118,6 +118,7 @@ abstract class BrowserEngine {
 
   /// Lightweight last-view image for the tab switcher, separate from tool images.
   Future<Uint8List?> thumbnail() => screenshot();
+  Future<void> openDevTools() => Future<void>.value();
   Future<void> updateSettings(BrowserSettings settings);
   Future<void> find(String text);
   Future<void> findNext(bool forward);

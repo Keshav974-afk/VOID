@@ -16,12 +16,14 @@ class AttachmentInfo {
     required this.size,
     required this.modelPath,
     this.sourceUri = '',
+    this.hostPath = '',
   });
 
   final String name;
   final int size;
   final String modelPath;
   final String sourceUri;
+  final String hostPath;
 }
 
 final _syncTails = <String, Future<void>>{};
@@ -241,12 +243,24 @@ Future<AttachmentInfo?> _syncPart(
     await tempIndex.rename(indexFile.path);
     reservedNames.add(destName.toLowerCase());
   }
+  if (part is ImagePart && ctx.paths.workspaceHostRoot.isNotEmpty) {
+    try {
+      final wsDir = Directory(ctx.paths.workspaceHostRoot);
+      if (await wsDir.exists()) {
+        final wsDest = File(p.join(wsDir.path, destName));
+        if (!await wsDest.exists()) {
+          await source.copy(wsDest.path);
+        }
+      }
+    } catch (_) {}
+  }
   final size = await dest.length();
   return AttachmentInfo(
     name: destName,
     size: size,
     modelPath: ctx.paths.toModelPath(dest.path),
     sourceUri: uri,
+    hostPath: dest.path,
   );
 }
 

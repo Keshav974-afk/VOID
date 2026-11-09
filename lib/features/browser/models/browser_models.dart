@@ -2,6 +2,64 @@ enum BrowserSearchEngine { bing, google, duckDuckGo, baidu }
 
 enum BrowserSurfaceStyle { liquid, frosted, solid }
 
+class BrowserExtension {
+  const BrowserExtension({
+    required this.id,
+    required this.name,
+    this.description = '',
+    this.isEnabled = true,
+    required this.script,
+    this.runAtStart = true,
+    this.matchPattern = '*',
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final bool isEnabled;
+  final String script;
+  final bool runAtStart;
+  final String matchPattern;
+
+  BrowserExtension copyWith({
+    String? id,
+    String? name,
+    String? description,
+    bool? isEnabled,
+    String? script,
+    bool? runAtStart,
+    String? matchPattern,
+  }) => BrowserExtension(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    description: description ?? this.description,
+    isEnabled: isEnabled ?? this.isEnabled,
+    script: script ?? this.script,
+    runAtStart: runAtStart ?? this.runAtStart,
+    matchPattern: matchPattern ?? this.matchPattern,
+  );
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'isEnabled': isEnabled,
+    'script': script,
+    'runAtStart': runAtStart,
+    'matchPattern': matchPattern,
+  };
+
+  factory BrowserExtension.fromJson(Map<String, dynamic> json) => BrowserExtension(
+    id: json['id'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    description: json['description'] as String? ?? '',
+    isEnabled: json['isEnabled'] as bool? ?? true,
+    script: json['script'] as String? ?? '',
+    runAtStart: json['runAtStart'] as bool? ?? true,
+    matchPattern: json['matchPattern'] as String? ?? '*',
+  );
+}
+
 class BrowserSettings {
   const BrowserSettings({
     this.searchEngine = BrowserSearchEngine.bing,
@@ -11,6 +69,11 @@ class BrowserSettings {
     this.saveHistory = true,
     this.agentEnabled = true,
     this.surfaceStyle = BrowserSurfaceStyle.solid,
+    this.incognitoDefault = false,
+    this.devToolsEnabled = true,
+    this.adBlockEnabled = false,
+    this.darkModeEnabled = false,
+    this.extensions = const [],
   });
 
   final BrowserSearchEngine searchEngine;
@@ -24,6 +87,11 @@ class BrowserSettings {
   final bool saveHistory;
   final bool agentEnabled;
   final BrowserSurfaceStyle surfaceStyle;
+  final bool incognitoDefault;
+  final bool devToolsEnabled;
+  final bool adBlockEnabled;
+  final bool darkModeEnabled;
+  final List<BrowserExtension> extensions;
 
   BrowserSettings copyWith({
     BrowserSearchEngine? searchEngine,
@@ -33,6 +101,11 @@ class BrowserSettings {
     bool? saveHistory,
     bool? agentEnabled,
     BrowserSurfaceStyle? surfaceStyle,
+    bool? incognitoDefault,
+    bool? devToolsEnabled,
+    bool? adBlockEnabled,
+    bool? darkModeEnabled,
+    List<BrowserExtension>? extensions,
   }) => BrowserSettings(
     searchEngine: searchEngine ?? this.searchEngine,
     desktopMode: desktopMode ?? this.desktopMode,
@@ -41,6 +114,11 @@ class BrowserSettings {
     saveHistory: saveHistory ?? this.saveHistory,
     agentEnabled: agentEnabled ?? this.agentEnabled,
     surfaceStyle: surfaceStyle ?? this.surfaceStyle,
+    incognitoDefault: incognitoDefault ?? this.incognitoDefault,
+    devToolsEnabled: devToolsEnabled ?? this.devToolsEnabled,
+    adBlockEnabled: adBlockEnabled ?? this.adBlockEnabled,
+    darkModeEnabled: darkModeEnabled ?? this.darkModeEnabled,
+    extensions: extensions ?? this.extensions,
   );
 
   Map<String, Object?> toJson() => {
@@ -51,6 +129,11 @@ class BrowserSettings {
     'saveHistory': saveHistory,
     'agentEnabled': agentEnabled,
     'surfaceStyle': surfaceStyle.name,
+    'incognitoDefault': incognitoDefault,
+    'devToolsEnabled': devToolsEnabled,
+    'adBlockEnabled': adBlockEnabled,
+    'darkModeEnabled': darkModeEnabled,
+    'extensions': extensions.map((e) => e.toJson()).toList(),
   };
 
   factory BrowserSettings.fromJson(
@@ -75,6 +158,14 @@ class BrowserSettings {
       (value) => value.name == json['surfaceStyle'],
       orElse: () => BrowserSurfaceStyle.solid,
     ),
+    incognitoDefault: json['incognitoDefault'] as bool? ?? false,
+    devToolsEnabled: json['devToolsEnabled'] as bool? ?? true,
+    adBlockEnabled: json['adBlockEnabled'] as bool? ?? false,
+    darkModeEnabled: json['darkModeEnabled'] as bool? ?? false,
+    extensions: (json['extensions'] as List<dynamic>?)
+            ?.map((e) => BrowserExtension.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
   );
 }
 
@@ -94,6 +185,7 @@ class BrowserTab {
     this.windowId,
     this.openerTabId,
     this.popupGroupId,
+    this.isIncognito = false,
   });
 
   final String id;
@@ -110,6 +202,7 @@ class BrowserTab {
   final int? windowId;
   final String? openerTabId;
   final String? popupGroupId;
+  final bool isIncognito;
 
   BrowserTab copyWith({
     String? url,
@@ -124,6 +217,7 @@ class BrowserTab {
     int? runtimeVersion,
     bool clearWindowId = false,
     bool detachPopup = false,
+    bool? isIncognito,
   }) => BrowserTab(
     id: id,
     url: url ?? this.url,
@@ -139,6 +233,7 @@ class BrowserTab {
     windowId: clearWindowId ? null : windowId,
     openerTabId: detachPopup ? null : openerTabId,
     popupGroupId: detachPopup ? null : popupGroupId,
+    isIncognito: isIncognito ?? this.isIncognito,
   );
 
   Map<String, Object?> toJson() => {
@@ -146,6 +241,7 @@ class BrowserTab {
     'url': url,
     'title': title,
     'ownerSessionId': ownerSessionId,
+    'isIncognito': isIncognito,
   };
 
   factory BrowserTab.fromJson(Map<String, dynamic> json) => BrowserTab(
@@ -153,6 +249,7 @@ class BrowserTab {
     url: json['url'] as String? ?? 'about:blank',
     title: json['title'] as String? ?? '',
     ownerSessionId: json['ownerSessionId'] as String?,
+    isIncognito: json['isIncognito'] as bool? ?? false,
   );
 }
 

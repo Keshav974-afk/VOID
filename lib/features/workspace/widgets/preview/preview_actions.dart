@@ -190,7 +190,6 @@ Future<Uri> _browserUriForPreviewFile(File file) async {
   return startPreviewFileBrowserServer(file);
 }
 
-@visibleForTesting
 Future<Uri> startPreviewFileBrowserServer(File file) async {
   await closePreviewFileBrowserServer();
   final root = file.parent.absolute.path;
@@ -241,7 +240,6 @@ Future<Uri> startPreviewFileBrowserServer(File file) async {
   );
 }
 
-@visibleForTesting
 Future<void> closePreviewFileBrowserServer() async {
   _previewBrowserServerTtl?.cancel();
   _previewBrowserServerTtl = null;

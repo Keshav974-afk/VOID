@@ -385,19 +385,12 @@ class ConversationFilesPanelState extends State<ConversationFilesPanel> {
       scrollController: widget.scrollController,
       modelPathOf: (host) => WorkspaceModelPaths.workspaceFile(host, root.path),
       onOpenFile: (file) async {
-        final html =
-            ['.html', '.htm'].contains(p.extension(file.path).toLowerCase()) &&
-            !Platform.isLinux;
-        if (!html && widget.onOpenFile != null) {
+        if (widget.onOpenFile != null) {
           await widget.onOpenFile!(file.path, 'workspace');
           return;
         }
-        final navigator = Navigator.of(context);
-        final leaveFileSheet = html && widget.onOpenFile == null;
-        final targetContext = leaveFileSheet ? navigator.context : context;
-        if (leaveFileSheet && navigator.canPop()) navigator.pop();
         await openWorkspaceLinkedFile(
-          targetContext,
+          context,
           'kelivo://workspace/${KelivoLink.encodePath(p.relative(file.path, from: root.path))}',
           conversationId: widget.conversationId,
         );

@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:webview_flutter/webview_flutter.dart';
 
 import 'package:Kelivo/core/services/haptics.dart';
 import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
@@ -84,7 +83,7 @@ Future<bool> fileSniffsAsUtf8Text(File file) async {
 bool get htmlPreviewSupported {
   if (kIsWeb) return false;
   if (Platform.isLinux) return false;
-  return WebViewPlatform.instance != null;
+  return true;
 }
 
 Future<void> showFilePreview(

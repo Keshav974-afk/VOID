@@ -158,99 +158,6 @@ class HomeMobileScaffold extends StatelessWidget {
     final currentAssistant = context
         .watch<AssistantProvider>()
         .currentAssistant;
-    final String? brandAsset =
-        (modelDisplay != null
-            ? BrandAssets.assetForName(modelDisplay!)
-            : null) ??
-        (providerName != null ? BrandAssets.assetForName(providerName!) : null);
-
-    Widget? capsule;
-    String? capsuleLabel;
-
-    if (providerName != null && modelDisplay != null) {
-      final showProv = context
-          .watch<SettingsProvider>()
-          .showProviderInModelCapsule;
-      capsuleLabel = showProv
-          ? '$modelDisplay | $providerName'
-          : '$modelDisplay';
-
-      final Widget brandIcon = AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        transitionBuilder: (child, anim) => FadeTransition(
-          opacity: anim,
-          child: ScaleTransition(scale: anim, child: child),
-        ),
-        child: (brandAsset != null)
-            ? (brandAsset.endsWith('.svg')
-                  ? SvgPicture.asset(
-                      brandAsset,
-                      width: 15,
-                      height: 15,
-                      key: ValueKey('brand:$brandAsset'),
-                      colorFilter:
-                          isDark && BrandAssets.assetNeedsDarkInvert(brandAsset)
-                          ? ColorFilter.mode(cs.onSurface, BlendMode.srcIn)
-                          : null,
-                    )
-                  : Image.asset(
-                      brandAsset,
-                      width: 15,
-                      height: 15,
-                      key: ValueKey('brand:$brandAsset'),
-                    ))
-            : Icon(
-                Lucide.Boxes,
-                size: 15,
-                color: cs.onSurface.withValues(alpha: 0.7),
-                key: const ValueKey('brand:default'),
-              ),
-      );
-
-      capsule = IosCardPress(
-        borderRadius: BorderRadius.circular(18),
-        baseColor: cs.onSurface.withValues(alpha: isDark ? 0.08 : 0.06),
-        pressedBlendStrength: isDark ? 0.18 : 0.12,
-        padding: EdgeInsets.zero,
-        onTap: onSelectModel,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: cs.onSurface.withValues(alpha: isDark ? 0.12 : 0.08),
-              width: 0.8,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              brandIcon,
-              const SizedBox(width: 6),
-              Flexible(
-                child: AnimatedTextSwap(
-                  text: capsuleLabel,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.1,
-                    color: cs.onSurface.withValues(alpha: isDark ? 0.95 : 0.9),
-                    fontWeight: AppFontWeights.medium,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                Lucide.ChevronDown,
-                size: 12,
-                color: cs.onSurface.withValues(alpha: 0.5),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -282,17 +189,6 @@ class HomeMobileScaffold extends StatelessWidget {
               ),
             ),
           ),
-          if (capsule != null) ...[
-            const SizedBox(width: 6),
-            Flexible(
-              fit: FlexFit.loose,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: capsule,
-              ),
-            ),
-          ],
         ],
       ),
     );

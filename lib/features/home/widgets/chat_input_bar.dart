@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, listEquals;
 import 'package:flutter/rendering.dart';
 import '../../../core/services/incoming_share_service.dart';
 import 'composer_attachment_card.dart';
+import 'model_icon.dart';
 import 'dart:collection';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
@@ -4583,76 +4584,247 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                           width: 8,
                                                         ),
                                                       ],
-                                                      GestureDetector(
-                                                        onTap: _composerLocked
-                                                            ? null
-                                                            : widget
-                                                                  .onSelectModel,
-                                                        child: Container(
-                                                          height: 32,
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 10,
-                                                                vertical: 4,
-                                                              ),
-                                                          decoration: BoxDecoration(
-                                                            color: theme
-                                                                .colorScheme
-                                                                .onSurface
-                                                                .withValues(
-                                                                  alpha: 0.08,
-                                                                ),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  16,
-                                                                ),
-                                                          ),
-                                                          child: Row(
-                                                            mainAxisSize:
-                                                                MainAxisSize
-                                                                    .min,
-                                                            children: [
-                                                              Icon(
-                                                                Lucide.Zap,
-                                                                size: 13,
-                                                                color: theme
-                                                                    .colorScheme
-                                                                    .onSurface,
-                                                              ),
-                                                              const SizedBox(
-                                                                width: 4,
-                                                              ),
-                                                              Text(
-                                                                'Fast',
-                                                                style: TextStyle(
-                                                                  fontSize: 12,
-                                                                  fontWeight:
-                                                                      AppFontWeights
-                                                                          .emphasis,
-                                                                  color: theme
-                                                                      .colorScheme
-                                                                      .onSurface,
-                                                                ),
-                                                              ),
-                                                              const SizedBox(
-                                                                width: 3,
-                                                              ),
-                                                              Icon(
-                                                                Lucide
-                                                                    .ChevronDown,
-                                                                size: 13,
+                                                      Builder(
+                                                        builder: (context) {
+                                                          final pk = widget
+                                                              .chatModelProviderKey;
+                                                          final mid = widget
+                                                              .chatModelId;
+                                                          final modelName =
+                                                              mid ?? 'Model';
+
+                                                          return GestureDetector(
+                                                            onTap:
+                                                                _composerLocked
+                                                                ? null
+                                                                : widget
+                                                                      .onSelectModel,
+                                                            onLongPress:
+                                                                _composerLocked
+                                                                ? null
+                                                                : widget
+                                                                      .onLongPressSelectModel,
+                                                            child: Container(
+                                                              height: 32,
+                                                              constraints:
+                                                                  const BoxConstraints(
+                                                                    maxWidth:
+                                                                        140,
+                                                                  ),
+                                                              padding:
+                                                                  const EdgeInsets.symmetric(
+                                                                    horizontal:
+                                                                        9,
+                                                                    vertical: 4,
+                                                                  ),
+                                                              decoration: BoxDecoration(
                                                                 color: theme
                                                                     .colorScheme
                                                                     .onSurface
                                                                     .withValues(
                                                                       alpha:
-                                                                          0.60,
+                                                                          0.08,
+                                                                    ),
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      16,
                                                                     ),
                                                               ),
-                                                            ],
-                                                          ),
-                                                        ),
+                                                              child: Row(
+                                                                mainAxisSize:
+                                                                    MainAxisSize
+                                                                        .min,
+                                                                children: [
+                                                                  if (pk !=
+                                                                          null &&
+                                                                      mid !=
+                                                                          null) ...[
+                                                                    CurrentModelIcon(
+                                                                      providerKey:
+                                                                          pk,
+                                                                      modelId:
+                                                                          mid,
+                                                                      size: 16,
+                                                                      withBackground:
+                                                                          false,
+                                                                    ),
+                                                                    const SizedBox(
+                                                                      width: 5,
+                                                                    ),
+                                                                  ] else ...[
+                                                                    Icon(
+                                                                      Lucide
+                                                                          .Cpu,
+                                                                      size: 13,
+                                                                      color: theme
+                                                                          .colorScheme
+                                                                          .onSurface,
+                                                                    ),
+                                                                    const SizedBox(
+                                                                      width: 4,
+                                                                    ),
+                                                                  ],
+                                                                  Flexible(
+                                                                    child: Text(
+                                                                      modelName,
+                                                                      maxLines:
+                                                                          1,
+                                                                      overflow:
+                                                                          TextOverflow
+                                                                              .ellipsis,
+                                                                      style: TextStyle(
+                                                                        fontSize:
+                                                                            12,
+                                                                        fontWeight:
+                                                                            AppFontWeights.emphasis,
+                                                                        color: theme
+                                                                            .colorScheme
+                                                                            .onSurface,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                  const SizedBox(
+                                                                    width: 3,
+                                                                  ),
+                                                                  Icon(
+                                                                    Lucide
+                                                                        .ChevronDown,
+                                                                    size: 13,
+                                                                    color: theme
+                                                                        .colorScheme
+                                                                        .onSurface
+                                                                        .withValues(
+                                                                          alpha:
+                                                                              0.60,
+                                                                        ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
                                                       ),
+                                                      if (widget
+                                                              .onConfigureReasoning !=
+                                                          null) ...[
+                                                        const SizedBox(
+                                                          width: 6,
+                                                        ),
+                                                        Builder(
+                                                          builder: (context) {
+                                                            final l10n =
+                                                                AppLocalizations.of(
+                                                                  context,
+                                                                )!;
+                                                            final request =
+                                                                widget
+                                                                    .reasoning ??
+                                                                ReasoningRequest
+                                                                    .auto;
+                                                            final compactLabel =
+                                                                _reasoningCompactLabel(
+                                                                  l10n,
+                                                                  request,
+                                                                  customBudget:
+                                                                      widget
+                                                                          .reasoningCustomBudget,
+                                                                );
+                                                            final isReasoningActive =
+                                                                widget
+                                                                    .reasoningActive;
+                                                            final accent = theme
+                                                                .colorScheme
+                                                                .primary;
+
+                                                            return GestureDetector(
+                                                              onTap:
+                                                                  _composerLocked
+                                                                  ? null
+                                                                  : widget
+                                                                        .onConfigureReasoning,
+                                                              child: Container(
+                                                                height: 32,
+                                                                padding:
+                                                                    const EdgeInsets.symmetric(
+                                                                      horizontal:
+                                                                          8,
+                                                                      vertical:
+                                                                          4,
+                                                                    ),
+                                                                decoration: BoxDecoration(
+                                                                  color:
+                                                                      isReasoningActive
+                                                                      ? accent.withValues(
+                                                                          alpha:
+                                                                              0.12,
+                                                                        )
+                                                                      : theme
+                                                                            .colorScheme
+                                                                            .onSurface
+                                                                            .withValues(
+                                                                              alpha: 0.08,
+                                                                            ),
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                        16,
+                                                                      ),
+                                                                  border:
+                                                                      isReasoningActive
+                                                                      ? Border.all(
+                                                                          color: accent.withValues(
+                                                                            alpha:
+                                                                                0.35,
+                                                                          ),
+                                                                          width:
+                                                                              1,
+                                                                        )
+                                                                      : null,
+                                                                ),
+                                                                child: Row(
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  children: [
+                                                                    ReasoningIcons.levelIcon(
+                                                                      request
+                                                                          .level,
+                                                                      size: 14,
+                                                                      color:
+                                                                          isReasoningActive
+                                                                          ? accent
+                                                                          : theme.colorScheme.onSurface.withValues(
+                                                                              alpha: 0.80,
+                                                                            ),
+                                                                    ),
+                                                                    if (compactLabel !=
+                                                                            null &&
+                                                                        compactLabel
+                                                                            .isNotEmpty) ...[
+                                                                      const SizedBox(
+                                                                        width:
+                                                                            4,
+                                                                      ),
+                                                                      Text(
+                                                                        compactLabel,
+                                                                        style: TextStyle(
+                                                                          fontSize:
+                                                                              11,
+                                                                          fontWeight:
+                                                                              AppFontWeights.emphasis,
+                                                                          color:
+                                                                              isReasoningActive
+                                                                              ? accent
+                                                                              : theme.colorScheme.onSurface,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
+                                                        ),
+                                                      ],
                                                     ] else ...[
                                                       Expanded(
                                                         child:

@@ -13,6 +13,7 @@ import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart'
     show AndroidPathHandler;
 import '../../../features/browser/models/browser_models.dart';
 import 'browser_engine.dart';
+import 'browser_extensions_catalog.dart';
 import 'browser_failure.dart';
 import 'browser_download_cookies.dart';
 import 'browser_favicon_loader.dart';
@@ -154,27 +155,65 @@ class NativeBrowserEngine implements BrowserEngine {
   late final _nativeScrollObserver = BrowserNativeScrollObserver(
     onUpdate: (state) => _emit(BrowserPageState(scroll: state)),
   );
-  UnmodifiableListView<UserScript> get _userScripts => UnmodifiableListView([
-    UserScript(
-      groupName: 'kelivo-browser-identity',
-      source: browserTabUserScriptMarker(tab.id),
-      injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-      forMainFrameOnly: true,
-    ),
-    UserScript(
-      groupName: 'kelivo-browser-history',
-      source: browserHistoryObserverScript,
-      injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-      forMainFrameOnly: true,
-    ),
-    if (!Platform.isIOS)
+  UnmodifiableListView<UserScript> get _userScripts {
+    final list = <UserScript>[
       UserScript(
-        groupName: 'kelivo-browser-scroll',
-        source: browserScrollObserverScript,
+        groupName: 'kelivo-browser-identity',
+        source: browserTabUserScriptMarker(tab.id),
         injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: true,
       ),
-  ]);
+      UserScript(
+        groupName: 'kelivo-browser-history',
+        source: browserHistoryObserverScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: true,
+      ),
+      if (!Platform.isIOS)
+        UserScript(
+          groupName: 'kelivo-browser-scroll',
+          source: browserScrollObserverScript,
+          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+          forMainFrameOnly: true,
+        ),
+    ];
+    if (settings.adBlockEnabled) {
+      list.add(
+        UserScript(
+          groupName: 'void-extension-adblock',
+          source: BrowserExtensionsCatalog.adBlockScript,
+          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END,
+          forMainFrameOnly: false,
+        ),
+      );
+    }
+    if (settings.darkModeEnabled) {
+      list.add(
+        UserScript(
+          groupName: 'void-extension-darkmode',
+          source: BrowserExtensionsCatalog.darkModeScript,
+          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+          forMainFrameOnly: false,
+        ),
+      );
+    }
+    for (final ext in settings.extensions) {
+      if (ext.isEnabled && ext.script.trim().isNotEmpty) {
+        list.add(
+          UserScript(
+            groupName: 'void-custom-ext-${ext.id}',
+            source: ext.script,
+            injectionTime: ext.runAtStart
+                ? UserScriptInjectionTime.AT_DOCUMENT_START
+                : UserScriptInjectionTime.AT_DOCUMENT_END,
+            forMainFrameOnly: false,
+          ),
+        );
+      }
+    }
+    return UnmodifiableListView(list);
+  }
+
   void _beginNavigation({bool fromHistory = false}) {
     if (!fromHistory) _historyCommandEpoch++;
     _finishHistoryTraversal();
@@ -251,7 +290,11 @@ class NativeBrowserEngine implements BrowserEngine {
     allowContentAccess: false,
     allowFileAccessFromFileURLs: false,
     allowUniversalAccessFromFileURLs: false,
-    isInspectable: kDebugMode,
+    isInspectable: settings.devToolsEnabled || kDebugMode,
+    incognito: tab.isIncognito || settings.incognitoDefault,
+    cacheEnabled: !(tab.isIncognito || settings.incognitoDefault),
+    clearCache: tab.isIncognito || settings.incognitoDefault,
+    clearSessionCache: tab.isIncognito || settings.incognitoDefault,
     preferredContentMode: settings.desktopMode
         ? UserPreferredContentMode.DESKTOP
         : UserPreferredContentMode.MOBILE,
@@ -349,6 +392,11 @@ class NativeBrowserEngine implements BrowserEngine {
   }
 
   void _onCreated(InAppWebViewController controller) {
+    if (Platform.isAndroid && (settings.devToolsEnabled || kDebugMode)) {
+      try {
+        InAppWebViewController.setWebContentsDebuggingEnabled(true);
+      } catch (_) {}
+    }
     final previous = _controller;
     // The widget disposes its own Dart controller even when the native view
     // is kept alive. Keep a separate controller and callback handler for
@@ -1116,6 +1164,9 @@ class NativeBrowserEngine implements BrowserEngine {
           }
         }
       }
+      if (!Platform.isAndroid) {
+        await _workspace!.ensureLoopbackServer();
+      }
       return _workspace!
           .internalUrl(url, android: Platform.isAndroid)
           .toString();
@@ -1409,6 +1460,34 @@ class NativeBrowserEngine implements BrowserEngine {
         afterScreenUpdates: false,
       ),
     );
+  }
+
+  @override
+  Future<void> openDevTools() async {
+    final controller = _controller;
+    if (controller == null) return;
+    if (Platform.isWindows) {
+      try {
+        await (controller as dynamic).openDevTools();
+        return;
+      } catch (e) {
+        debugPrint('Windows openDevTools failed: $e');
+      }
+    }
+    if (Platform.isAndroid) {
+      try {
+        await InAppWebViewController.setWebContentsDebuggingEnabled(true);
+      } catch (e) {
+        debugPrint('Android setWebContentsDebuggingEnabled failed: $e');
+      }
+    }
+    try {
+      await controller.evaluateJavascript(
+        source: BrowserExtensionsCatalog.toggleErudaScript,
+      );
+    } catch (e) {
+      debugPrint('DevTools toggle failed: $e');
+    }
   }
 
   @override

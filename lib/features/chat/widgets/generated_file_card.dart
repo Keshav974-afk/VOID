@@ -21,67 +21,68 @@ import '../../workspace/widgets/preview/file_preview.dart';
 import '../pages/image_viewer_page.dart';
 import '../pages/pdf_viewer_page.dart';
 
-/// Extracts explicitly presented file deliverables (PDF, images, documents, artifacts)
-/// from markdown or tool text. Only files that the AI explicitly wanted to present are extracted.
+/// Extracts explicitly presented file deliverables (PDF, documents, code, archives, artifacts)
+/// from markdown or tool text. If an image is already rendered in markdown, it is not duplicated.
 List<String> extractGeneratedFilePaths(String text) {
   if (text.isEmpty) return const [];
   final paths = <String>{};
 
-  // 1. Explicit Markdown file link format: [Download ...](path) or [Artifact ...](path) or [File ...](path)
-  final mdLinkRegex = RegExp(r'\[([^\]]+)\]\(([^)]+)\)');
-  for (final m in mdLinkRegex.allMatches(text)) {
-    final label = (m.group(1) ?? '').toLowerCase().trim();
-    var target = (m.group(2) ?? '').trim();
-    target = target.replaceAll(RegExp(r'''[',`"\):;\.]+$'''), '');
-    final lower = target.toLowerCase();
+  // Find all images already rendered in Markdown e.g. ![...](image.png)
+  final mdImages = <String>{};
+  final mdImgRegex = RegExp(r'!\[[^\]]*\]\(([^)]+)\)');
+  for (final m in mdImgRegex.allMatches(text)) {
+    var src = (m.group(1) ?? '').trim();
+    src = src.replaceAll(RegExp(r'''[',`"\):;\.]+$'''), '');
+    mdImages.add(src.toLowerCase());
+    mdImages.add(p.basename(src).toLowerCase());
+  }
 
-    final hasDocExt =
-        lower.endsWith('.pdf') ||
-        lower.endsWith('.png') ||
+  const allowedExts = {
+    '.pdf', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.csv', '.tsv',
+    '.apk', '.exe', '.zip', '.tar', '.gz', '.7z',
+    '.py', '.js', '.ts', '.dart', '.json', '.html', '.css', '.sh', '.sql',
+    '.txt', '.md', '.java', '.cpp', '.c', '.rs',
+    '.png', '.jpg', '.jpeg', '.webp', '.gif',
+  };
+
+  bool isAlreadyRenderedImage(String path) {
+    final lower = path.toLowerCase();
+    final isImage = lower.endsWith('.png') ||
         lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
         lower.endsWith('.webp') ||
-        lower.endsWith('.gif') ||
-        lower.endsWith('.docx') ||
-        lower.endsWith('.doc') ||
-        lower.endsWith('.xlsx') ||
-        lower.endsWith('.xls') ||
-        lower.endsWith('.pptx') ||
-        lower.endsWith('.csv') ||
-        lower.endsWith('.tsv') ||
-        lower.endsWith('.apk') ||
-        lower.endsWith('.exe') ||
-        lower.endsWith('.zip');
+        lower.endsWith('.gif');
+    if (!isImage) return false;
+    final base = p.basename(lower);
+    return mdImages.contains(lower) || mdImages.contains(base);
+  }
 
-    if (hasDocExt) {
-      final isIntentional =
-          label.contains('download') ||
-          label.contains('file') ||
-          label.contains('deliverable') ||
-          label.contains('artifact') ||
-          label.contains('open') ||
-          label.contains('export') ||
-          label.contains('report') ||
-          target.startsWith('file://') ||
-          target.startsWith('void://') ||
-          target.startsWith('kelivo://');
-      if (isIntentional) {
+  // 1. Markdown file links: [label](path) (excluding images ![...](...))
+  final mdLinkRegex = RegExp(r'(?<!!|)\[([^\]]+)\]\(([^)]+)\)');
+  for (final m in mdLinkRegex.allMatches(text)) {
+    var target = (m.group(2) ?? '').trim();
+    target = target.replaceAll(RegExp(r'''[',`"\):;\.]+$'''), '');
+    final ext = p.extension(target).toLowerCase();
+    if (allowedExts.contains(ext)) {
+      if (!isAlreadyRenderedImage(target)) {
         paths.add(target);
       }
     }
   }
 
-  // 2. Explicit deliverable declaration lines:
-  // e.g. "Download: /path/report.pdf", "Artifact: output.png", "Saved to: doc.docx"
+  // 2. Deliverable declaration lines
   final deliverableLineRegex = RegExp(
-    r'''(?:^|\n)\s*(?:Download|Deliverable|Generated(?:\s+file)?|File(?:\s+saved)?|Saved to|Artifact|Output)\s*:\s*([^\s\n"'`<>\[\]\(\)\*]+?\.(?:pdf|png|jpe?g|webp|gif|docx?|xlsx?|pptx?|csv|tsv|apk|exe|zip))''',
+    r'''(?:^|\n)\s*(?:Download|Deliverable|Generated(?:\s+file)?|File(?:\s+saved)?|Saved to|Artifact|Output)\s*:\s*([^\s\n"'`<>\[\]\(\)\*]+)''',
     caseSensitive: false,
   );
   for (final m in deliverableLineRegex.allMatches(text)) {
     var pStr = (m.group(1) ?? '').trim();
     pStr = pStr.replaceAll(RegExp(r'''[',`"\):;\.]+$'''), '');
-    if (pStr.isNotEmpty) {
-      paths.add(pStr);
+    final ext = p.extension(pStr).toLowerCase();
+    if (allowedExts.contains(ext)) {
+      if (!isAlreadyRenderedImage(pStr)) {
+        paths.add(pStr);
+      }
     }
   }
 

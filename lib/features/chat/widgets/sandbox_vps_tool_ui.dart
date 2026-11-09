@@ -4,8 +4,6 @@ import 'package:flutter/services.dart';
 import '../../../core/services/sandbox_vps/sandbox_vps_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../theme/app_font_weights.dart';
-import '../../browser/browser_navigation.dart';
-import 'cloud_computer_live_card.dart';
 
 /// Interactive Terminal Card for Sandbox VPS / SSH Execution.
 class SandboxVpsToolUi extends StatefulWidget {
@@ -138,62 +136,6 @@ class _SandboxVpsToolUiState extends State<SandboxVpsToolUi> {
                   ),
                 ],
                 const Spacer(),
-                Builder(
-                  builder: (context) {
-                    final live = CloudComputerLiveSessionInfo.detect(
-                      res.stdout,
-                      toolContent: res.stderr,
-                    );
-                    if (live == null) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: InkWell(
-                        onTap: () => openBrowserPage(
-                          context,
-                          url: live.liveUrl,
-                          fullPage: true,
-                        ),
-                        borderRadius: BorderRadius.circular(4),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF2EA043,
-                            ).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: const Color(0xFF2EA043),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Lucide.MousePointerClick,
-                                size: 11,
-                                color: Color(0xFF3FB950),
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'Take Control',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF3FB950),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
                 // Copy button
                 InkWell(
                   onTap: _copyOutput,
