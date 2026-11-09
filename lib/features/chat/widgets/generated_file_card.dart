@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -115,11 +116,27 @@ class GeneratedFileCard extends StatefulWidget {
 
 class _GeneratedFileCardState extends State<GeneratedFileCard> {
   String? _localPath;
+  Uint8List? _pdfBytes;
   bool _isFetching = false;
   String? _fetchError;
   int? _fileSize;
   int? _resolvedPageCount;
   Completer<String?>? _activeDownload;
+
+  Future<void> _loadPdfBytes(String path) async {
+    if (!_isPdf) return;
+    try {
+      final f = File(path);
+      if (await f.exists()) {
+        final b = await f.readAsBytes();
+        if (mounted && b.isNotEmpty) {
+          setState(() {
+            _pdfBytes = b;
+          });
+        }
+      }
+    } catch (_) {}
+  }
 
   bool get _isPdf =>
       p.extension(widget.filePath).toLowerCase() == '.pdf' ||
@@ -210,6 +227,7 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
             _resolvedPageCount = _estimatePdfPages(direct);
           }
         });
+        unawaited(_loadPdfBytes(direct.path));
       }
       return;
     }
@@ -231,6 +249,7 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
               _resolvedPageCount = _estimatePdfPages(cached);
             }
           });
+          unawaited(_loadPdfBytes(cached.path));
         }
         return;
       }
@@ -273,6 +292,7 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
               _resolvedPageCount = _estimatePdfPages(downloaded);
             }
           });
+          unawaited(_loadPdfBytes(downloaded.path));
         }
         completer.complete(downloaded.path);
       } catch (e) {
@@ -624,14 +644,28 @@ class _GeneratedFileCardState extends State<GeneratedFileCard> {
                     children: [
                       Positioned.fill(
                         child: AbsorbPointer(
-                          child: SfPdfViewer.file(
-                            File(_localPath!),
-                            canShowScrollHead: false,
-                            canShowScrollStatus: false,
-                            canShowPaginationDialog: false,
-                            enableDoubleTapZooming: false,
-                            pageSpacing: 0,
-                          ),
+                          child: _pdfBytes != null
+                              ? SfPdfViewer.memory(
+                                  _pdfBytes!,
+                                  canShowScrollHead: false,
+                                  canShowScrollStatus: false,
+                                  canShowPaginationDialog: false,
+                                  enableDoubleTapZooming: false,
+                                  pageSpacing: 0,
+                                  onDocumentLoadFailed: (_) {
+                                    if (mounted) {
+                                      setState(() => _pdfBytes = null);
+                                    }
+                                  },
+                                )
+                              : SfPdfViewer.file(
+                                  File(_localPath!),
+                                  canShowScrollHead: false,
+                                  canShowScrollStatus: false,
+                                  canShowPaginationDialog: false,
+                                  enableDoubleTapZooming: false,
+                                  pageSpacing: 0,
+                                ),
                         ),
                       ),
                       // Floating "PDF" badge at bottom center (Image 1 reference)

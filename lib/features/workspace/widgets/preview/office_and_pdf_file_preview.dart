@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -33,11 +34,64 @@ class _PdfFilePreviewState extends State<PdfFilePreview> {
   late final PdfViewerController _controller;
   int _pageNumber = 1;
   int _pageCount = 0;
+  Uint8List? _bytes;
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _controller = PdfViewerController();
+    _loadPdf();
+  }
+
+  @override
+  void didUpdateWidget(covariant PdfFilePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.file.path != widget.file.path) {
+      _loadPdf();
+    }
+  }
+
+  Future<void> _loadPdf() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      if (!await widget.file.exists()) {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _error = 'PDF file not found on disk';
+          });
+        }
+        return;
+      }
+      final b = await widget.file.readAsBytes();
+      if (b.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _error = 'PDF file is empty (0 bytes)';
+          });
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _bytes = b;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Failed to read PDF: $e';
+        });
+      }
+    }
   }
 
   @override
@@ -48,10 +102,14 @@ class _PdfFilePreviewState extends State<PdfFilePreview> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    if (!widget.file.existsSync()) {
-      return PreviewError(onRetry: () => setState(() {}));
+    if (_loading) {
+      return const PreviewLoading();
     }
+    if (_error != null || _bytes == null) {
+      return PreviewError(onRetry: _loadPdf, message: _error);
+    }
+
+    final cs = Theme.of(context).colorScheme;
 
     return Column(
       children: [
@@ -108,8 +166,8 @@ class _PdfFilePreviewState extends State<PdfFilePreview> {
           ),
         ),
         Expanded(
-          child: SfPdfViewer.file(
-            widget.file,
+          child: SfPdfViewer.memory(
+            _bytes!,
             controller: _controller,
             canShowScrollHead: true,
             canShowScrollStatus: true,
@@ -119,6 +177,15 @@ class _PdfFilePreviewState extends State<PdfFilePreview> {
                 setState(() {
                   _pageCount = details.document.pages.count;
                   _pageNumber = _controller.pageNumber.clamp(1, _pageCount);
+                });
+              }
+            },
+            onDocumentLoadFailed: (details) {
+              if (mounted) {
+                setState(() {
+                  _error = details.description.isNotEmpty
+                      ? details.description
+                      : details.error;
                 });
               }
             },

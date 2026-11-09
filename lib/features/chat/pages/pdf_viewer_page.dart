@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
@@ -43,6 +44,9 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
   bool _isSaving = false;
   int _pageNumber = 1;
   int _pageCount = 0;
+  Uint8List? _pdfBytes;
+  bool _loading = true;
+  String? _loadError;
 
   String get _displayTitle => widget.title ?? p.basename(widget.filePath);
 
@@ -50,6 +54,49 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
   void initState() {
     super.initState();
     _pdfViewerController = PdfViewerController();
+    _loadPdf();
+  }
+
+  Future<void> _loadPdf() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final file = File(widget.filePath);
+      if (!await file.exists()) {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _loadError = 'PDF file not found on device';
+          });
+        }
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _loadError = 'PDF file is empty (0 bytes)';
+          });
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _pdfBytes = bytes;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadError = 'Failed to read PDF: $e';
+        });
+      }
+    }
   }
 
   @override
@@ -249,9 +296,74 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
 
             // Main PDF Viewer Area
             Expanded(
-              child: fileExists
-                  ? SfPdfViewer.file(
-                      file,
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white70),
+                      ),
+                    )
+                  : _loadError != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Lucide.AlertCircle,
+                              size: 44,
+                              color: Color(0xFFEF4444),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _loadError!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: _loadPdf,
+                                  icon: const Icon(Lucide.RotateCw, size: 16),
+                                  label: const Text('Retry'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    side: BorderSide(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                ElevatedButton.icon(
+                                  onPressed: () =>
+                                      OpenFilex.open(widget.filePath),
+                                  icon: const Icon(
+                                    Lucide.ExternalLink,
+                                    size: 16,
+                                  ),
+                                  label: const Text('Open in App'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        Colors.white.withValues(alpha: 0.15),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SfPdfViewer.memory(
+                      _pdfBytes!,
                       controller: _pdfViewerController,
                       canShowScrollHead: true,
                       canShowScrollStatus: true,
@@ -267,6 +379,15 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
                           });
                         }
                       },
+                      onDocumentLoadFailed: (details) {
+                        if (mounted) {
+                          setState(() {
+                            _loadError = details.description.isNotEmpty
+                                ? details.description
+                                : details.error;
+                          });
+                        }
+                      },
                       onPageChanged: (details) {
                         if (mounted) {
                           setState(() {
@@ -274,12 +395,6 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
                           });
                         }
                       },
-                    )
-                  : const Center(
-                      child: Text(
-                        'PDF file could not be loaded',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
                     ),
             ),
 

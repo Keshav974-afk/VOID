@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -80,6 +81,11 @@ class _LibraryPageState extends State<LibraryPage> {
 
   static bool _isCodeOrInternalArtifact(String fullPath, String basename) {
     if (basename.startsWith('.')) return true;
+    if (basename == 'shared_preferences.json' ||
+        basename.endsWith('_preferences.json') ||
+        basename == 'app_state.json') {
+      return true;
+    }
     final normalized = fullPath.replaceAll(r'\', '/').toLowerCase();
 
     // Strictly exclude repository source directories, build artifacts & dependencies
@@ -156,21 +162,94 @@ class _LibraryPageState extends State<LibraryPage> {
       final Set<String> visitedPaths = {};
       final List<LibraryItem> loaded = [];
 
+      void addFile(File entity) {
+        if (visitedPaths.contains(entity.path)) return;
+        visitedPaths.add(entity.path);
+        final basename = entity.path.split(Platform.pathSeparator).last;
+        if (_isCodeOrInternalArtifact(entity.path, basename)) return;
+
+        try {
+          final stat = entity.statSync();
+          final ext = basename.contains('.')
+              ? basename.split('.').last.toLowerCase()
+              : '';
+
+          final isImg = const {
+            'png',
+            'jpg',
+            'jpeg',
+            'webp',
+            'gif',
+            'bmp',
+            'svg',
+          }.contains(ext);
+          final isMedia =
+              isImg ||
+              const {
+                'mp4',
+                'mov',
+                'mkv',
+                'mp3',
+                'wav',
+                'm4a',
+                'aac',
+                'flac',
+              }.contains(ext);
+          final isApp = const {
+            'apk',
+            'app',
+            'deb',
+            'exe',
+            'dmg',
+            'msix',
+            'ipa',
+            'html',
+            'htm',
+          }.contains(ext);
+
+          loaded.add(
+            LibraryItem(
+              file: entity,
+              name: basename,
+              size: stat.size,
+              modified: stat.modified,
+              isImage: isImg,
+              isMedia: isMedia,
+              isApp: isApp,
+            ),
+          );
+        } catch (_) {}
+      }
+
+      // 1. Root application documents directory (e.g. /data/user/0/com.psyche.kelivo/app_flutter/)
+      try {
+        final appData = await AppDirectories.getAppDataDirectory();
+        if (await appData.exists()) {
+          final topLevel = appData.listSync(
+            recursive: false,
+            followLinks: false,
+          );
+          for (final entity in topLevel) {
+            if (entity is File) addFile(entity);
+          }
+        }
+      } catch (_) {}
+
       final dirsToScan = <Directory>[];
 
-      // 1. User uploaded files
+      // 2. User uploaded files
       try {
         final uploadDir = await AppDirectories.getUploadDirectory();
         if (await uploadDir.exists()) dirsToScan.add(uploadDir);
       } catch (_) {}
 
-      // 2. User images / generated pictures
+      // 3. User images / generated pictures
       try {
         final imagesDir = await AppDirectories.getImagesDirectory();
         if (await imagesDir.exists()) dirsToScan.add(imagesDir);
       } catch (_) {}
 
-      // 3. User documents library inside app data
+      // 4. User documents library inside app data
       try {
         final appData = await AppDirectories.getAppDataDirectory();
         final libraryDir = Directory(p.join(appData.path, 'library'));
@@ -182,7 +261,13 @@ class _LibraryPageState extends State<LibraryPage> {
         }
       } catch (_) {}
 
-      // 4. Conversation sessions outputs (generated artifacts & reports)
+      // 5. Workspaces files & reports
+      try {
+        final workspacesDir = await AppDirectories.getWorkspacesDirectory();
+        if (await workspacesDir.exists()) dirsToScan.add(workspacesDir);
+      } catch (_) {}
+
+      // 6. Conversation sessions outputs (generated artifacts & reports)
       try {
         final sessionsDir = await AppDirectories.getSessionsDirectory();
         if (await sessionsDir.exists()) dirsToScan.add(sessionsDir);
@@ -192,62 +277,7 @@ class _LibraryPageState extends State<LibraryPage> {
         try {
           final entities = dir.listSync(recursive: true, followLinks: false);
           for (final entity in entities) {
-            if (entity is File && !visitedPaths.contains(entity.path)) {
-              visitedPaths.add(entity.path);
-              final basename = entity.path.split(Platform.pathSeparator).last;
-              if (_isCodeOrInternalArtifact(entity.path, basename)) {
-                continue;
-              }
-
-              final stat = await entity.stat();
-              final ext = basename.contains('.')
-                  ? basename.split('.').last.toLowerCase()
-                  : '';
-
-              final isImg = const {
-                'png',
-                'jpg',
-                'jpeg',
-                'webp',
-                'gif',
-                'bmp',
-                'svg',
-              }.contains(ext);
-              final isMedia =
-                  isImg ||
-                  const {
-                    'mp4',
-                    'mov',
-                    'mkv',
-                    'mp3',
-                    'wav',
-                    'm4a',
-                    'aac',
-                    'flac',
-                  }.contains(ext);
-              final isApp = const {
-                'apk',
-                'app',
-                'deb',
-                'exe',
-                'html',
-                'pdf',
-                'docx',
-                'xlsx',
-              }.contains(ext);
-
-              loaded.add(
-                LibraryItem(
-                  file: entity,
-                  name: basename,
-                  size: stat.size,
-                  modified: stat.modified,
-                  isImage: isImg,
-                  isMedia: isMedia,
-                  isApp: isApp,
-                ),
-              );
-            }
+            if (entity is File) addFile(entity);
           }
         } catch (_) {}
       }
@@ -602,46 +632,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                     )
                   : isPdf
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ColoredBox(
-                          color: Colors.white,
-                          child: AbsorbPointer(
-                            child: SfPdfViewer.file(
-                              item.file,
-                              canShowScrollHead: false,
-                              canShowScrollStatus: false,
-                              canShowPaginationDialog: false,
-                              enableDoubleTapZooming: false,
-                              pageSpacing: 0,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          right: 8,
-                          bottom: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD14D41),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'PDF',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
+                  ? _PdfGridThumbnail(file: item.file)
                   : Stack(
                       alignment: Alignment.center,
                       children: [
@@ -822,6 +813,118 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _PdfGridThumbnail extends StatefulWidget {
+  const _PdfGridThumbnail({required this.file});
+  final File file;
+
+  @override
+  State<_PdfGridThumbnail> createState() => _PdfGridThumbnailState();
+}
+
+class _PdfGridThumbnailState extends State<_PdfGridThumbnail> {
+  Uint8List? _bytes;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      if (!await widget.file.exists()) {
+        if (mounted) setState(() => _failed = true);
+        return;
+      }
+      final b = await widget.file.readAsBytes();
+      if (b.isEmpty) {
+        if (mounted) setState(() => _failed = true);
+        return;
+      }
+      if (mounted) setState(() => _bytes = b);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_bytes != null && !_failed) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: Colors.white,
+            child: AbsorbPointer(
+              child: SfPdfViewer.memory(
+                _bytes!,
+                canShowScrollHead: false,
+                canShowScrollStatus: false,
+                canShowPaginationDialog: false,
+                enableDoubleTapZooming: false,
+                pageSpacing: 0,
+                onDocumentLoadFailed: (_) {
+                  if (mounted) setState(() => _failed = true);
+                },
+              ),
+            ),
+          ),
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD14D41),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'PDF',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFD14D41).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Lucide.FileText,
+              size: 24,
+              color: Color(0xFFD14D41),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'PDF',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: AppFontWeights.bold,
+              color: Color(0xFFD14D41),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

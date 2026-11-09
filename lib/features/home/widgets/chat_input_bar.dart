@@ -4712,113 +4712,30 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                         ),
                                                         Builder(
                                                           builder: (context) {
-                                                            final l10n =
-                                                                AppLocalizations.of(
-                                                                  context,
-                                                                )!;
-                                                            final request =
-                                                                widget
-                                                                    .reasoning ??
-                                                                ReasoningRequest
-                                                                    .auto;
-                                                            final compactLabel =
-                                                                _reasoningCompactLabel(
-                                                                  l10n,
-                                                                  request,
-                                                                  customBudget:
-                                                                      widget
-                                                                          .reasoningCustomBudget,
-                                                                );
-                                                            final isReasoningActive =
-                                                                widget
-                                                                    .reasoningActive;
-                                                            final accent = theme
-                                                                .colorScheme
-                                                                .primary;
-
+                                                            final request = widget.reasoning ?? ReasoningRequest.auto;
+                                                            final isReasoningActive = widget.reasoningActive;
+                                                            final accent = theme.colorScheme.primary;
                                                             return GestureDetector(
-                                                              onTap:
-                                                                  _composerLocked
-                                                                  ? null
-                                                                  : widget
-                                                                        .onConfigureReasoning,
+                                                              onTap: _composerLocked ? null : widget.onConfigureReasoning,
                                                               child: Container(
+                                                                width: 32,
                                                                 height: 32,
-                                                                padding:
-                                                                    const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          8,
-                                                                      vertical:
-                                                                          4,
-                                                                    ),
                                                                 decoration: BoxDecoration(
-                                                                  color:
-                                                                      isReasoningActive
-                                                                      ? accent.withValues(
-                                                                          alpha:
-                                                                              0.12,
-                                                                        )
-                                                                      : theme
-                                                                            .colorScheme
-                                                                            .onSurface
-                                                                            .withValues(
-                                                                              alpha: 0.08,
-                                                                            ),
-                                                                  borderRadius:
-                                                                      BorderRadius.circular(
-                                                                        16,
-                                                                      ),
-                                                                  border:
-                                                                      isReasoningActive
-                                                                      ? Border.all(
-                                                                          color: accent.withValues(
-                                                                            alpha:
-                                                                                0.35,
-                                                                          ),
-                                                                          width:
-                                                                              1,
-                                                                        )
+                                                                  color: isReasoningActive
+                                                                      ? accent.withValues(alpha: 0.12)
+                                                                      : theme.colorScheme.onSurface.withValues(alpha: 0.08),
+                                                                  borderRadius: BorderRadius.circular(16),
+                                                                  border: isReasoningActive
+                                                                      ? Border.all(color: accent.withValues(alpha: 0.35), width: 1)
                                                                       : null,
                                                                 ),
-                                                                child: Row(
-                                                                  mainAxisSize:
-                                                                      MainAxisSize
-                                                                          .min,
-                                                                  children: [
-                                                                    ReasoningIcons.levelIcon(
-                                                                      request
-                                                                          .level,
-                                                                      size: 14,
-                                                                      color:
-                                                                          isReasoningActive
-                                                                          ? accent
-                                                                          : theme.colorScheme.onSurface.withValues(
-                                                                              alpha: 0.80,
-                                                                            ),
-                                                                    ),
-                                                                    if (compactLabel !=
-                                                                            null &&
-                                                                        compactLabel
-                                                                            .isNotEmpty) ...[
-                                                                      const SizedBox(
-                                                                        width:
-                                                                            4,
-                                                                      ),
-                                                                      Text(
-                                                                        compactLabel,
-                                                                        style: TextStyle(
-                                                                          fontSize:
-                                                                              11,
-                                                                          fontWeight:
-                                                                              AppFontWeights.emphasis,
-                                                                          color:
-                                                                              isReasoningActive
-                                                                              ? accent
-                                                                              : theme.colorScheme.onSurface,
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ],
+                                                                alignment: Alignment.center,
+                                                                child: ReasoningIcons.levelIcon(
+                                                                  request.level,
+                                                                  size: 16,
+                                                                  color: isReasoningActive
+                                                                      ? accent
+                                                                      : theme.colorScheme.onSurface.withValues(alpha: 0.80),
                                                                 ),
                                                               ),
                                                             );

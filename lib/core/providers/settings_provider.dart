@@ -522,7 +522,7 @@ class SettingsProvider extends ChangeNotifier {
   // Theme palette & dynamic color
   String _themePaletteId = ThemePalettes.grokId;
   String get themePaletteId => _themePaletteId;
-  bool _useDynamicColor = true; // when supported on Android
+  bool _useDynamicColor = false; // when supported on Android
   bool get useDynamicColor => _useDynamicColor;
   bool _dynamicColorSupported = false; // runtime capability, not persisted
   bool get dynamicColorSupported => _dynamicColorSupported;
@@ -694,7 +694,7 @@ class SettingsProvider extends ChangeNotifier {
         _themeMode = ThemeMode.system;
     }
     _themePaletteId = prefs.getString(_themePaletteKey) ?? ThemePalettes.grokId;
-    _useDynamicColor = prefs.getBool(_useDynamicColorKey) ?? true;
+    _useDynamicColor = prefs.getBool(_useDynamicColorKey) ?? false;
     _loadCustomThemes(prefs);
     final cfgStr = prefs.getString(_providerConfigsKey);
     if (cfgStr != null && cfgStr.isNotEmpty) {
@@ -2655,11 +2655,21 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> setThemePalette(String id) async {
-    if (_themePaletteId == id) return;
-    _themePaletteId = id;
-    notifyListeners();
     final prefs = _preferences;
-    await prefs.setString(_themePaletteKey, id);
+    bool changed = false;
+    if (_useDynamicColor) {
+      _useDynamicColor = false;
+      await prefs.setBool(_useDynamicColorKey, false);
+      changed = true;
+    }
+    if (_themePaletteId != id) {
+      _themePaletteId = id;
+      await prefs.setString(_themePaletteKey, id);
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+    }
   }
 
   Future<void> setUseDynamicColor(bool v) async {
@@ -2778,6 +2788,10 @@ class SettingsProvider extends ChangeNotifier {
       next.add(t);
     }
     _customThemes = next;
+    if (_useDynamicColor) {
+      _useDynamicColor = false;
+      await _preferences.setBool(_useDynamicColorKey, false);
+    }
     notifyListeners();
     await _persistCustomThemes();
     return t;
@@ -2805,16 +2819,24 @@ class SettingsProvider extends ChangeNotifier {
   /// Select a custom theme and make it the active palette.
   Future<void> selectCustomTheme(String id) async {
     if (!_customThemes.any((t) => t.id == id)) return;
-    final changed =
-        _selectedCustomThemeId != id ||
-        _themePaletteId != ThemePalettes.customPaletteId;
-    if (!changed) return;
-    _selectedCustomThemeId = id;
-    _themePaletteId = ThemePalettes.customPaletteId;
-    notifyListeners();
     final prefs = _preferences;
-    await prefs.setString(_customThemeSelectedKey, id);
-    await prefs.setString(_themePaletteKey, ThemePalettes.customPaletteId);
+    bool changed = false;
+    if (_useDynamicColor) {
+      _useDynamicColor = false;
+      await prefs.setBool(_useDynamicColorKey, false);
+      changed = true;
+    }
+    if (_selectedCustomThemeId != id ||
+        _themePaletteId != ThemePalettes.customPaletteId) {
+      _selectedCustomThemeId = id;
+      _themePaletteId = ThemePalettes.customPaletteId;
+      await prefs.setString(_customThemeSelectedKey, id);
+      await prefs.setString(_themePaletteKey, ThemePalettes.customPaletteId);
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+    }
   }
 
   /// Parse a shared custom-theme JSON string, save it and return the stored
