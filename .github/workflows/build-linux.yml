@@ -1,0 +1,269 @@
+name: Build Linux (x86_64)
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish to GitHub Release'
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: false
+        default: ''
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  linux:
+    name: Build Linux x86_64 (AppImage / DEB / tar.gz / RPM)
+    runs-on: ubuntu-22.04
+    permissions: write-all
+
+    steps:
+      - name: 📦 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config libgtk-3-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-tools \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+            rpm patchelf libfuse2 file \
+            libkeybinder-3.0-dev libayatana-appindicator3-dev
+
+      - name: 🐦 Setup Flutter (Master)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: master
+          cache: true
+
+      - name: 📝 Inject fallback secrets
+        shell: bash
+        run: |
+          mkdir -p lib/secrets
+          cat > lib/secrets/fallback.dart <<'FALLBACK'
+          const String siliconflowFallbackKey = '${{ secrets.SILICONFLOW_KEY }}';
+          FALLBACK
+
+      - name: 🔧 Get Dependencies
+        run: flutter pub get
+
+      - name: 📝 Get Version
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION_NUMBER=$(echo $VERSION | cut -d'+' -f1)" >> $GITHUB_ENV
+          echo "Version: $VERSION"
+
+      - name: 🏗️ Build Linux Release
+        run: flutter build linux --release
+
+      - name: 📦 Package tar.gz
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czf ../../../../../VOID_linux_${VERSION}_x86_64.tar.gz .
+          ls -lh ../../../../../VOID_linux_${VERSION}_x86_64.tar.gz
+
+      - name: 📦 Create AppImage
+        run: |
+          if [ -f tool/build_appimage.sh ]; then
+            bash tool/build_appimage.sh build/linux/x64/release/bundle "$VERSION"
+            # Rename to VOID branding if Kelivo name was used
+            if [ -f "Kelivo-${VERSION}-x86_64.AppImage" ]; then
+              mv "Kelivo-${VERSION}-x86_64.AppImage" "VOID-${VERSION}-x86_64.AppImage"
+            fi
+          else
+            echo "⚠️ tool/build_appimage.sh not found – skipping AppImage"
+          fi
+
+      - name: 🧪 Verify AppImage (optional)
+        continue-on-error: true
+        run: |
+          if [ -f "VOID-${VERSION}-x86_64.AppImage" ]; then
+            if [ -f tool/test_appimage.sh ]; then
+              bash tool/test_appimage.sh "VOID-${VERSION}-x86_64.AppImage" || true
+            fi
+            chmod +x "VOID-${VERSION}-x86_64.AppImage"
+            file "VOID-${VERSION}-x86_64.AppImage"
+          fi
+
+      - name: 📦 Create DEB package
+        run: |
+          mkdir -p deb/DEBIAN
+          mkdir -p deb/opt/void
+          mkdir -p deb/usr/share/applications
+          mkdir -p deb/usr/share/icons/hicolor/256x256/apps
+          mkdir -p deb/usr/bin
+
+          cp -r build/linux/x64/release/bundle/* deb/opt/void/
+
+          # Detect binary name
+          BINARY=$(find build/linux/x64/release/bundle -maxdepth 1 -type f -executable | head -1 | xargs basename)
+          echo "Detected binary: $BINARY"
+
+          ln -sf /opt/void/$BINARY deb/usr/bin/void
+          # Also keep kelivo symlink for compatibility
+          ln -sf /opt/void/$BINARY deb/usr/bin/kelivo
+
+          cat > deb/DEBIAN/control << EOF
+          Package: void
+          Version: ${VERSION_NUMBER}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Keshav <cingkeshav123@gmail.com>
+          Depends: libgtk-3-0, libstdc++6, libglu1-mesa, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, libglib2.0-0, libc6
+          Description: VOID - Privacy-first AI assistant & LLM client
+           Cross-platform AI agent with workspace tools, MCP support and local storage.
+          EOF
+
+          cat > deb/usr/share/applications/void.desktop << EOF
+          [Desktop Entry]
+          Name=VOID
+          Comment=Privacy-first AI assistant & LLM client
+          Exec=/opt/void/$BINARY
+          Icon=void
+          Type=Application
+          Categories=Utility;Network;
+          Terminal=false
+          EOF
+
+          ICON_SOURCE="assets/app_icon.png"
+          if [ -f "linux/kelivo.png" ]; then
+            ICON_SOURCE="linux/kelivo.png"
+          elif [ -f "assets/app_icon.png" ]; then
+            ICON_SOURCE="assets/app_icon.png"
+          fi
+          if [ -f "$ICON_SOURCE" ]; then
+            install -Dm644 "$ICON_SOURCE" deb/usr/share/icons/hicolor/256x256/apps/void.png
+          else
+            echo "⚠️ No icon found, DEB will have no icon"
+          fi
+
+          dpkg-deb --build deb "VOID_linux_${VERSION}_amd64.deb"
+          ls -lh "VOID_linux_${VERSION}_amd64.deb"
+
+      - name: 📦 Create RPM package
+        run: |
+          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          mkdir -p void-${VERSION_NUMBER}
+          cp -r build/linux/x64/release/bundle/* void-${VERSION_NUMBER}/
+
+          BINARY=$(find build/linux/x64/release/bundle -maxdepth 1 -type f -executable | head -1 | xargs basename)
+          echo "Detected binary: $BINARY"
+
+          ICON_SOURCE="assets/app_icon.png"
+          if [ -f "linux/kelivo.png" ]; then ICON_SOURCE="linux/kelivo.png"; fi
+          if [ -f "$ICON_SOURCE" ]; then
+            cp "$ICON_SOURCE" void-${VERSION_NUMBER}/void.png
+          fi
+
+          tar -czf ~/rpmbuild/SOURCES/void-${VERSION_NUMBER}.tar.gz void-${VERSION_NUMBER}
+
+          cat > ~/rpmbuild/SPECS/void.spec << EOF
+          Name:           void
+          Version:        ${VERSION_NUMBER}
+          Release:        1%{?dist}
+          Summary:        VOID - Privacy-first AI assistant & LLM client
+          License:        AGPL-3.0
+          Source0:        %{name}-%{version}.tar.gz
+          BuildArch:      x86_64
+          Requires:       gtk3, libstdc++ >= 6, mesa-libGLU, gstreamer1, gstreamer1-plugins-base, glib2, glibc
+
+          %description
+          Cross-platform AI agent with workspace tools, MCP support and local storage.
+
+          %prep
+          %setup -q
+
+          %install
+          mkdir -p %{buildroot}/opt/void
+          cp -a * %{buildroot}/opt/void/
+          mkdir -p %{buildroot}/usr/bin
+          ln -sf /opt/void/$BINARY %{buildroot}/usr/bin/void
+          ln -sf /opt/void/$BINARY %{buildroot}/usr/bin/kelivo
+
+          mkdir -p %{buildroot}/usr/share/applications
+          cat > %{buildroot}/usr/share/applications/void.desktop << DESKTOPEOF
+          [Desktop Entry]
+          Name=VOID
+          Comment=Privacy-first AI assistant & LLM client
+          Exec=/opt/void/$BINARY
+          Icon=void
+          Type=Application
+          Categories=Utility;Network;
+          DESKTOPEOF
+
+          if [ -f void.png ]; then
+            mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
+            cp void.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/void.png
+          fi
+
+          %files
+          /opt/void
+          /usr/bin/void
+          /usr/bin/kelivo
+          /usr/share/applications/void.desktop
+          %if 0%{?has_icon}
+          /usr/share/icons/hicolor/256x256/apps/void.png
+          %endif
+
+          %changelog
+          * $(date "+%a %b %d %Y") Keshav <cingkeshav123@gmail.com> - ${VERSION_NUMBER}-1
+          - Linux package for VOID
+          EOF
+
+          # Fix the conditional icon in %files
+          if [ -f void-${VERSION_NUMBER}/void.png ]; then
+            sed -i 's/%if 0%{?has_icon}//' ~/rpmbuild/SPECS/void.spec
+            sed -i 's/%endif//' ~/rpmbuild/SPECS/void.spec
+          else
+            sed -i '/void.png/d' ~/rpmbuild/SPECS/void.spec
+            sed -i '/%if 0%{?has_icon}/d' ~/rpmbuild/SPECS/void.spec
+            sed -i '/%endif/d' ~/rpmbuild/SPECS/void.spec
+          fi
+
+          rpmbuild -bb ~/rpmbuild/SPECS/void.spec
+          cp ~/rpmbuild/RPMS/x86_64/void-*.rpm "VOID_linux_${VERSION}_x86_64.rpm" || true
+          ls -lh VOID_linux_*.rpm || echo "RPM not produced"
+
+      - name: 📤 Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: VOID-Linux-x86_64
+          path: |
+            VOID_linux_*.tar.gz
+            VOID-*-x86_64.AppImage
+            VOID_linux_*_amd64.deb
+            VOID_linux_*.rpm
+          if-no-files-found: warn
+
+      - name: 🚀 Publish to GitHub Release
+        if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: ${{ github.event.inputs.release_tag }}
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            VOID_linux_*.tar.gz
+            VOID-*-x86_64.AppImage
+            VOID_linux_*_amd64.deb
+            VOID_linux_*.rpm
