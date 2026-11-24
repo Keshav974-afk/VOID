@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/api/retry_policy.dart';
+import '../../../core/services/vision/mirage_vision_service.dart';
 
 /// OCR 缓存条目
 class OcrCacheEntry {
@@ -125,6 +126,19 @@ class OcrService {
     final settings = context.read<SettingsProvider>();
     final prov = settings.ocrModelProvider;
     final model = settings.ocrModelId;
+
+    if (prov == SettingsProvider.onDeviceProviderKey ||
+        model == SettingsProvider.mirageModelId ||
+        settings.mirageVisionEnabled) {
+      final res = await MirageVisionService.instance.processImages(
+        imagePaths,
+        prompt: settings.ocrPrompt,
+      );
+      if (res != null && res.isNotEmpty) {
+        return res;
+      }
+    }
+
     if (prov == null || model == null) return null;
 
     final cfg = settings.getProviderConfig(prov);

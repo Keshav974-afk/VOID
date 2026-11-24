@@ -158,6 +158,9 @@ class SettingsProvider extends ChangeNotifier {
       'translate_generation_thinking_enabled_v1';
   static const String _ocrGenerationThinkingEnabledKey =
       'ocr_generation_thinking_enabled_v1';
+  static const String onDeviceProviderKey = 'on_device';
+  static const String mirageModelId = 'mirage-22m';
+  static const String _mirageVisionEnabledKey = 'mirage_vision_enabled_v1';
   static const String _memoryModelKey = 'memory_model_v1';
   static const String _memoryModelThinkingEnabledKey =
       'memory_model_thinking_enabled_v1';
@@ -812,8 +815,13 @@ class SettingsProvider extends ChangeNotifier {
     final ocrp = prefs.getString(_ocrPromptKey);
     _ocrPrompt = ocrp ?? defaultOcrPrompt;
     // load OCR enabled (only effective when model is configured)
+    _mirageVisionEnabled = prefs.getBool(_mirageVisionEnabledKey) ?? false;
     _ocrEnabled = prefs.getBool(_ocrEnabledKey) ?? false;
-    if (_ocrModelProvider == null || _ocrModelId == null) {
+    if (_mirageVisionEnabled) {
+      _ocrModelProvider ??= onDeviceProviderKey;
+      _ocrModelId ??= mirageModelId;
+      _ocrEnabled = true;
+    } else if (_ocrModelProvider == null || _ocrModelId == null) {
       _ocrEnabled = false;
     }
     // load summary model
@@ -3781,27 +3789,55 @@ Do not interpret or translate—only transcribe and describe what is visually pr
 
   bool _ocrEnabled = false;
   bool get ocrEnabled => _ocrEnabled;
+  bool _mirageVisionEnabled = false;
+  bool get mirageVisionEnabled => _mirageVisionEnabled;
 
   /// OCR is enabled and a model is configured, so attached images become text.
   bool get ocrActive =>
-      _ocrEnabled && _ocrModelProvider != null && _ocrModelId != null;
+      _ocrEnabled &&
+      ((_ocrModelProvider != null && _ocrModelId != null) ||
+          _mirageVisionEnabled);
+
+  Future<void> setMirageVisionEnabled(bool v) async {
+    if (_mirageVisionEnabled == v) return;
+    _mirageVisionEnabled = v;
+    if (v) {
+      _ocrModelProvider = onDeviceProviderKey;
+      _ocrModelId = mirageModelId;
+      _ocrEnabled = true;
+      final prefs = _preferences;
+      await prefs.setString(
+        _ocrModelKey,
+        '$onDeviceProviderKey::$mirageModelId',
+      );
+      await prefs.setBool(_ocrEnabledKey, true);
+    }
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setBool(_mirageVisionEnabledKey, v);
+  }
 
   Future<void> setOcrModel(String providerKey, String modelId) async {
     _ocrModelProvider = providerKey;
     _ocrModelId = modelId;
+    _mirageVisionEnabled =
+        (providerKey == onDeviceProviderKey && modelId == mirageModelId);
     notifyListeners();
     final prefs = _preferences;
     await prefs.setString(_ocrModelKey, '$providerKey::$modelId');
+    await prefs.setBool(_mirageVisionEnabledKey, _mirageVisionEnabled);
   }
 
   Future<void> resetOcrModel() async {
     _ocrModelProvider = null;
     _ocrModelId = null;
     _ocrEnabled = false;
+    _mirageVisionEnabled = false;
     notifyListeners();
     final prefs = _preferences;
     await prefs.remove(_ocrModelKey);
     await prefs.setBool(_ocrEnabledKey, false);
+    await prefs.setBool(_mirageVisionEnabledKey, false);
   }
 
   Future<void> setOcrPrompt(String prompt) async {
@@ -3814,8 +3850,9 @@ Do not interpret or translate—only transcribe and describe what is visually pr
   Future<void> resetOcrPrompt() async => setOcrPrompt(defaultOcrPrompt);
 
   Future<void> setOcrEnabled(bool value) async {
-    // If there is no OCR model configured, force disable.
-    if (_ocrModelProvider == null || _ocrModelId == null) {
+    // If there is no OCR model configured and Mirage is not enabled, force disable.
+    if ((_ocrModelProvider == null || _ocrModelId == null) &&
+        !_mirageVisionEnabled) {
       value = false;
     }
     if (_ocrEnabled == value) return;

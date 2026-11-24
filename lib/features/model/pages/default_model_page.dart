@@ -882,23 +882,30 @@ class _ModelCard extends StatelessWidget {
     String? providerName;
     String? modelDisplay;
     if (effectiveProvider != null && effectiveModelId != null) {
-      final cfg = settings.getProviderConfig(effectiveProvider);
-      providerName = cfg.name.isNotEmpty ? cfg.name : effectiveProvider;
-      final ov = cfg.modelOverrides[effectiveModelId] as Map?;
-      if (ov != null) {
-        final overrideName = (ov['name'] as String?)?.trim();
-        if (overrideName != null && overrideName.isNotEmpty) {
-          modelDisplay = overrideName;
-        } else {
-          final apiId = (ov['apiModelId'] ?? ov['api_model_id'])
-              ?.toString()
-              .trim();
-          modelDisplay = (apiId != null && apiId.isNotEmpty)
-              ? apiId
-              : effectiveModelId;
-        }
+      if (effectiveProvider == SettingsProvider.onDeviceProviderKey) {
+        providerName = 'On-Device';
+        modelDisplay = effectiveModelId == SettingsProvider.mirageModelId
+            ? 'Mirage 22M (Vision & OCR)'
+            : effectiveModelId;
       } else {
-        modelDisplay = effectiveModelId;
+        final cfg = settings.getProviderConfig(effectiveProvider);
+        providerName = cfg.name.isNotEmpty ? cfg.name : effectiveProvider;
+        final ov = cfg.modelOverrides[effectiveModelId] as Map?;
+        if (ov != null) {
+          final overrideName = (ov['name'] as String?)?.trim();
+          if (overrideName != null && overrideName.isNotEmpty) {
+            modelDisplay = overrideName;
+          } else {
+            final apiId = (ov['apiModelId'] ?? ov['api_model_id'])
+                ?.toString()
+                .trim();
+            modelDisplay = (apiId != null && apiId.isNotEmpty)
+                ? apiId
+                : effectiveModelId;
+          }
+        } else {
+          modelDisplay = effectiveModelId;
+        }
       }
     }
 
